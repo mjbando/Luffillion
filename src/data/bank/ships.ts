@@ -21,6 +21,8 @@ export const SHIPS_QUESTION: Question = {
       "Baratie",
       "Noah",
       "Pluton",
+    ],
+    rare: [
       "Ark Maxim|Maxim",
       "Going Luffy-senpai|Mister Luffy Go|Going Luffy",
       "Hitsugibune|Coffin Boat",
@@ -43,8 +45,6 @@ export const SHIPS_QUESTION: Question = {
       "Shark Submerge III|Shark Submerge",
       "Mammoth",
       "Gran Tesoro",
-    ],
-    rare: [
       "Piece of Spadille",
       "Sleeping White Horse of the Forest",
       "Happosai",
@@ -54,6 +54,8 @@ export const SHIPS_QUESTION: Question = {
       "Santa Maria",
       "Nita Maria",
       "Jewelry Margherita",
+    ],
+    epic: [
       "Grudge Dolph",
       "Stay Tune",
       "Liberal Hind",
@@ -76,8 +78,6 @@ export const SHIPS_QUESTION: Question = {
       "Battle Franky|Cutty Flam",
       "Takoyaki 8",
       "Tartes",
-    ],
-    epic: [
       "Full",
       "Sabagashira I|Sabagashira",
       "Hakubokumaru",

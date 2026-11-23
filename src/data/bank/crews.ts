@@ -38,6 +38,8 @@ export const CREWS_QUESTION: Question = {
       "Five Elders|Gorosei",
       "Straw Hat Grand Fleet|Grand Fleet",
       "Germa 66",
+    ],
+    rare: [
       "SWORD",
       "Holy Knights|God's Knights",
       "Seraphim",
@@ -85,8 +87,6 @@ export const CREWS_QUESTION: Question = {
       "Dadan Family|Mountain Bandits",
       "Buggy's Delivery",
       "Neo Marines",
-    ],
-    rare: [
       "Saruyama Alliance",
       "Masira Pirates",
       "Shoujou Pirates",
@@ -100,6 +100,8 @@ export const CREWS_QUESTION: Question = {
       "Barto Club Alliance",
       "Ninja-Pirate-Mink-Samurai Alliance",
       "Heart-Straw Hat Alliance",
+    ],
+    epic: [
       "Kurozumi Family|Kurozumi Clan",
       "Shimotsuki Family|Shimotsuki Clan",
       "Oniwabanshu",
@@ -150,8 +152,6 @@ export const CREWS_QUESTION: Question = {
       "Trump Pirates",
       "Silver Mine Alliance",
       "Cidre Guild",
-    ],
-    epic: [
       "Candy Pirates",
       "Peachbeard Pirates",
       "Gyro Pirates",

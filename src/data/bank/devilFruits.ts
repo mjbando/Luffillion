@@ -36,6 +36,8 @@ export const DEVIL_FRUITS_QUESTION: Question = {
       "Jiki Jiki no Mi|Magnet-Magnet Fruit",
       "Kage Kage no Mi|Shadow-Shadow Fruit",
       "Gasu Gasu no Mi|Gas-Gas Fruit",
+    ],
+    rare: [
       "Yuki Yuki no Mi|Snow-Snow Fruit",
       "Mane Mane no Mi|Clone-Clone Fruit",
       "Sube Sube no Mi|Smooth-Smooth Fruit|Slip-Slip Fruit",
@@ -87,8 +89,6 @@ export const DEVIL_FRUITS_QUESTION: Question = {
       "Fuwa Fuwa no Mi|Float-Float Fruit",
       "Uta Uta no Mi|Sing-Sing Fruit",
       "Goru Goru no Mi|Gol-Gol Fruit|Gold-Gold Fruit",
-    ],
-    rare: [
       "Shari Shari no Mi|Wheel-Wheel Fruit",
       "Beri Beri no Mi|Berry-Berry Fruit",
       "Sabi Sabi no Mi|Rust-Rust Fruit",
@@ -97,6 +97,8 @@ export const DEVIL_FRUITS_QUESTION: Question = {
       "Ishi Ishi no Mi|Stone-Stone Fruit",
       "Hira Hira no Mi|Ripple-Ripple Fruit|Flag Fruit",
       "Ton Ton no Mi|Ton-Ton Fruit",
+    ],
+    epic: [
       "Ato Ato no Mi|Art-Art Fruit",
       "Jake Jake no Mi|Jacket-Jacket Fruit",
       "Guru Guru no Mi|Spin-Spin Fruit",
@@ -146,8 +148,6 @@ export const DEVIL_FRUITS_QUESTION: Question = {
       "Gasha Gasha no Mi|Clank-Clank Fruit",
       "Nui Nui no Mi|Stitch-Stitch Fruit",
       "Pocke Pocke no Mi|Pocket-Pocket Fruit",
-    ],
-    epic: [
       "Kuri Kuri no Mi|Cream-Cream Fruit",
       "Bata Bata no Mi|Butter-Butter Fruit",
       "Inu Inu no Mi, Model: Tanuki|Dog-Dog Fruit, Model: Bake-danuki|Tanuki Fruit",

@@ -43,6 +43,8 @@ export const LOCATIONS_QUESTION: Question = {
       "Impel Down",
       "Fish-Man Island|Fishman Island",
       "Punk Hazard",
+    ],
+    rare: [
       "Zou",
       "Whole Cake Island|Totto Land",
       "Onigashima",
@@ -101,8 +103,6 @@ export const LOCATIONS_QUESTION: Question = {
       "White-White Sea",
       "Sphinx",
       "Winner Island",
-    ],
-    rare: [
       "Flevance|White City",
       "Swallow Island",
       "Minion Island",
@@ -133,6 +133,8 @@ export const LOCATIONS_QUESTION: Question = {
       "Pangaea Castle",
       "Domain of the Gods",
       "Gates of Justice",
+    ],
+    epic: [
       "Bridge of Hesitation",
       "Tower of Law|Tower of Justice",
       "Judicial Island",
@@ -205,8 +207,6 @@ export const LOCATIONS_QUESTION: Question = {
       "G-5",
       "Elegia",
       "Gran Tesoro",
-    ],
-    epic: [
       "Pucci|Putchi",
       "San Faldo",
       "St. Poplar",

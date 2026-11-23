@@ -43,6 +43,8 @@ export const TECHNIQUES_QUESTION: Question = {
       "Ifrit Jambe",
       "Hiken|Fire Fist",
       "Room",
+    ],
+    rare: [
       "Shambles|Chambres",
       "Kamusari|Divine Departure",
       "Raimei Hakke|Thunder Bagua",
@@ -138,8 +140,6 @@ export const TECHNIQUES_QUESTION: Question = {
       "Negative Hollow",
       "Future Sight",
       "Ryuo",
-    ],
-    rare: [
       "Gomu Gomu no Cannon|Gum-Gum Cannon",
       "Gomu Gomu no Volcano|Gum-Gum Volcano",
       "Gomu Gomu no Net|Gum-Gum Net",
@@ -200,6 +200,8 @@ export const TECHNIQUES_QUESTION: Question = {
       "Flambage Shot",
       "Bien Cuit: Grill Shot|Grill Shot",
       "Spectre",
+    ],
+    epic: [
       "Extra Hachis",
       "Poele a Frire: Spectre|Poele a Frire",
       "Thunder Lance Tempo",
@@ -328,8 +330,6 @@ export const TECHNIQUES_QUESTION: Question = {
       "Sulong",
       "Hasshoken",
       "Okama Kenpo",
-    ],
-    epic: [
       "Gomu Gomu no Baku Baku|Gum-Gum Munch-Munch",
       "Gomu Gomu no Mikata Robo|Gum-Gum Ally Robot|Ally Robot",
       "Gomu Gomu no Saw|Gum-Gum Saw",

@@ -10,8 +10,14 @@ export interface ParsedEntry {
 }
 
 export function todayKey(date: Date = new Date()): string {
-  // UTC keeps the daily set identical for every player on the same calendar day.
-  return date.toISOString().slice(0, 10);
+  // Eastern Time (12:00 AM EST reset) keeps the daily cycle identical for every player.
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(date); // returns YYYY-MM-DD
 }
 
 export function normalize(input: string): string {
@@ -91,11 +97,11 @@ export function pickRunQuestions(exclude: string[] = [], rand: () => number = Ma
   return picked;
 }
 
-// ---------- Daily run: one shared set of 7 per UTC day ----------
+// ---------- Daily run: one shared set of 7 per day (resets at 12:00 AM EST) ----------
 const dailyCache = new Map<string, Question[]>();
 
 function shiftDay(day: string, delta: number): string {
-  const d = new Date(`${day}T00:00:00Z`);
+  const d = new Date(`${day}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
 }
@@ -115,8 +121,31 @@ export function getDailyRun(day: string): Question[] {
 }
 
 export function msUntilNextDay(now: Date = new Date()): number {
-  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
-  return next - now.getTime();
+  const currentKey = todayKey(now);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour12: false,
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+  }).formatToParts(now);
+  const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10) % 24;
+  const m = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+  const s = parseInt(parts.find((p) => p.type === "second")?.value ?? "0", 10);
+  const ms = now.getMilliseconds();
+
+  // Approximate ms remaining until 12:00 AM Eastern:
+  const approxRemaining = ((23 - h) * 3600 + (59 - m) * 60 + (60 - s)) * 1000 - ms;
+  let target = new Date(now.getTime() + approxRemaining);
+
+  // Exact boundary alignment when the Eastern date key changes:
+  while (todayKey(target) === currentKey) {
+    target = new Date(target.getTime() + 1000);
+  }
+  while (todayKey(new Date(target.getTime() - 1000)) !== currentKey) {
+    target = new Date(target.getTime() - 1000);
+  }
+  return Math.max(0, target.getTime() - now.getTime());
 }
 
 // Deterministically picks today's 7 questions from the bank (same for everyone that day).

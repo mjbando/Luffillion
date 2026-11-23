@@ -5,6 +5,24 @@
   --font-pixel-display: "Pixelify Sans", ui-monospace, monospace;
 }
 
+/* The private log opens above both the game HUD and the daily-results screen. */
+.captain-dialog {
+  margin: auto;
+  padding: 0;
+  width: min(29rem, calc(100vw - 1.5rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color-scheme: dark;
+  background: #0d182b;
+  color: #f1f5f9;
+  box-shadow: 0 6px 0 #070d17, 0 20px 80px #0009;
+}
+.captain-dialog::backdrop { background: rgb(5 10 22 / 0.78); backdrop-filter: blur(3px); }
+.captain-dialog :is(button, summary, input):focus-visible, .captain-entry:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+.captain-dialog summary::-webkit-details-marker { display: none; }
+@media (max-height: 480px) { .captain-dialog { max-height: calc(100dvh - 0.75rem); } }
+
 /* ---------- Pixel UI chrome ---------- */
 .px-box {
   background: rgba(11, 20, 38, 0.92);
@@ -215,3 +233,15 @@
   100% { opacity: 1; transform: none; }
 }
 .countdown-pop { animation: countdown-pop 0.35s ease-out; }
+
+/* End-of-run score graph */
+@keyframes graph-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+.graph-bar { transform-origin: bottom; animation: graph-grow 0.6s ease-out both; }
+@keyframes graph-you {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.graph-you { animation: graph-you 1s ease-in-out infinite; }

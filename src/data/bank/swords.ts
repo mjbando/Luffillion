@@ -19,6 +19,8 @@ export const SWORDS_QUESTION: Question = {
       "Napoleon",
       "Murakumogiri",
       "Ame no Habakiri|Habakiri",
+    ],
+    rare: [
       "Yubashiri",
       "Nidai Kitetsu",
       "Shodai Kitetsu",
@@ -30,8 +32,6 @@ export const SWORDS_QUESTION: Question = {
       "Kiribachi",
       "Yakuza Kasen",
       "Punishers",
-    ],
-    rare: [
       "Kashu",
       "Oto",
       "Kogarashi",
@@ -39,6 +39,8 @@ export const SWORDS_QUESTION: Question = {
       "Pretzel",
       "Soto Muso",
       "Sukesan",
+    ],
+    epic: [
       "Kakusan",
       "Same-kiri Bocho|Samekiri Bocho|Shark-Cleaver",
       "Eisen Whip",
@@ -52,8 +54,6 @@ export const SWORDS_QUESTION: Question = {
       "Hana Arashi|Nose Storm",
       "Kogatana|Mihawk's Dagger",
       "Cognac",
-    ],
-    epic: [
       "Yamaoroshi",
       "Franken",
       "Bamboo",

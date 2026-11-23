@@ -13,6 +13,22 @@ import {
 } from "@/data/tiers";
 import PixelWorld, { type RunSignal, type WorldStatus } from "./PixelWorld";
 import Effects from "./Effects";
+import CaptainLog, { LogIcon } from "./CaptainLog";
+import { firstOpen, fromRecap, mergeProgress, type Captain, type FinishedVoyage, type Progress, type QState } from "@/lib/voyage";
+import { cacheRun, checkpointBody, clearCaptainCache, clearLinkedGuest, readLocalRun, voyageRequest } from "@/lib/voyage-client";
+import {
+  isMuted,
+  playClick,
+  playNext,
+  playPull,
+  playSaga,
+  playSetSail,
+  playSuggest,
+  playTick,
+  playTimeout,
+  playWrong,
+  setMuted,
+} from "@/lib/sound";
 
 interface DailyQuestion {
   index: number;
@@ -23,35 +39,15 @@ interface DailyQuestion {
 }
 
 interface DailyResponse {
-  day: string; // run id (each run has its own questions)
+  day: string;
+  captain: Captain | null;
+  finished: FinishedVoyage | null;
+  checkpoint: Progress | null;
+  nextRunInMs: number;
   questions: DailyQuestion[];
   seconds: number;
   maxPoints: number;
   serverNow: number;
-}
-
-interface QState {
-  started?: number;
-  status?: "solved" | "expired";
-  tier?: Tier;
-  points?: number;
-  answer?: string;
-  attempts: number;
-  wrong: string[];
-}
-
-interface RunRecord {
-  questionIndex: number;
-  tier: Tier;
-  points: number;
-  arc: string;
-}
-
-interface Progress {
-  day: string; // run id
-  ids?: string[]; // the run's question ids
-  q: Record<number, QState>;
-  runs: RunRecord[];
 }
 
 interface RevealItem {
@@ -68,13 +64,14 @@ interface Reveal {
 
 const EMPTY_Q: QState = { attempts: 0, wrong: [] };
 const LIMIT_MS = QUESTION_SECONDS * 1000;
-const RUN_KEY = "luffillion:daily";
-
-function firstOpen(p: Progress): number {
-  for (let i = 0; i < DAILY_QUESTION_COUNT; i++) {
-    if (!p.q[i]?.status) return i;
-  }
-  return DAILY_QUESTION_COUNT;
+interface RunStats {
+  day: string;
+  total: number;
+  average: number;
+  top: number;
+  binSize: number;
+  bins: { from: number; to: number; count: number }[];
+  you: { score: number; solved: number; beat: number; rank: number } | null;
 }
 
 export default function Game() {
@@ -99,43 +96,72 @@ export default function Game() {
   const [logOpen, setLogOpen] = useState(false);
   const [nextRunAt, setNextRunAt] = useState(0);
   const [showCountdown, setShowCountdown] = useState(true);
+  const [stats, setStats] = useState<RunStats | null>(null);
+  const [muted, setMutedState] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const scopeVersion = useRef(0);
   const revealLoading = useRef(new Set<number>());
   const nopeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const lastTickRef = useRef<string>("");
 
-  // Load today's run (one run per day; everyone gets the same 7 questions).
-  const loadRun = useCallback(() => {
-    return fetch("/api/daily", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d: DailyResponse & { runId: string; nextRunInMs: number }) => {
-        let p: Progress = { day: d.day, ids: d.questions.map((q) => q.id), q: {}, runs: [] };
-        try {
-          const raw = localStorage.getItem(`${RUN_KEY}:${d.day}`);
-          if (raw) {
-            const parsed = JSON.parse(raw) as Progress;
-            if (parsed.day === d.day) p = parsed;
-          }
-        } catch {
-          // ignore corrupt storage
-        }
-        revealLoading.current.clear();
-        setReveals({});
-        setGuess("");
-        setMessage(null);
-        setSuggestion(null);
-        setRunSignal(null);
-        setFx(null);
-        setSagaBanner(null);
-        lastSaga.current = null;
-        finishedLive.current = false;
-        setNextRunAt(Date.now() + d.nextRunInMs);
-        setShowCountdown(firstOpen(p) >= DAILY_QUESTION_COUNT);
-        setDaily(d);
-        setProgress(p);
-        setViewIndex(firstOpen(p));
-        setInitialPos(p.runs.reduce((sum, r) => sum + travelFor(r.points), 0));
-        setNow(Date.now());
-      });
+  useEffect(() => {
+    setMutedState(isMuted());
   }, []);
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+    if (!next) playClick();
+  }
+
+  // Hydrate the session and its save together, before enabling any timer or write.
+  const loadRun = useCallback(async (expectedCaptain?: string | null) => {
+    const version = ++scopeVersion.current;
+    const d = await voyageRequest<DailyResponse>("/api/daily");
+    if (version !== scopeVersion.current) return;
+    if (expectedCaptain !== undefined && (d.captain?.id ?? null) !== expectedCaptain) {
+      throw new Error("The session cookie wasn't available. Allow site cookies and try again.");
+    }
+    const ids = d.questions.map(q => q.id);
+    const local = readLocalRun(d.day, ids, d.captain?.id);
+    let p: Progress = local ?? { day: d.day, ids, q: {}, runs: [] };
+    if (d.checkpoint) p = mergeProgress(d.checkpoint, p);
+    if (d.finished) p = fromRecap(d.finished) ?? p;
+    const complete = !!d.finished || firstOpen(p) >= DAILY_QUESTION_COUNT;
+    revealLoading.current.clear();
+    setReveals({}); setGuess(""); setMessage(null); setSuggestion(null); setBusy(false);
+    setRunSignal(null); setFx(null); setSagaBanner(null); setCopied(false); setLogOpen(false);
+    lastSaga.current = null; finishedLive.current = complete;
+    setSaveMessage(""); setStats(null); setLoadError(null);
+    setNextRunAt(Date.now() + d.nextRunInMs); setShowCountdown(complete);
+    setDaily(d); setProgress(p); setViewIndex(complete ? DAILY_QUESTION_COUNT : firstOpen(p));
+    setInitialPos(d.finished?.score ?? p.runs.reduce((sum, r) => sum + travelFor(r.points), 0));
+    setNow(Date.now());
+  }, []);
+
+  function openAccount() { playClick(); setLogOpen(false); setAccountOpen(true); }
+  async function sessionChanged(captain: Captain | null, linkedGuest: boolean) {
+    const previous = daily?.captain?.id;
+    await loadRun(captain?.id ?? null);
+    if (previous && previous !== captain?.id) clearCaptainCache(previous);
+    if (linkedGuest && daily) clearLinkedGuest(daily.day);
+    try { localStorage.setItem("luffillion:session-changed", String(Date.now())); } catch { /* Optional tab notification. */ }
+  }
+
+  const activeCaptainId = daily?.captain?.id;
+  useEffect(() => {
+    const refreshSession = (event: StorageEvent) => {
+      if (event.key !== "luffillion:session-changed") return;
+      if (activeCaptainId) clearCaptainCache(activeCaptainId);
+      setAccountOpen(false); setDaily(null); setProgress(null); setStats(null);
+      loadRun().catch(() => setLoadError("Your session changed. Refresh to reopen the game."));
+    };
+    window.addEventListener("storage", refreshSession);
+    return () => window.removeEventListener("storage", refreshSession);
+  }, [activeCaptainId, loadRun]);
 
   useEffect(() => {
     loadRun().catch(() => setLoadError("Could not load today's run. Please refresh."));
@@ -158,10 +184,85 @@ export default function Game() {
     }
   }, [now, nextRunAt, loadRun]);
 
-  // Persist progress on every change.
+  const runDone = !!daily?.finished || (!!progress && firstOpen(progress) >= DAILY_QUESTION_COUNT);
+
+  // First completion is immutable on the server. A restored run only fetches stats.
   useEffect(() => {
-    if (progress) localStorage.setItem(`${RUN_KEY}:${progress.day}`, JSON.stringify(progress));
-  }, [progress]);
+    if (!runDone || !progress || !daily) return;
+    let live = true;
+    let retry: ReturnType<typeof setTimeout>;
+    const version = scopeVersion.current;
+    const current = () => live && scopeVersion.current === version;
+    const save = async () => {
+      try {
+        const accountId = daily.captain?.id ?? null;
+        const answers = daily.questions.map((_, i) => progress.q[i]?.answer ?? "");
+        // Backfill old guest score-only recaps if the browser still has the answers.
+        const backfill = daily.finished && !daily.finished.legs && firstOpen(progress) === DAILY_QUESTION_COUNT;
+        const data = !daily.finished || backfill
+          ? await voyageRequest<RunStats & { finished?: FinishedVoyage }>("/api/run", "POST", { accountId, day: progress.day, answers })
+          : await voyageRequest<RunStats & { finished?: FinishedVoyage }>(`/api/run?day=${progress.day}`);
+        if (!current()) return;
+        if (!data.you) throw new Error("Your session changed. Reload the game to reconnect.");
+        if (data.finished?.legs?.some((leg, i) => (leg.answer ?? "") !== answers[i])) {
+          await loadRun(accountId); // Another device finished first.
+          return;
+        }
+        setStats(data); setSaveMessage(daily.captain ? "✓ Voyage saved to your Captain's Log." : "");
+      } catch (e) {
+        if (!current()) return;
+        setSaveMessage(e instanceof Error ? e.message : "Couldn't save your score. Retrying…");
+        retry = setTimeout(save, 8000);
+      }
+    };
+    void save();
+    return () => { live = false; clearTimeout(retry); };
+  }, [runDone, progress, daily, loadRun]);
+
+  useEffect(() => {
+    if (!runDone || !showCountdown || !daily) return;
+    let live = true;
+    const refresh = () => voyageRequest<RunStats>(`/api/run?day=${daily.day}`)
+      .then(d => { if (live && d.you) setStats(d); }).catch(() => undefined);
+    const id = setInterval(refresh, 30000);
+    return () => { live = false; clearInterval(id); };
+  }, [runDone, showCountdown, daily]);
+
+  // Guest saves remain on this device. Captain saves are also checkpointed to Postgres.
+  useEffect(() => {
+    if (!progress || !daily) return;
+    const accountId = daily.captain?.id;
+    cacheRun(progress, accountId);
+    if (!accountId || runDone || !Object.keys(progress.q).length) return;
+    let live = true;
+    let retry: ReturnType<typeof setTimeout>;
+    const version = scopeVersion.current;
+    const current = () => live && version === scopeVersion.current;
+    const sync = async () => {
+      try {
+        setSaveMessage("Saving checkpoint…");
+        const saved = await voyageRequest<{ complete: boolean; progress: Progress | null }>("/api/account/progress", "PUT", {
+          accountId, progress: checkpointBody(progress),
+        });
+        if (!current()) return;
+        if (saved.complete) { await loadRun(accountId); return; }
+        if (saved.progress && Object.entries(saved.progress.q).some(([i, v]) => {
+          const local = progress.q[Number(i)];
+          return !local || v.started !== local.started || v.status !== local.status || v.answer !== local.answer || v.attempts !== local.attempts;
+        })) {
+          setProgress(saved.progress);
+          setViewIndex(firstOpen(saved.progress));
+        }
+        setSaveMessage("✓ Checkpoint saved. Your timer follows you across devices.");
+      } catch (e) {
+        if (!current()) return;
+        setSaveMessage(e instanceof Error ? e.message : "Checkpoint not synced. Retrying…");
+        retry = setTimeout(sync, 6000);
+      }
+    };
+    void sync();
+    return () => { live = false; clearTimeout(retry); };
+  }, [daily, progress, runDone, loadRun]);
 
   // Clock tick for the countdown.
   useEffect(() => {
@@ -169,28 +270,15 @@ export default function Game() {
     return () => clearInterval(id);
   }, []);
 
-  const activeIndex = progress ? firstOpen(progress) : 0;
+  const activeIndex = runDone ? DAILY_QUESTION_COUNT : progress ? firstOpen(progress) : 0;
   const allDone = progress ? activeIndex >= DAILY_QUESTION_COUNT : false;
-
-  // Start the 25s clock the first time the active question is shown.
-  useEffect(() => {
-    if (!progress || activeIndex >= DAILY_QUESTION_COUNT) return;
-    if (viewIndex !== activeIndex || progress.q[activeIndex]?.started) return;
-    setProgress((p) =>
-      p
-        ? {
-            ...p,
-            q: { ...p.q, [activeIndex]: { ...(p.q[activeIndex] ?? EMPTY_Q), started: Date.now() } },
-          }
-        : p,
-    );
-  }, [progress, viewIndex, activeIndex]);
 
   // Time out the active question.
   useEffect(() => {
     if (!progress || activeIndex >= DAILY_QUESTION_COUNT) return;
     const st = progress.q[activeIndex];
     if (st?.started && !st.status && now - st.started >= LIMIT_MS) {
+      playTimeout();
       setProgress((p) =>
         p
           ? {
@@ -210,29 +298,46 @@ export default function Game() {
   // Answer lists stay hidden until all 7 questions are over, then load for the recap.
   useEffect(() => {
     if (!progress || !daily) return;
-    if (firstOpen(progress) < DAILY_QUESTION_COUNT) return;
+    if (!runDone) return;
+    const version = scopeVersion.current;
     for (let i = 0; i < DAILY_QUESTION_COUNT; i++) {
-      if (progress.q[i]?.status && !reveals[i] && !revealLoading.current.has(i)) {
+      if (!reveals[i] && !revealLoading.current.has(i)) {
         revealLoading.current.add(i);
         fetch(`/api/reveal?q=${encodeURIComponent(daily.questions[i].id)}`)
           .then((r) => r.json())
           .then((data: Reveal & { error?: string }) => {
-            if (!data.error) setReveals((prev) => ({ ...prev, [i]: data }));
+            if (version === scopeVersion.current && !data.error) setReveals((prev) => ({ ...prev, [i]: data }));
           })
-          .finally(() => revealLoading.current.delete(i));
+          .catch(() => undefined)
+          .finally(() => { if (version === scopeVersion.current) revealLoading.current.delete(i); });
       }
     }
-  }, [progress, daily, reveals]);
+  }, [progress, daily, reveals, runDone]);
 
   const question = daily?.questions[viewIndex];
   const qs: QState = progress?.q[viewIndex] ?? EMPTY_Q;
   const isActive = viewIndex === activeIndex && !allDone;
+  const waitingToStart = isActive && !qs.started;
+  const timerRunning = isActive && Boolean(qs.started) && !qs.status;
   const remainingMs = qs.started && !qs.status ? Math.max(0, LIMIT_MS - (now - qs.started)) : LIMIT_MS;
   const remainingSec = Math.ceil(remainingMs / 1000);
-  const totalScore = progress
+  const totalScore = daily?.finished?.score ?? (progress
     ? Object.values(progress.q).reduce((sum, q) => sum + (q?.status === "solved" ? q.points ?? 0 : 0), 0)
-    : 0;
-  const journeyPos = progress ? progress.runs.reduce((sum, r) => sum + travelFor(r.points), 0) : 0;
+    : 0);
+  const journeyPos = daily?.finished?.score ?? (progress ? progress.runs.reduce((sum, r) => sum + travelFor(r.points), 0) : 0);
+
+  useEffect(() => {
+    if (timerRunning) inputRef.current?.focus();
+  }, [timerRunning, viewIndex]);
+
+  // Subtle countdown ticks in the final 5 seconds of a question.
+  useEffect(() => {
+    if (!timerRunning || remainingSec > 5 || remainingSec < 1) return;
+    const key = `${viewIndex}:${remainingSec}`;
+    if (lastTickRef.current === key) return;
+    lastTickRef.current = key;
+    playTick(remainingSec <= 3);
+  }, [timerRunning, remainingSec, viewIndex]);
 
   function handleWorld(status: WorldStatus) {
     setWorld(status);
@@ -242,7 +347,10 @@ export default function Game() {
     }
     if (status.saga !== lastSaga.current) {
       lastSaga.current = status.saga;
-      if (status.saga > 0) setSagaBanner({ id: Date.now(), saga: status.saga });
+      if (status.saga > 0) {
+        playSaga();
+        setSagaBanner({ id: Date.now(), saga: status.saga });
+      }
     }
   }
 
@@ -254,11 +362,14 @@ export default function Game() {
 
   function submitGuess(e: FormEvent) {
     e.preventDefault();
+    if (!guess.trim()) return;
+    playClick();
     void sendGuess(guess.trim());
   }
 
   function acceptSuggestion() {
     if (!suggestion || suggestion.q !== viewIndex) return;
+    playSuggest();
     void sendGuess(suggestion.name);
   }
 
@@ -267,6 +378,7 @@ export default function Game() {
     if (!text || !qs.started || qs.status) return;
     if (Date.now() - qs.started >= LIMIT_MS) return;
 
+    const version = scopeVersion.current;
     setBusy(true);
     setMessage(null);
     setSuggestion(null);
@@ -277,6 +389,7 @@ export default function Game() {
         body: JSON.stringify({ questionId: daily.questions[viewIndex].id, guess: text }),
       });
       const data = await res.json();
+      if (version !== scopeVersion.current) return;
       if (!res.ok) {
         setMessage(data.error ?? "Something went wrong.");
         return;
@@ -307,6 +420,7 @@ export default function Game() {
               }
             : p,
         );
+        playPull(tier);
         setRunSignal({
           id: stamp,
           to: newTotal,
@@ -317,6 +431,7 @@ export default function Game() {
         setFx({ id: stamp, tier });
         setGuess("");
       } else {
+        playWrong();
         const wrong = qs.wrong.some((w) => w.toLowerCase() === text.toLowerCase()) ? qs.wrong : [text, ...qs.wrong];
         setProgress((p) =>
           p
@@ -333,19 +448,57 @@ export default function Game() {
         }
       }
     } catch {
-      setMessage("Network hiccup. Try again.");
+      if (version === scopeVersion.current) setMessage("Network hiccup. Try again.");
     } finally {
-      setBusy(false);
+      if (version === scopeVersion.current) setBusy(false);
     }
   }
 
-  function nextQuestion() {
+  function startActiveQuestion() {
+    playSetSail();
+    const stamp = Date.now();
+    setNow(stamp);
     setSuggestion(null);
-    setViewIndex((v) => v + 1);
     setMessage(null);
+    setGuess("");
+    setViewIndex(activeIndex);
+    setProgress((p) => {
+      if (!p || activeIndex >= DAILY_QUESTION_COUNT || p.q[activeIndex]?.started) return p;
+      return {
+        ...p,
+        q: {
+          ...p.q,
+          [activeIndex]: { ...(p.q[activeIndex] ?? EMPTY_Q), started: stamp },
+        },
+      };
+    });
+  }
+
+  function nextQuestion() {
+    playNext();
+    const target = viewIndex + 1 < activeIndex ? activeIndex : viewIndex + 1;
+    const stamp = Date.now();
+    setNow(stamp);
+    setSuggestion(null);
+    setMessage(null);
+    setGuess("");
+    setViewIndex(target);
+    if (target === activeIndex && target < DAILY_QUESTION_COUNT) {
+      setProgress((p) => {
+        if (!p || p.q[target]?.started) return p;
+        return {
+          ...p,
+          q: {
+            ...p.q,
+            [target]: { ...(p.q[target] ?? EMPTY_Q), started: stamp },
+          },
+        };
+      });
+    }
   }
 
   function shareResults() {
+    playClick();
     if (!progress || !daily) return;
     const grid = daily.questions
       .map((_, i) => {
@@ -353,7 +506,10 @@ export default function Game() {
         return st?.status === "solved" && st.tier ? TIER_CONFIG[st.tier].emoji : "⬛";
       })
       .join("");
-    const text = `Luffillion ${daily.day}: ${totalScore}/${MAX_POINTS}\n${grid}`;
+    const beat = stats?.you && stats.total > 1 ? `\nBeat ${stats.you.beat}% of players` : "";
+    const result = daily.finished && !daily.finished.legs && firstOpen(progress) < DAILY_QUESTION_COUNT
+      ? `${daily.finished.solved}/${DAILY_QUESTION_COUNT} answered` : grid;
+    const text = `Luffillion ${daily.day}: ${totalScore}/${MAX_POINTS}${beat}\n${result}`;
     navigator.clipboard?.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
@@ -377,7 +533,10 @@ export default function Game() {
 
   return (
     <div id="game-root" className="fixed inset-0 overflow-hidden bg-[#05070f]">
-      <PixelWorld key={daily.day} storageKey={`luffillion-pos:${daily.day}`} signal={runSignal} initialPos={Math.max(initialPos, journeyPos)} onStatus={handleWorld} />
+      {accountOpen && <CaptainLog captain={daily.captain} progress={progress} clockRunning={Boolean(progress.q[activeIndex]?.started && !progress.q[activeIndex]?.status)}
+        historyRevision={`${daily.day}:${stats?.you?.score ?? "pending"}`} saveMessage={saveMessage}
+        onSessionChange={sessionChanged} onClose={() => setAccountOpen(false)} />}
+      <PixelWorld key={`${daily.day}:${daily.captain?.id ?? "guest"}`} storageKey={daily.captain ? undefined : `luffillion-pos:${daily.day}`} signal={runSignal} initialPos={Math.max(initialPos, journeyPos)} onStatus={handleWorld} />
       {sagaBanner && (
         <div
           key={sagaBanner.id}
@@ -398,10 +557,17 @@ export default function Game() {
           msLeft={nextRunAt - now}
           score={totalScore}
           saga={world.arc}
-          solved={daily.questions.filter((_, i) => progress.q[i]?.status === "solved").length}
+          solved={daily.finished?.solved ?? daily.questions.filter((_, i) => progress.q[i]?.status === "solved").length}
+          onAccount={openAccount}
+          signedIn={!!daily.captain}
+          saveMessage={saveMessage}
           copied={copied}
+          stats={stats}
           onShare={shareResults}
-          onClose={() => setShowCountdown(false)}
+          onClose={() => {
+            playClick();
+            setShowCountdown(false);
+          }}
         />
       )}
 
@@ -426,12 +592,19 @@ export default function Game() {
                 <button
                   key={i}
                   type="button"
-                  onClick={() => i <= activeIndex && setViewIndex(i)}
+                  onClick={() => {
+                    if (i <= activeIndex) {
+                      playClick();
+                      setViewIndex(i);
+                    }
+                  }}
                   disabled={i > activeIndex}
                   aria-label={`Question ${i + 1}`}
                   className={`h-4 w-4 border-2 transition sm:h-5 sm:w-5 ${
                     current
-                      ? "border-white bg-[#ff4f7b]"
+                      ? waitingToStart
+                        ? "border-amber-300 bg-[#0b1426]"
+                        : "border-white bg-[#ff4f7b]"
                       : solved
                         ? "border-amber-200 bg-amber-300"
                         : expired
@@ -443,11 +616,17 @@ export default function Game() {
             })}
           </div>
           <p className="mt-1 text-sm tracking-[0.3em] text-slate-200 [text-shadow:0_1px_0_#000]">
-            QUESTION {shownQuestion} OF {DAILY_QUESTION_COUNT}
+            {waitingToStart && activeIndex === 0
+              ? "READY TO SET SAIL"
+              : `QUESTION ${shownQuestion} OF ${DAILY_QUESTION_COUNT}`}
           </p>
           <p className="font-pixel-display text-[11px] tracking-[0.25em] text-amber-200 [text-shadow:0_1px_0_#000]">
             LUFFILLION · DAILY · {daily.day}
           </p>
+          <button type="button" onClick={openAccount} aria-haspopup="dialog" aria-expanded={accountOpen}
+            className="captain-entry px-btn mt-1 inline-flex h-7 max-w-48 items-center gap-1.5 border border-[#415674] bg-[#122039] px-2 text-sm text-cyan-100 hover:border-cyan-300">
+            <LogIcon /><span className="truncate">{daily.captain ? `Log · ${daily.captain.username}` : "Sign in / Create account"}</span>
+          </button>
         </div>
 
         <div className="px-box px-scan pointer-events-auto w-32 px-4 py-2 text-right sm:w-44">
@@ -460,11 +639,25 @@ export default function Game() {
       {/* ---------- Run log toggle + drawer ---------- */}
       <button
         type="button"
-        onClick={() => setLogOpen((o) => !o)}
+        onClick={() => {
+          playClick();
+          setLogOpen((o) => !o);
+        }}
         aria-label="Toggle run log"
         className="px-btn fixed left-3 top-[104px] z-30 grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-xl text-slate-200 hover:bg-[#24335a]"
       >
         {logOpen ? "✕" : "☰"}
+      </button>
+
+      {/* ---------- Sound mute/unmute toggle ---------- */}
+      <button
+        type="button"
+        onClick={toggleMute}
+        aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
+        title={muted ? "Unmute sound effects" : "Mute sound effects"}
+        className="px-btn fixed right-3 top-[104px] z-30 grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-lg text-slate-200 hover:bg-[#24335a]"
+      >
+        {muted ? "🔇" : "🔊"}
       </button>
       {logOpen && (
         <div className="px-box px-scan fixed left-3 top-[150px] z-30 max-h-[50vh] w-72 overflow-y-auto p-4">
@@ -503,7 +696,42 @@ export default function Game() {
             nopeOn ? "nope" : ""
           }`}
         >
-          {!allDone && question ? (
+          {waitingToStart ? (
+            <div className="text-center">
+              <p className="text-base tracking-[0.35em] text-[#ff4f7b]">
+                {activeIndex === 0
+                  ? `DAILY VOYAGE · ${daily.day}`
+                  : `QUESTION ${activeIndex + 1} OF ${DAILY_QUESTION_COUNT} · READY`}
+              </p>
+              <h2 className="mt-1 font-pixel-display text-2xl font-bold leading-tight text-white sm:text-3xl">
+                {activeIndex === 0 ? "Ready to Set Sail?" : `Ready for Question ${activeIndex + 1}?`}
+              </h2>
+              <p className="mt-1.5 text-base leading-snug text-slate-300">
+                {activeIndex === 0
+                  ? `${DAILY_QUESTION_COUNT} One Piece questions · ${QUESTION_SECONDS} seconds each · infinite attempts, 1 correct answer. Rarer pulls score more points and send Luffy farther toward Laugh Tale.`
+                  : `The question stays hidden until you begin. Hit Set Sail to start the ${QUESTION_SECONDS}-second timer.`}
+              </p>
+              {activeIndex === 0 && (
+                <div className="mt-3 flex flex-wrap justify-center gap-1.5 text-sm">
+                  {TIER_ORDER.map((t) => (
+                    <span key={t} className={`px-2 py-0.5 ring-1 ${TIER_CONFIG[t].badge}`}>
+                      {TIER_LABELS[t]} · {TIER_CONFIG[t].points}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={startActiveQuestion}
+                  className="px-btn h-12 bg-amber-400 px-7 font-pixel-display text-2xl font-bold tracking-[0.22em] text-amber-950 transition hover:bg-amber-300"
+                >
+                  ⚓ SET SAIL ▸
+                </button>
+              </div>
+            </div>
+          ) : !allDone && question ? (
             <>
               <p className="text-base tracking-[0.35em] text-[#ff4f7b]">
                 QUESTION {viewIndex + 1} OF {DAILY_QUESTION_COUNT}
@@ -527,7 +755,7 @@ export default function Game() {
 
       {/* ---------- Bottom answer bar ---------- */}
       <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[#040812] via-[#040812]/90 to-transparent pb-5 pt-12">
-        {!qs.status && !allDone && qs.wrong.length > 0 && (
+        {!qs.status && !waitingToStart && !allDone && qs.wrong.length > 0 && (
           <div className="mx-auto mb-2 flex max-w-2xl flex-wrap justify-center gap-1 px-3">
             {qs.wrong.slice(0, 8).map((w) => (
               <span key={w} className="bg-rose-950/80 px-2 text-base text-rose-200 line-through decoration-rose-400/70">
@@ -537,7 +765,7 @@ export default function Game() {
           </div>
         )}
         {message && <p className="mb-2 text-center text-base text-rose-300">{message}</p>}
-        {suggestion && suggestion.q === viewIndex && !qs.status && isActive && (
+        {suggestion && suggestion.q === viewIndex && timerRunning && (
           <div className="mx-auto mb-2 flex max-w-2xl justify-center px-3">
             <button
               type="button"
@@ -556,12 +784,20 @@ export default function Game() {
         )}
 
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-3">
-          {!allDone && !qs.status && isActive ? (
+          {waitingToStart ? (
+            <div className="mx-auto flex items-center gap-3">
+              <TimerRing remainingMs={LIMIT_MS} seconds={QUESTION_SECONDS} low={false} />
+              <p className="text-base tracking-[0.2em] text-slate-400">
+                Press <span className="text-amber-300">⚓ SET SAIL ▸</span> above to begin
+              </p>
+            </div>
+          ) : timerRunning ? (
             <>
               <TimerRing remainingMs={remainingMs} seconds={remainingSec} low={lowTime} />
               <form onSubmit={submitGuess} className="flex flex-1 items-center gap-3">
                 <div className="flex-1">
                   <input
+                    ref={inputRef}
                     autoFocus
                     value={guess}
                     onChange={(e) => setGuess(e.target.value)}
@@ -596,7 +832,10 @@ export default function Game() {
             <div className="mx-auto flex gap-3">
               <button
                 type="button"
-                onClick={() => setShowCountdown(true)}
+                onClick={() => {
+                  playClick();
+                  setShowCountdown(true);
+                }}
                 className="px-btn h-11 bg-amber-400 px-5 text-xl tracking-[0.2em] text-amber-950 hover:bg-amber-300"
               >
                 ⏳ NEXT RUN {formatCountdown(nextRunAt - now)}
@@ -758,7 +997,7 @@ function Summary({
   reveals: Record<number, Reveal>;
   totalScore: number;
 }) {
-  const solvedCount = daily.questions.filter((_, i) => progress.q[i]?.status === "solved").length;
+  const solvedCount = daily.finished?.solved ?? daily.questions.filter((_, i) => progress.q[i]?.status === "solved").length;
   return (
     <div>
       <p className="text-base tracking-[0.35em] text-[#ff4f7b]">VOYAGE COMPLETE</p>
@@ -776,7 +1015,10 @@ function Summary({
           const reveal = reveals[i];
           return (
             <details key={q.id} className="group bg-white/5 px-3 py-2 open:bg-white/[0.08] hover:bg-white/[0.08]">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg">
+              <summary
+                onClick={() => playClick()}
+                className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg"
+              >
                 <span className="min-w-0">
                   <span className="block truncate">
                     <span className="inline-block text-amber-300 transition-transform group-open:rotate-90">▸</span>{" "}
@@ -791,7 +1033,7 @@ function Summary({
                     {st.answer} · +{st.points}
                   </span>
                 ) : (
-                  <span className="shrink-0 text-rose-300">missed</span>
+                  <span className="shrink-0 text-rose-300">{daily.finished && !daily.finished.legs && !st?.status ? "archived" : "missed"}</span>
                 )}
               </summary>
               <div className="mt-2">
@@ -817,25 +1059,72 @@ function formatCountdown(ms: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
+function percentMessage(stats: RunStats): string {
+  const you = stats.you;
+  if (!you) return "";
+  if (stats.total <= 1) return "You're the first player to finish today!";
+  if (you.beat >= 100) return "You did better than every other player today!";
+  if (you.beat <= 0) return "Everyone else beat you today. Tomorrow is a new voyage!";
+  return `You did better than ${you.beat}% of players today!`;
+}
+
+function ScoreGraph({ stats }: { stats: RunStats }) {
+  const max = Math.max(1, ...stats.bins.map((b) => b.count));
+  const yourBin = stats.you ? Math.min(stats.bins.length - 1, Math.floor(stats.you.score / stats.binSize)) : -1;
+  return (
+    <div className="mt-3">
+      <div className="flex h-28 items-end gap-[3px] border-b-2 border-slate-600 px-1">
+        {stats.bins.map((b, i) => {
+          const mine = i === yourBin;
+          const h = b.count === 0 ? 2 : Math.max(6, Math.round((b.count / max) * 100));
+          return (
+            <div key={b.from} className="group relative flex h-full flex-1 flex-col items-center justify-end">
+              {mine && <span className="graph-you mb-0.5 text-sm leading-none text-amber-300">YOU</span>}
+              <div
+                className={`graph-bar w-full ${mine ? "bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.7)]" : b.count ? "bg-cyan-500/80" : "bg-slate-700"}`}
+                style={{ height: `${h}%`, animationDelay: `${i * 35}ms` }}
+              />
+              <span className="pointer-events-none absolute bottom-full z-10 mb-5 hidden whitespace-nowrap bg-black/90 px-1.5 text-sm text-slate-200 group-hover:block">
+                {b.from}–{b.to}: {b.count} {b.count === 1 ? "player" : "players"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex justify-between px-1 text-sm text-slate-500">
+        <span>0</span>
+        <span>{Math.round(MAX_POINTS / 2)}</span>
+        <span>{MAX_POINTS} pts</span>
+      </div>
+    </div>
+  );
+}
+
 function CountdownScreen({
+  onAccount, signedIn, saveMessage,
   msLeft,
   score,
   saga,
   solved,
   copied,
+  stats,
   onShare,
   onClose,
 }: {
+  onAccount: () => void;
+  signedIn: boolean;
+  saveMessage: string;
   msLeft: number;
   score: number;
   saga: string;
   solved: number;
   copied: boolean;
+  stats: RunStats | null;
   onShare: () => void;
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-[#05070f]/80 px-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-[#05070f]/80 px-4 py-6 backdrop-blur-sm">
       <div className="px-box px-scan countdown-pop w-full max-w-md px-7 py-6 text-center">
         <p className="text-base tracking-[0.4em] text-[#ff4f7b]">TODAY&apos;S VOYAGE IS OVER</p>
         <p className="mt-1 font-pixel-display text-3xl font-bold text-white">
@@ -845,11 +1134,40 @@ function CountdownScreen({
           {solved} of {DAILY_QUESTION_COUNT} answered · Luffy reached <span className="text-amber-200">{saga}</span>
         </p>
 
-        <p className="mt-5 text-sm tracking-[0.35em] text-slate-400">NEXT RUN IN</p>
-        <p className="font-pixel-display text-6xl font-bold tabular-nums text-cyan-300 [text-shadow:0_3px_0_#0b1426]">
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <p className="text-sm tracking-[0.35em] text-slate-400">HOW EVERYONE DID TODAY</p>
+          {stats && stats.you ? (
+            <>
+              <p className="mt-1 font-pixel-display text-xl font-bold text-amber-200">{percentMessage(stats)}</p>
+              <ScoreGraph stats={stats} />
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                <div className="bg-white/5 py-1">
+                  <p className="text-sm tracking-widest text-slate-500">RANK</p>
+                  <p className="text-xl text-white">
+                    #{stats.you.rank}
+                    <span className="text-sm text-slate-500"> / {stats.total}</span>
+                  </p>
+                </div>
+                <div className="bg-white/5 py-1">
+                  <p className="text-sm tracking-widest text-slate-500">AVERAGE</p>
+                  <p className="text-xl text-cyan-300">{stats.average}</p>
+                </div>
+                <div className="bg-white/5 py-1">
+                  <p className="text-sm tracking-widest text-slate-500">TOP SCORE</p>
+                  <p className="text-xl text-[#ff4f7b]">{stats.top}</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="mt-2 animate-pulse text-base text-slate-500">Comparing your run with everyone else…</p>
+          )}
+        </div>
+
+        <p className="mt-4 text-sm tracking-[0.35em] text-slate-400">NEXT RUN IN</p>
+        <p className="font-pixel-display text-5xl font-bold tabular-nums text-cyan-300 [text-shadow:0_3px_0_#0b1426]">
           {formatCountdown(msLeft)}
         </p>
-        <p className="text-sm text-slate-500">New questions for everyone at 00:00 UTC.</p>
+        <p className="text-sm text-slate-500">New questions for everyone at 12:00 AM EST every day.</p>
 
         <div className="mt-5 flex justify-center gap-3">
           <button
@@ -867,6 +1185,10 @@ function CountdownScreen({
             {copied ? "COPIED!" : "SHARE"}
           </button>
         </div>
+        {saveMessage && <p role="status" className="mt-3 text-sm text-slate-300">{saveMessage}</p>}
+        <button type="button" aria-haspopup="dialog" onClick={onAccount} className="mt-2 inline-flex items-center justify-center gap-2 py-1.5 text-base text-cyan-200 underline-offset-4 hover:underline">
+          <LogIcon />{signedIn ? "Open my Captain's Log" : "Sign in or create an account to keep this voyage"} ▸
+        </button>
       </div>
     </div>
   );

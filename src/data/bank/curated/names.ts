@@ -325,8 +325,9 @@ export function ranked(id: string, prompt: string, hint: string, list: string, m
   const nc = Math.min(10, Math.max(2, Math.round(n * 0.08)));
   const common = rest.slice(0, nc);
   const remaining = rest.slice(nc);
-  const u = Math.round(remaining.length * 0.3);
-  const r = Math.round(remaining.length * 0.35);
+  // Tuned so answers beyond the top ~20% reach Rare, and deep lore reaches Epic:
+  const u = Math.max(1, Math.round(remaining.length * 0.14));
+  const r = Math.max(1, Math.round(remaining.length * 0.36));
   return {
     id,
     prompt,

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { JOURNEY_MAX, SAGAS, SAGA_LENGTH, sagaIndexAt } from "@/data/arcs";
+import { startRunSound } from "@/lib/sound";
 import type { Tier } from "@/data/tiers";
 import { LUFFY_PAL, drawDust, drawSprite, luffyFrame, type Ctx } from "./pixel/art";
 import { SAGA_DETAILS, SAGA_SCENES, drawSignpost, type Env } from "./pixel/sagas";
@@ -74,6 +75,7 @@ export default function PixelWorld({ signal, initialPos, onStatus, storageKey }:
   }, [initialPos]);
 
   // A correct answer: run forward from where Luffy stands to the new total.
+  // Footsteps run at a pace set by rarity and stop with the travel animation.
   useEffect(() => {
     if (!signal) return;
     const r = runRef.current;
@@ -85,6 +87,13 @@ export default function PixelWorld({ signal, initialPos, onStatus, storageKey }:
     const dur = signal.final ? Math.max(2600, signal.ms * 1.4) : signal.ms;
     runRef.current = { from, to, start: performance.now(), dur, running: true, pos: from };
     finalRef.current = { pending: !!signal.final, since: 0 };
+
+    const stopRunSound = startRunSound(signal.tier);
+    const stopTimer = window.setTimeout(stopRunSound, dur + 100);
+    return () => {
+      window.clearTimeout(stopTimer);
+      stopRunSound();
+    };
   }, [signal]);
 
   useEffect(() => {

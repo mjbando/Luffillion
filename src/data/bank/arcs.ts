@@ -30,6 +30,8 @@ export const ARCS_QUESTION: Question = {
       "Punk Hazard Arc|Punk Hazard",
       "Zou Arc|Zou",
       "Elbaph Arc|Elbaf Arc|Elbaph|Elbaf",
+    ],
+    rare: [
       "Reverse Mountain Arc|Reverse Mountain|Laboon Arc",
       "Whisky Peak Arc|Whiskey Peak Arc|Whisky Peak|Whiskey Peak",
       "Little Garden Arc|Little Garden",
@@ -53,10 +55,10 @@ export const ARCS_QUESTION: Question = {
       "Whole Cake Island Saga|Four Emperors Saga|Yonko Saga",
       "Wano Country Saga",
       "Final Saga",
-    ],
-    rare: [
       "Shells Town Arc|Shells Town|Morgan Arc",
       "Gaimon Arc|Island of Rare Animals",
+    ],
+    epic: [
       "Post-Alabasta Arc|Post-Alabasta",
       "Warship Island Arc|Warship Island|Apis Arc",
       "Goat Island Arc|Goat Island",
@@ -74,8 +76,6 @@ export const ARCS_QUESTION: Question = {
       "Onigashima Raid|Raid on Onigashima",
       "Oden Flashback|Kozuki Oden Flashback",
       "God Valley Incident|God Valley Flashback",
-    ],
-    epic: [
       "Buggy's Crew Adventure Chronicles|Buggy's Crew: After the Battle",
       "Diary of Koby-Meppo|Koby-Meppo",
       "Jango's Dance Paradise",

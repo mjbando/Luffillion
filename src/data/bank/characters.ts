@@ -58,6 +58,8 @@ export const CHARACTERS_QUESTION: Question = {
       "Bentham|Bon Clay|Mr. 2|Mr 2|Mr. 2 Bon Kurei",
       "Emporio Ivankov|Ivankov|Iva",
       "Donquixote Rosinante|Corazon|Rosinante",
+    ],
+    rare: [
       "Caesar Clown|Caesar|Gangster Gastino",
       "Bepo",
       "Karoo|Carue",
@@ -267,8 +269,6 @@ export const CHARACTERS_QUESTION: Question = {
       "Zephyr|Z",
       "Gild Tesoro|Tesoro",
       "Douglas Bullet|Bullet",
-    ],
-    rare: [
       "Shaka",
       "Lilith",
       "Edison",
@@ -387,6 +387,8 @@ export const CHARACTERS_QUESTION: Question = {
       "Streusen",
       "Zeus",
       "Prometheus",
+    ],
+    epic: [
       "Napoleon",
       "Kingbaum",
       "Randolph",
@@ -605,8 +607,6 @@ export const CHARACTERS_QUESTION: Question = {
       "Heat",
       "Wire",
       "Pandaman",
-    ],
-    epic: [
       "Limejuice",
       "Bonk Punch",
       "Monster",
