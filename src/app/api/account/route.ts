@@ -21,17 +21,27 @@ export async function POST(req: NextRequest) {
   try {
     const body = await readMutation(req, 65536);
     if (body.action === "logout") {
-      const captain = await currentCaptain(req);
+      const res = privateJson({ captain: null });
+      let captain: Captain | null;
+      try {
+        captain = await currentCaptain(req);
+      } catch {
+        await endSession(req, res);
+        return res;
+      }
       if (captain && body.accountId && body.accountId !== captain.id) throw new RequestProblem(409, "Your session changed. Reload before signing out.");
       // Flush the clock/last answer before revoking this browser's session. An
       // expired session or a score-only historic run can still sign out normally.
-      if (captain && body.accountId === captain.id && body.progress && typeof body.progress === "object" && "day" in body.progress && body.progress.day === todayKey()) {
-        const p = readCheckpoint(body.progress);
-        if (firstOpen(p) === DAILY_QUESTION_COUNT) {
-          await finishVoyage({ accountId: captain.id, playerId: `account:${captain.id}` }, p.day, Array.from({ length: DAILY_QUESTION_COUNT }, (_, i) => p.q[i]?.answer ?? ""), { mistakes: countMistakes(p) ?? undefined });
-        } else if (Object.keys(p.q).length) await saveCheckpoint(captain.id, p);
+      try {
+        if (captain && body.accountId === captain.id && body.progress && typeof body.progress === "object" && "day" in body.progress && body.progress.day === todayKey()) {
+          const p = readCheckpoint(body.progress);
+          if (firstOpen(p) === DAILY_QUESTION_COUNT) {
+            await finishVoyage({ accountId: captain.id, playerId: `account:${captain.id}` }, p.day, Array.from({ length: DAILY_QUESTION_COUNT }, (_, i) => p.q[i]?.answer ?? ""), { mistakes: countMistakes(p) ?? undefined });
+          } else if (Object.keys(p.q).length) await saveCheckpoint(captain.id, p);
+        }
+      } catch (error) {
+        console.error("Could not save voyage progress during sign-out.", error);
       }
-      const res = privateJson({ captain: null });
       await endSession(req, res);
       return res;
     }

@@ -3,24 +3,14 @@ import { C, ranked } from "./names";
 
 // Each list is ordered least niche -> most niche. The last answer is the One in a Luffillion.
 export const CURATED_CHARACTERS: Question[] = [
-  {
+    {
     id: "q-impel-down",
     prompt: "Name a character who has appeared in Impel Down.",
     hint: "Prisoners, guards, wardens, or anyone who set foot inside.",
-    matchAs: "characters",
+    matchAs: C,
     tiers: {
-      common: [
-        "Monkey D. Luffy|Luffy|Straw Hat Luffy",
-        "Portgas D. Ace|Ace|Fire Fist Ace",
-        "Buggy|Buggy the Clown",
-      ],
-      uncommon: [
-        "Crocodile|Sir Crocodile|Mr. 0",
-        "Bon Clay|Mr. 2|Bentham",
-        "Emporio Ivankov|Ivankov|Iva",
-        "Magellan",
-        "Jinbe|Jimbei",
-      ],
+      common: ["Monkey D. Luffy|Luffy|Straw Hat Luffy", "Portgas D. Ace|Ace|Fire Fist Ace", "Buggy|Buggy the Clown"],
+      uncommon: ["Crocodile|Sir Crocodile|Mr. 0", "Bon Clay|Mr. 2|Bentham", "Emporio Ivankov|Ivankov|Iva", "Magellan", "Jinbe|Jimbei"],
       rare: [
         "Monkey D. Garp|Garp",
         "Hannyabal",
@@ -57,9 +47,7 @@ export const CURATED_CHARACTERS: Question[] = [
         "Minozebra",
         "Minochihuahua",
       ],
-      luffillion: [
-        "Douglas Bullet|Bullet",
-      ],
+      luffillion: ["Douglas Bullet|Bullet"],
     },
   },
 

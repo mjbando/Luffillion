@@ -89,6 +89,7 @@ interface RunStats {
 export default function Game() {
   const [daily, setDaily] = useState<DailyResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadRetry, setLoadRetry] = useState(0);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [viewIndex, setViewIndex] = useState(0);
   const [reveals, setReveals] = useState<Record<number, Reveal>>({});
@@ -210,8 +211,26 @@ export default function Game() {
   }, [activeCaptainId, loadRun]);
 
   useEffect(() => {
-    loadRun().catch(() => setLoadError("Could not load today's run. Please refresh."));
-  }, [loadRun]);
+    let cancelled = false;
+    const loadWithRetry = async () => {
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (cancelled) return;
+        try {
+          await loadRun();
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+        }
+      }
+      if (!cancelled) {
+        setLoadError(lastError instanceof Error ? lastError.message : "Could not load today's run.");
+      }
+    };
+    void loadWithRetry();
+    return () => { cancelled = true; };
+  }, [loadRun, loadRetry]);
 
   // Finishing live: let the finale run + effects play, then show the countdown.
   const finishedLive = useRef(false);
@@ -575,7 +594,18 @@ export default function Game() {
   }
 
   if (loadError) {
-    return <div className="grid min-h-screen place-items-center text-rose-300">{loadError}</div>;
+    return (
+      <div className="grid min-h-screen place-items-center gap-4 px-5 text-center text-rose-300">
+        <p role="alert">Could not load today&apos;s run. {loadError}</p>
+        <button
+          type="button"
+          onClick={() => { setLoadError(null); setLoadRetry((retry) => retry + 1); }}
+          className="px-btn min-h-11 border border-amber-300 bg-amber-400 px-5 text-lg text-amber-950"
+        >
+          TRY AGAIN
+        </button>
+      </div>
+    );
   }
 
   if (!daily || !progress) {

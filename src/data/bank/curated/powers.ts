@@ -71,24 +71,17 @@ export const CURATED_POWERS: Question[] = [
   ranked("q-named-attack", "Name a character who has used a named attack.", "Anyone who has shouted the name of an attack.",
     "Luffy, Zoro, Sanji, Usopp, Nami, Chopper, Robin, Franky, Brook, Jinbe, Ace, Sabo, Law, Kid, Shanks, Kaido, BigMom, Whitebeard, Mihawk, Doflamingo, Crocodile, Enel, Lucci, Arlong, Buggy, Akainu, Aokiji, Kizaru, Fujitora, Smoker, Koby, Garp, Katakuri, Yamato, King, Queen, Hody, Moria, Kuro, Krieg, BonClay, Mr3, Daz, Ivankov, Mr. 9", C),
 
+  ranked("q-fought-yonko", "Name a character who has fought one of the Four Emperors.", "Fought Kaido, Big Mom, Shanks, Whitebeard, Blackbeard, or another Emperor.",
+    "Luffy, Roger, Whitebeard, Garp, Ace, Zoro, Law, Kid, Oden, Yamato, Marco, Kinemon, Shanks, Akainu, Aokiji, Kizaru, Blackbeard, Killer, Jinbe, Kiku, Raizo, Kawamatsu, Denjiro, Ashura, Izou, Squard", C),
+
     {
     id: "q-fought-admiral",
     prompt: "Name a character who has fought an Admiral.",
     hint: "Fought Akainu, Aokiji, Kizaru, Fujitora, Ryokugyu, or a past Admiral.",
-    matchAs: "characters",
+    matchAs: C,
     tiers: {
-      common: [
-        "Monkey D. Luffy|Luffy|Straw Hat Luffy",
-        "Whitebeard|Edward Newgate|Newgate",
-        "Marco|Marco the Phoenix",
-      ],
-      uncommon: [
-        "Portgas D. Ace|Ace|Fire Fist Ace",
-        "Roronoa Zoro|Zoro",
-        "Jinbe|Jimbei",
-        "Crocodile|Sir Crocodile|Mr. 0",
-        "Silvers Rayleigh|Rayleigh",
-      ],
+      common: ["Monkey D. Luffy|Luffy|Straw Hat Luffy", "Whitebeard|Edward Newgate|Newgate", "Marco|Marco the Phoenix"],
+      uncommon: ["Portgas D. Ace|Ace|Fire Fist Ace", "Roronoa Zoro|Zoro", "Jinbe|Jimbei", "Crocodile|Sir Crocodile|Mr. 0", "Silvers Rayleigh|Rayleigh"],
       rare: [
         "Trafalgar Law|Law|Trafalgar D. Water Law",
         "Sabo",
@@ -122,14 +115,11 @@ export const CURATED_POWERS: Question[] = [
         "Izo",
         "Franky|Cutty Flam",
         "Sanji|Vinsmoke Sanji|Black Leg Sanji",
-      ],
-      luffillion: [
-        "Little Oars Jr.|Oars Jr.",
-      ],
+],
+      luffillion: ["Little Oars Jr.|Oars Jr."],
     },
   },
 
-  
   ranked("q-fought-commander", "Name a character who has fought a Yonko Commander.", "Fought an Emperor's top officers (All-Stars, Sweet Commanders, etc.).",
     "Luffy, Zoro, Sanji, Nami, Usopp, Robin, Brook, Jinbe, Franky, Marco, Inuarashi, Nekomamushi, Kinemon, Kawamatsu, Izou, Kiku, Yamato, Pedro, Raizo", C),
 

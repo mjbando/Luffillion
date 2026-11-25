@@ -17,8 +17,16 @@ export async function voyageRequest<T>(path: string, method: "GET" | "POST" | "P
     headers: { ...voyageHeaders(path === "/api/daily"), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Couldn't reach the logbook. Try again.");
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`The game server returned an unreadable response (HTTP ${res.status}). Try again.`);
+  }
+  if (!res.ok) {
+    const message = data && typeof data === "object" && "error" in data ? data.error : undefined;
+    throw new Error(typeof message === "string" ? message : `Couldn't reach the logbook (HTTP ${res.status}). Try again.`);
+  }
   return data as T;
 }
 

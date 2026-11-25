@@ -22,18 +22,15 @@ export const CURATED_WORLD: Question[] = [
   ranked("q-water7-saga-loc", "Name a location visited during the Water 7 Saga.", "Long Ring Long Land, Water 7, and Enies Lobby.",
     "Water 7, Enies Lobby, Long Ring Long Land, Tower of Justice, Gates of Justice, Franky House, Galley-La Headquarters|Dock One, Blue Station, Bridge of Hesitation, Judicial Island, St. Poplar, Pucci, San Faldo, Scrap Island, Shift Station"),
 
+  ranked("q-summit-saga-loc", "Name a location visited during the Summit War Saga.", "Sabaody through the post-war arcs.",
+    "Marineford, Impel Down, Sabaody Archipelago|Sabaody, Amazon Lily, Rusukaina, Kuraigana Island, Shakky's Rip-Off Bar|Shakky's Bar, Human Auctioning House, Newkama Land, Dawn Island, Gray Terminal, Goa Kingdom, Mt. Colubo, Boin Archipelago, Momoiro Island, Weatheria, Karakuri Island, Namakura Island, Torino Kingdom, Kenzan Island"),
+
     {
     id: "q-emperors-saga-loc",
     prompt: "Name a location visited during the Four Emperors Saga.",
     hint: "Zou, Whole Cake Island, the Reverie, and Wano.",
     tiers: {
-      common: [
-        "Wano Country|Wano",
-        "Whole Cake Island",
-        "Zou",
-        "Onigashima",
-        "Mary Geoise",
-      ],
+      common: ["Wano Country|Wano", "Whole Cake Island", "Zou", "Onigashima", "Mary Geoise"],
       uncommon: [
         "Totto Land",
         "Sweet City",
@@ -94,13 +91,10 @@ export const CURATED_WORLD: Question[] = [
         "Right Belly Fortress",
         "Kurau City",
       ],
-      luffillion: [
-        "Whale Tree",
-      ],
+      luffillion: ["Whale Tree"],
     },
   },
 
-  
   ranked("q-villain-fight-loc", "Name a location where Luffy has fought a major villain.", "Sites of Luffy's big battles.",
     "Arlong Park, Alabasta, Enies Lobby, Thriller Bark, Dressrosa, Onigashima, Whole Cake Island, Skypiea, Fish-Man Island, Egghead, Punk Hazard, Marineford, Impel Down, Shells Town, Orange Town, Syrup Village, Baratie, Drum Island, Loguetown, Little Garden, Long Ring Long Land, Corrida Colosseum, Mock Town"),
 
@@ -172,17 +166,15 @@ export const CURATED_WORLD: Question[] = [
   ranked("q-seastone-item", "Name a type of Sea Stone item.", "Objects made of Sea Prism Stone (Kairoseki).",
     "Seastone handcuffs|Sea Prism Stone handcuffs, Smoker's jitte|Jitte, Seastone cage, Seastone net, Seastone bullets, Kairoseki hull|Seastone hull, Seastone shackles, Seastone wall"),
 
+  ranked("q-roger-objects", "Name an object associated with Gol D. Roger.", "Things linked to the Pirate King.",
+    "Straw Hat, One Piece, Oro Jackson, Ace (sword)|Ace, Execution platform|Loguetown execution platform, Roger's Jolly Roger|Jolly Roger, Oden's Journal|Oden's log"),
+
     {
     id: "q-straw-hat-items",
     prompt: "Name an item that belonged to a Straw Hat member.",
-    hint: "Weapons, tools, clothing, and keepsakes of the crew.",
+      hint: "Weapons, tools, clothing, and keepsakes of the crew.",
     tiers: {
-      common: [
-        "Straw Hat|Luffy's Straw Hat",
-        "Wado Ichimonji|Wado",
-        "Enma",
-        "Clima-Tact|Climatact|Nami's Clima-Tact",
-      ],
+      common: ["Straw Hat|Luffy's Straw Hat", "Wado Ichimonji|Wado", "Enma", "Clima-Tact|Climatact|Nami's Clima-Tact"],
       uncommon: [
         "Sandai Kitetsu|Kitetsu III",
         "Kabuto|Black Kabuto|Usopp's Kabuto",
@@ -235,13 +227,10 @@ export const CURATED_WORLD: Question[] = [
         "Usopp's Impact Wolf",
         "Zoro's earrings",
       ],
-      luffillion: [
-        "Brook's top hat",
-      ],
+      luffillion: ["Brook's top hat"],
     },
   },
 
-  
   ranked("q-vegapunk-tech", "Name a piece of technology created by Vegapunk.", "Inventions of the world's greatest scientist.",
     "Pacifista, Seraphim, Punk Records, Mother Flame, Artificial Devil Fruits, SAD, Frontier Dome, Vegaforce-01"),
 

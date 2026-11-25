@@ -66,8 +66,8 @@ export const EXTRA_QUESTIONS: Question[] = [
   },
     {
     id: "whitebeard-pirates",
-    prompt: "Name a member or ally of the Whitebeard Pirates or a Mink.",
-    hint: "Whitebeard's crew and allies, or members of the Mink Tribe.",
+      prompt: "Name a member or ally of the Whitebeard Pirates or a Mink.",
+      hint: "Either category counts. Rarer answers score more.",
     tiers: {
       common: [
         "Whitebeard|Edward Newgate",
@@ -183,11 +183,10 @@ export const EXTRA_QUESTIONS: Question[] = [
         "Kozuki Toki|Toki",
         "Kouzuki Momonosuke|Momonosuke",
         "Kouzuki Hiyori|Hiyori",
+        "Emporio Ivankov|Ivankov|Iva",
         "Tristan",
       ],
-      luffillion: [
-        "Zodia",
-      ],
+      luffillion: ["Zodia"],
     },
   },
   {
@@ -254,11 +253,7 @@ export const EXTRA_QUESTIONS: Question[] = [
     prompt: "Name a Fish-Man or Merfolk.",
     hint: "Any fish-man, merman, or mermaid character.",
     tiers: {
-      common: [
-        "Jinbe|Jimbei",
-        "Arlong",
-        "Shirahoshi|Poseidon",
-      ],
+      common: ["Jinbe|Jimbei", "Arlong", "Shirahoshi|Poseidon"],
       uncommon: [
         "Fisher Tiger",
         "Hatchan|Hachi",
@@ -336,9 +331,7 @@ export const EXTRA_QUESTIONS: Question[] = [
         "Banshee",
         "Renona Topakka",
       ],
-      luffillion: [
-        "Den",
-      ],
+      luffillion: ["Den"],
     },
   },
   {
@@ -382,10 +375,7 @@ export const EXTRA_QUESTIONS: Question[] = [
     prompt: "Name a giant.",
     hint: "Giants of Elbaph, giant Marines, or any giant character.",
     tiers: {
-      common: [
-        "Dorry",
-        "Brogy",
-      ],
+      common: ["Dorry", "Brogy"],
       uncommon: [
         "Hajrudin",
         "Oimo",
@@ -451,9 +441,7 @@ export const EXTRA_QUESTIONS: Question[] = [
         "Juki",
         "Emet|Giant Robot|Iron Giant",
       ],
-      luffillion: [
-        "Big Pan|Bigpan",
-      ],
+      luffillion: ["Big Pan|Bigpan"],
     },
   },
   {

@@ -99,6 +99,17 @@ export function pickRunQuestions(exclude: string[] = [], rand: () => number = Ma
 
 // ---------- Daily run: one shared set of 7 per day (resets at 12:00 AM EST) ----------
 const dailyCache = new Map<string, Question[]>();
+const FIXED_DAILY_QUESTION_IDS: Record<string, string[]> = {
+  "2026-11-25": [
+    "whitebeard-pirates",
+    "giants",
+    "q-straw-hat-items",
+    "q-emperors-saga-loc",
+    "q-fought-admiral",
+    "q-impel-down",
+    "fishmen",
+  ],
+};
 
 function shiftDay(day: string, delta: number): string {
   const d = new Date(`${day}T12:00:00Z`);
@@ -110,6 +121,17 @@ function shiftDay(day: string, delta: number): string {
 export function getDailyRun(day: string): Question[] {
   const cached = dailyCache.get(day);
   if (cached) return cached;
+  const fixedIds = FIXED_DAILY_QUESTION_IDS[day];
+  if (fixedIds) {
+    const questionsById = new Map(QUESTION_BANK.map((question) => [question.id, question]));
+    const run = fixedIds.map((id) => {
+      const question = questionsById.get(id);
+      if (!question) throw new Error(`Unknown fixed daily question: ${id}`);
+      return question;
+    });
+    dailyCache.set(day, run);
+    return run;
+  }
   const exclude: string[] = [];
   for (let k = 1; k <= 7; k++) {
     const prev = shiftDay(day, -k);
@@ -264,10 +286,14 @@ function getIndex(question: Question): Map<string, ParsedEntry> {
   const entries = parseEntries(question);
   const map = new Map<string, ParsedEntry>();
 
-  // Pass 1: Explicit aliases always take priority.
+  // Canonical names keep their listed tier; aliases fill only unclaimed keys.
   for (const entry of entries) {
-    for (const key of entry.keys) {
-      if (!map.has(key)) map.set(key, entry);
+    const canonical = entry.keys[0];
+    if (canonical && !map.has(canonical)) map.set(canonical, entry);
+  }
+  for (const entry of entries) {
+    for (const alias of entry.keys.slice(1)) {
+      if (!map.has(alias)) map.set(alias, entry);
     }
   }
 
