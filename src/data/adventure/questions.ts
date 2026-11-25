@@ -1,7 +1,8 @@
-import { ARC_NAMES, ADVENTURE_SAGAS, ADVENTURE_QUESTIONS, type AdventureArc, type AdventureLevel } from "./levels";
+import { ARC_NAMES, ADVENTURE_LEVELS, ADVENTURE_QUESTIONS, type AdventureArc, type AdventureLevel } from "./levels";
 import { EAST_LORE } from "./lore-east";
 import { PARADISE_LORE } from "./lore-paradise";
 import { NEW_WORLD_LORE } from "./lore-new-world";
+import { ADVENTURE_LORE_EXPANSION } from "./lore-expansion";
 import type { LoreSet } from "./lore-types";
 import type { Question } from "../questions";
 import { checkGuess, suggestGuess } from "@/lib/daily";
@@ -9,10 +10,22 @@ import { checkGuess, suggestGuess } from "@/lib/daily";
 // Server-side question bank. Client components import level metadata, never this module.
 export interface AdventureFact { id:string; arc:AdventureArc; prompt:string; answers:string; depth:1|3|5 }
 const lore: Record<string,LoreSet> = { ...EAST_LORE, ...PARADISE_LORE, ...NEW_WORLD_LORE };
+for (const [arc, supplement] of Object.entries(ADVENTURE_LORE_EXPANSION)) {
+  const existing = lore[arc];
+  if (!existing) throw new Error(`Unknown adventure expansion arc: ${arc}`);
+  lore[arc] = {
+    core: [existing.core, supplement.core].filter(Boolean).join("\n"),
+    lore: [existing.lore, supplement.lore].filter(Boolean).join("\n"),
+    deep: [existing.deep, supplement.deep].filter(Boolean).join("\n"),
+  };
+}
 export const ADVENTURE_FACTS: AdventureFact[] = Object.entries(lore).flatMap(([arc,set])=>
   (['core','lore','deep'] as const).flatMap((category,part)=>set[category].trim().split('\n').filter(Boolean).map((line,index)=>{
-    const [prompt,answers] = line.split(' :: ');
-    if (!prompt || !answers) throw new Error(`Malformed adventure question: ${arc}/${category}/${index}`);
+    const match = line.match(/^\s*(.*?)\s*::\s*(.*?)\s*$/);
+    if (!match || !match[1] || !match[2]) {
+      throw new Error(`Malformed adventure question: ${arc}/${category}/${index}: ${line}`);
+    }
+    const [, prompt, answers] = match;
     return {id:`adv-${arc}-${category}-${index}`,arc:arc as AdventureArc,prompt:prompt.trim(),answers:answers.trim(),depth:([1,3,5] as const)[part]};
   })),
 );
@@ -22,18 +35,73 @@ export function adventureFact(id: string) {
   if (!found) throw new Error(`Unknown adventure question ${id}`);
   return found;
 }
-function seeded(seed: string) {
-  let n=2166136261;
-  for(const c of seed) n=Math.imul(n ^ c.charCodeAt(0),16777619);
-  return () => { n+=0x6d2b79f5; let t=Math.imul(n ^ n>>>15,1|n);t^=t+Math.imul(t^t>>>7,61|t);return ((t^t>>>14)>>>0)/4294967296; };
+function buildLevelAssignments(): Map<number, AdventureFact[]> {
+  const assignments = new Map<number, AdventureFact[]>();
+  const assignedIds = new Set<string>();
+
+  for (const arc of Object.keys(ARC_NAMES) as AdventureArc[]) {
+    const levels = ADVENTURE_LEVELS.filter(level => level.arc === arc).sort((a, b) => a.number - b.number);
+    const buckets = new Map<AdventureFact["depth"], AdventureFact[]>([1, 3, 5].map(depth => [depth as AdventureFact["depth"], []]));
+    for (const fact of ADVENTURE_FACTS) {
+      if (fact.arc === arc) buckets.get(fact.depth)!.push(fact);
+    }
+    if (buckets.get(1)!.length + buckets.get(3)!.length + buckets.get(5)!.length < levels.length * ADVENTURE_QUESTIONS) {
+      throw new Error(`Adventure arc ${arc} does not have enough unique questions.`);
+    }
+
+    for (const level of levels.filter(item => item.boss)) {
+      const deep = buckets.get(5)!;
+      if (deep.length < ADVENTURE_QUESTIONS) throw new Error(`Adventure boss level ${level.number} needs seven deep questions from ${arc}.`);
+      const bossQuestions = deep.splice(deep.length - ADVENTURE_QUESTIONS);
+      bossQuestions.forEach(question => assignedIds.add(question.id));
+      assignments.set(level.number, bossQuestions);
+    }
+
+    const regularLevels = levels.filter(level => !level.boss);
+    if (!regularLevels.length) continue;
+    const depthOrder: AdventureFact["depth"][] = levels[0].number < 40
+      ? [1, 3, 5]
+      : levels[0].number < 80
+        ? [3, 5, 1]
+        : [5, 3, 1];
+    const needed = regularLevels.length * ADVENTURE_QUESTIONS;
+    const selected: AdventureFact[] = [];
+    for (const depth of depthOrder) {
+      selected.push(...buckets.get(depth)!);
+    }
+    selected.length = needed;
+
+    const perLevel = new Map(regularLevels.map(level => [level.number, [] as AdventureFact[]]));
+    let cursor = 0;
+    for (const question of selected) {
+      while (perLevel.get(regularLevels[cursor].number)!.length >= ADVENTURE_QUESTIONS) {
+        cursor = (cursor + 1) % regularLevels.length;
+      }
+      perLevel.get(regularLevels[cursor].number)!.push(question);
+      assignedIds.add(question.id);
+      cursor = (cursor + 1) % regularLevels.length;
+    }
+    for (const [level, questions] of perLevel) assignments.set(level, questions);
+  }
+
+  const allAssigned = [...assignments.values()].flat();
+  if (assignments.size !== 100 || allAssigned.length !== 100 * ADVENTURE_QUESTIONS || assignedIds.size !== allAssigned.length) {
+    throw new Error("Adventure question assignments must contain 700 globally unique questions across 100 levels.");
+  }
+  for (const level of ADVENTURE_LEVELS) {
+    const questions = assignments.get(level.number);
+    if (!questions || questions.length !== ADVENTURE_QUESTIONS || questions.some(question => question.arc !== level.arc || !ADVENTURE_FACTS.includes(question))) {
+      throw new Error(`Adventure level ${level.number} has an invalid question assignment.`);
+    }
+  }
+  return assignments;
 }
-export function levelQuestions(level: AdventureLevel, seed: string): AdventureFact[] {
-  const allowed=level.number===100 ? Object.keys(ARC_NAMES) : level.boss ? ADVENTURE_SAGAS[level.saga-1].arcs : [level.arc];
-  const pool=ADVENTURE_FACTS.filter(f=>allowed.includes(f.arc) && (!level.boss || f.depth===5) && (level.number<=40 || f.depth>=3) && (level.boss || level.number>20 || f.depth<=3));
-  const target=level.boss?5:Math.min(5,1+Math.floor((level.number-1)/20));
-  const random=seeded(`adventure-v1:${level.number}:${seed}`);
-  return pool.map(f=>({f,key:-Math.log(Math.max(0.000001,random()))*(1+Math.abs(f.depth-target)*1.5)}))
-    .sort((a,b)=>a.key-b.key).slice(0,ADVENTURE_QUESTIONS).map(item=>item.f);
+
+const LEVEL_QUESTION_ASSIGNMENTS = buildLevelAssignments();
+export function levelQuestions(level: AdventureLevel, _attemptId: string): AdventureFact[] {
+  const assigned = LEVEL_QUESTION_ASSIGNMENTS.get(level.number);
+  if (!assigned) throw new Error(`No fixed question assignment for adventure level ${level.number}.`);
+  return [...assigned];
 }
 function matchQuestion(fact: AdventureFact): Question {
   return { id:fact.id,prompt:fact.prompt,hint:ARC_NAMES[fact.arc],tiers:{common:[fact.answers],uncommon:[],rare:[],epic:[],luffillion:[]} };

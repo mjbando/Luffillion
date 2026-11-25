@@ -116,6 +116,12 @@ export async function startSession(req: NextRequest, res: NextResponse, accountI
 }
 export async function endSession(req: NextRequest, res: NextResponse) {
   const token = req.cookies.get(SESSION)?.value;
-  if (token) await db.delete(sessions).where(eq(sessions.tokenHash, digest(token)));
   res.cookies.set(SESSION, "", cookieOptions(req, 0));
+  if (token) {
+    try {
+      await db.delete(sessions).where(eq(sessions.tokenHash, digest(token)));
+    } catch (error) {
+      console.error("Could not revoke the signed-out session.", error);
+    }
+  }
 }

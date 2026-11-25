@@ -115,7 +115,6 @@ export const CURATED_POWERS: Question[] = [
         "Izo",
         "Franky|Cutty Flam",
         "Sanji|Vinsmoke Sanji|Black Leg Sanji",
-              "Rocks D. Xebec|Rocks|Xebec",
 ],
       luffillion: ["Little Oars Jr.|Oars Jr."],
     },

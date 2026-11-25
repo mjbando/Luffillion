@@ -172,7 +172,7 @@ export const CURATED_WORLD: Question[] = [
     {
     id: "q-straw-hat-items",
     prompt: "Name an item that belonged to a Straw Hat member.",
-    hint: "Weapons, tools, and keepsakes of the crew.",
+      hint: "Weapons, tools, clothing, and keepsakes of the crew.",
     tiers: {
       common: ["Straw Hat|Luffy's Straw Hat", "Wado Ichimonji|Wado", "Enma", "Clima-Tact|Climatact|Nami's Clima-Tact"],
       uncommon: [

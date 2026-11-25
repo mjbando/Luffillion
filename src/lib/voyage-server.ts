@@ -26,10 +26,18 @@ export async function dailySave(day: string, owner: Owner | null) {
   if (finished || !owner.accountId) return { finished: finished ?? null, checkpoint: null };
   const [saved] = await db.select({ progress: checkpoints.progress }).from(checkpoints)
     .where(and(eq(checkpoints.accountId, owner.accountId), eq(checkpoints.dayKey, day))).limit(1);
-  return { finished: null, checkpoint: saved?.progress ?? null };
+  return { finished: null, checkpoint: hasCurrentQuestionIds(saved?.progress, day) ? saved.progress : null };
 }
 
 const obj = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
+
+function hasCurrentQuestionIds(raw: unknown, day: string): raw is Progress {
+  if (!obj(raw) || raw.day !== day || !Array.isArray(raw.ids) || !raw.ids.every((id) => typeof id === "string") || !obj(raw.q) || !Array.isArray(raw.runs)) {
+    return false;
+  }
+  const ids = getDailyRun(day).map((question) => question.id);
+  return raw.ids.length === ids.length && raw.ids.every((id, index) => id === ids[index]);
+}
 
 // Accept only the current daily set; never trust incoming points, tiers or positions.
 export function readCheckpoint(raw: unknown): Progress {
@@ -66,7 +74,9 @@ export async function saveCheckpoint(accountId: string, incoming: Progress, impo
     const [complete] = await tx.select({ id: runs.id }).from(runs).where(and(eq(runs.accountId, accountId), eq(runs.dayKey, incoming.day))).limit(1);
     if (complete) return { complete: true, progress: null, newlyUnlocked: [] };
     const [old] = await tx.select({ p: checkpoints.progress }).from(checkpoints).where(key);
-    const progress = old ? (importing ? old.p : mergeProgress(old.p, incoming)) : incoming;
+    const progress = old && hasCurrentQuestionIds(old.p, incoming.day)
+      ? (importing ? old.p : mergeProgress(old.p, incoming))
+      : incoming;
     await tx.insert(checkpoints).values({ accountId, dayKey: progress.day, progress }).onConflictDoUpdate({
       target: [checkpoints.accountId, checkpoints.dayKey], set: { progress },
     });

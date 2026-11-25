@@ -66,8 +66,8 @@ export const EXTRA_QUESTIONS: Question[] = [
   },
     {
     id: "whitebeard-pirates",
-    prompt: "Name a member or ally of the Whitebeard Pirates.",
-    hint: "Division commanders, crew, or the allied captains at Marineford.",
+      prompt: "Name a member or ally of the Whitebeard Pirates or a Mink.",
+      hint: "Either category counts. Rarer answers score more.",
     tiers: {
       common: [
         "Whitebeard|Edward Newgate",
@@ -183,6 +183,7 @@ export const EXTRA_QUESTIONS: Question[] = [
         "Kozuki Toki|Toki",
         "Kouzuki Momonosuke|Momonosuke",
         "Kouzuki Hiyori|Hiyori",
+        "Emporio Ivankov|Ivankov|Iva",
         "Tristan",
       ],
       luffillion: ["Zodia"],

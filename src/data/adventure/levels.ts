@@ -43,10 +43,12 @@ export const nextAdventureTitle = (completed: number) => ADVENTURE_TITLES.find(t
 export function adventureDifficulty(level: number) {
   if (level===100) return "Legendary";
   if (level<=20) return "Beginner";
-  if (level<=40) return "Easy / Intermediate";
-  if (level<=60) return "Intermediate / Advanced";
-  if (level<=80) return "Advanced";
-  return "Expert / Deep Lore";
+  if (level<=39) return "Easy";
+  if (level<=59) return "Intermediate";
+  if (level<=69) return "Challenging";
+  if (level<=79) return "Hard";
+  if (level<=89) return "Very Hard";
+  return "Expert";
 }
 export interface AdventureLevel { number:number; saga:number; arc:AdventureArc; name:string; boss:boolean; target:number; difficulty:string }
 export const ADVENTURE_LEVELS: AdventureLevel[] = ADVENTURE_SAGAS.flatMap(saga=>saga.arcs.map((arc,index)=>{
