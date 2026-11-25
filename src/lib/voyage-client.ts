@@ -55,3 +55,23 @@ export function clearLinkedGuest(day: string) {
     localStorage.removeItem("luffillion:player");
   } catch { /* Nothing to clear. */ }
 }
+
+export interface LocalVoyage { day: string; score: number; solved: number; niche: number; luffillion: boolean; laughtale: boolean; }
+// Guests keep their completed daily runs in browser storage; this reads them back.
+export function localArchive(): LocalVoyage[] {
+  const out: LocalVoyage[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith("luffillion:daily:")) continue;
+      const p = JSON.parse(localStorage.getItem(key) ?? "{}") as Progress;
+      if (p.day && p.q) {
+        const settled = Object.values(p.q).filter(s => s?.status === "solved");
+        const score = settled.reduce((n, s) => n + (s.points ?? 0), 0);
+        const niche = settled.filter(s => s.tier === "rare" || s.tier === "epic" || s.tier === "luffillion").length;
+        out.push({ day: p.day, score, solved: settled.length, niche, luffillion: settled.some(s => s.tier === "luffillion"), laughtale: score >= 500 });
+      }
+    }
+  } catch { /* private browsing / storage errors */ }
+  return out.sort((a, b) => b.day.localeCompare(a.day));
+}

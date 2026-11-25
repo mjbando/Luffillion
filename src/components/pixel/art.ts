@@ -85,8 +85,8 @@ export const SCENES: Scene[] = [
 
 export const LUFFY_PAL: Record<string, string> = {
   k: "#1b1b2f",
-  y: "#ffd33d",
-  Y: "#c79a2b",
+  y: "#f1cf7a",
+  Y: "#caa045",
   w: "#f5d2a8",
   r: "#e0303a",
   R: "#2f5fd6",
@@ -95,7 +95,7 @@ export const LUFFY_PAL: Record<string, string> = {
 const LUFFY_IDLE = [
   "......kkkk......",
   ".....kyyyyk.....",
-  "..kkYYYYYYYYkk..",
+  "..kkYYrrrrYYkk..",
   ".kYYYYYYYYYYYYk.",
   "..kkkkkkkkkkkk..",
   "....kwwwwwwk....",
@@ -155,6 +155,60 @@ export function drawSprite(c: Ctx, rows: string[], x: number, y: number, pal: Re
     for (let col = 0; col < row.length; col++) {
       const color = pal[row[col]];
       if (color) rect(c, x + col, y + r, 1, 1, color);
+    }
+  }
+}
+
+const GOLD_HAT_PAL: Record<string, string> = {
+  o: "#4a2500", // deep bronze outline for crisp silhouette on any sky
+  h: "#fffbe6", // white-gold specular gleam
+  g: "#ffd700", // pure 24k bright gold
+  G: "#f59e0b", // rich amber gold shading
+  b: "#b45309", // burnished gold ribbon band
+};
+
+const GOLD_HAT_ROWS = [
+  ".....oooooo.....",
+  "....ohggggGo....",
+  "....ogggggGo....",
+  ".ooogbbbbbbGooo.",
+  "ohggggggggggggGo",
+  ".oooooooooooooo.",
+];
+
+// Draws a gleaming 24k Gold Straw Hat over Luffy's hat once One in a Luffillion is hit.
+export function drawGoldHat(c: Ctx, x: number, y: number, t: number) {
+  drawSprite(c, GOLD_HAT_ROWS, x, y - 1, GOLD_HAT_PAL);
+
+  // Diagonal specular glint sweeping across the gold crown & brim.
+  const phase = t % 1800;
+  if (phase < 480) {
+    const sweep = Math.floor((phase / 480) * 18);
+    for (let r = 0; r < GOLD_HAT_ROWS.length; r++) {
+      const row = GOLD_HAT_ROWS[r];
+      for (let col = 0; col < row.length; col++) {
+        const ch = row[col];
+        if ((ch === "g" || ch === "G" || ch === "h") && col + r === sweep) {
+          rect(c, x + col, y - 1 + r, 1, 1, "#ffffff");
+        }
+      }
+    }
+  }
+
+  // Subtle twinkling sparkles around the hat.
+  const sparks: [number, number, number][] = [
+    [x + 2, y - 2, 0],
+    [x + 13, y - 2, 1.9],
+    [x + 16, y + 2, 3.6],
+  ];
+  for (const [sx, sy, off] of sparks) {
+    const pulse = Math.sin(t / 220 + off);
+    if (pulse > 0.72) {
+      rect(c, sx - 1, sy, 3, 1, "#fffbe6");
+      rect(c, sx, sy - 1, 1, 3, "#fffbe6");
+      rect(c, sx, sy, 1, 1, "#ffffff");
+    } else if (pulse > 0.25) {
+      rect(c, sx, sy, 1, 1, "#ffd700");
     }
   }
 }

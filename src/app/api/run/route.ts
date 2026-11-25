@@ -31,7 +31,7 @@ async function buildStats(day: string, owner: Owner | null) {
     if (mine) {
       const lower = rows.reduce((n, r) => n + (r.score < mine.score ? r.n : 0), 0);
       const higher = rows.reduce((n, r) => n + (r.score > mine.score ? r.n : 0), 0);
-      you = { ...mine, beat: total > 1 ? Math.round(100 * lower / (total - 1)) : 100, rank: higher + 1 };
+      you = { ...mine, beat: total > 1 ? Math.floor(100 * lower / (total - 1)) : 0, rank: higher + 1 };
     }
   }
   return { day, total, average: total ? Math.round(sum / total) : 0, top, binSize: BIN_SIZE, bins, you };
@@ -54,8 +54,12 @@ export async function POST(req: NextRequest) {
     if (!owner) throw new RequestProblem(401, "Enable site cookies and reload to save today's voyage.");
     if (!recentDay(body.day)) throw new RequestProblem(400, "That run has expired.");
     if (!validAnswers(body.answers)) throw new RequestProblem(400, "Send one answer or miss for each of the seven questions.");
-    const finished = await finishVoyage(owner, body.day, body.answers);
+    if (body.mistakes != null && (typeof body.mistakes !== "number" || !Number.isInteger(body.mistakes) || body.mistakes < 0 || body.mistakes > 1000000)) {
+      throw new RequestProblem(400, "Invalid mistake count.");
+    }
+    const mistakes = typeof body.mistakes === "number" ? body.mistakes : undefined;
+    const { final: finished, newlyUnlocked } = await finishVoyage(owner, body.day, body.answers, { mistakes });
     if (!finished) throw new RequestProblem(409, "This voyage is already in a captain's log. Reload to continue.");
-    return privateJson({ ...await buildStats(body.day, owner), finished });
+    return privateJson({ ...await buildStats(body.day, owner), finished, newlyUnlocked });
   } catch (err) { return failure(err); }
 }

@@ -478,3 +478,15 @@ export function startRunSound(tier: Tier | null): () => void {
     window.setTimeout(() => runBus.disconnect(), 150);
   };
 }
+
+/** Short fanfare for an achievement unlocking. */
+export function playAchievement(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  [523.25, 659.25, 783.99, 1046.5, 1567.98].forEach((f, i) => {
+    playTone(a.ctx, a.out, t, { freq: f, start: i * 0.07, dur: i === 4 ? 0.55 : 0.18, type: "triangle", vol: 0.2 });
+    playTone(a.ctx, a.out, t, { freq: f * 2, start: i * 0.07, dur: 0.12, type: "sine", vol: 0.07 });
+  });
+  playNoise(a.ctx, a.out, t, 0.28, 0.5, 0.04, "bandpass", 2400, 5200);
+}

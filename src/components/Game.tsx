@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { SAGAS, sagaAt, travelFor } from "@/data/arcs";
+import { characterById, DEFAULT_CHARACTER, isCharacterId, type CharacterId } from "@/data/playable-characters";
 import {
   DAILY_QUESTION_COUNT,
   MAX_POINTS,
@@ -14,6 +16,14 @@ import {
 import PixelWorld, { type RunSignal, type WorldStatus } from "./PixelWorld";
 import Effects from "./Effects";
 import CaptainLog, { LogIcon } from "./CaptainLog";
+import BountiesPanel from "./BountiesPanel";
+import MenuPanel, { type MenuTab } from "./MenuPanel";
+import AchievementsPanel from "./AchievementsPanel";
+import ArchivePanel from "./ArchivePanel";
+import AchievementToast from "./AchievementToast";
+import LockedAchievements from "./LockedAchievements";
+import { ACHIEVEMENTS, countMistakes, type AchievementDef } from "@/lib/achievements";
+import { Menu as MenuIcon, X as CloseIcon } from "lucide-react";
 import { firstOpen, fromRecap, mergeProgress, type Captain, type FinishedVoyage, type Progress, type QState } from "@/lib/voyage";
 import { cacheRun, checkpointBody, clearCaptainCache, clearLinkedGuest, readLocalRun, voyageRequest } from "@/lib/voyage-client";
 import {
@@ -41,6 +51,8 @@ interface DailyQuestion {
 interface DailyResponse {
   day: string;
   captain: Captain | null;
+  equippedCharacter: CharacterId;
+  newlyUnlocked?: string[];
   finished: FinishedVoyage | null;
   checkpoint: Progress | null;
   nextRunInMs: number;
@@ -93,7 +105,14 @@ export default function Game() {
   const [nopeOn, setNopeOn] = useState(false);
   const [copied, setCopied] = useState(false);
   const [world, setWorld] = useState<WorldStatus>({ pct: 0, arc: "East Blue", saga: 0, running: false });
-  const [logOpen, setLogOpen] = useState(false);
+  const [menuTab, setMenuTab] = useState<MenuTab | null>(null);
+  const [lockedAchievementsOpen, setLockedAchievementsOpen] = useState(false);
+  const [unlockedToast, setUnlockedToast] = useState<AchievementDef[]>([]);
+  const [achievementRevision, setAchievementRevision] = useState(0);
+  const [equippedCharacter, setEquippedCharacter] = useState<CharacterId>(DEFAULT_CHARACTER);
+  const announcedAwards = useRef(new Set<string>());
+  const awardOwner = useRef<string | null>(null);
+  const returnToMenu = useRef<MenuTab | null>(null);
   const [nextRunAt, setNextRunAt] = useState(0);
   const [showCountdown, setShowCountdown] = useState(true);
   const [stats, setStats] = useState<RunStats | null>(null);
@@ -117,6 +136,19 @@ export default function Game() {
     if (!next) playClick();
   }
 
+  const queueUnlocks = useCallback((ids: string[]) => {
+    const fresh = [...new Set(ids)].filter(id => !announcedAwards.current.has(id));
+    const badges = fresh.map(id => ACHIEVEMENTS.find(a => a.id === id)).filter((a): a is AchievementDef => !!a);
+    if (!badges.length) return;
+    badges.forEach(badge => announcedAwards.current.add(badge.id));
+    setUnlockedToast(previous => [...previous, ...badges]);
+  }, []);
+  const dismissUnlock = useCallback(() => setUnlockedToast(previous => previous.slice(1)), []);
+  const handleEquip = useCallback((id: CharacterId, accountId: string) => {
+    if (awardOwner.current !== accountId || !isCharacterId(id)) return;
+    setEquippedCharacter(id);
+  }, []);
+
   // Hydrate the session and its save together, before enabling any timer or write.
   const loadRun = useCallback(async (expectedCaptain?: string | null) => {
     const version = ++scopeVersion.current;
@@ -133,19 +165,33 @@ export default function Game() {
     const complete = !!d.finished || firstOpen(p) >= DAILY_QUESTION_COUNT;
     revealLoading.current.clear();
     setReveals({}); setGuess(""); setMessage(null); setSuggestion(null); setBusy(false);
-    setRunSignal(null); setFx(null); setSagaBanner(null); setCopied(false); setLogOpen(false);
+    setMenuTab(null);
+    setUnlockedToast([]); setLockedAchievementsOpen(false);
+    if (awardOwner.current !== (d.captain?.id ?? null)) {
+      announcedAwards.current.clear(); awardOwner.current = d.captain?.id ?? null;
+    }
+    setRunSignal(null); setFx(null); setSagaBanner(null); setCopied(false);
     lastSaga.current = null; finishedLive.current = complete;
     setSaveMessage(""); setStats(null); setLoadError(null);
     setNextRunAt(Date.now() + d.nextRunInMs); setShowCountdown(complete);
     setDaily(d); setProgress(p); setViewIndex(complete ? DAILY_QUESTION_COUNT : firstOpen(p));
+    setEquippedCharacter(d.captain && isCharacterId(d.equippedCharacter) ? d.equippedCharacter : DEFAULT_CHARACTER);
     setInitialPos(d.finished?.score ?? p.runs.reduce((sum, r) => sum + travelFor(r.points), 0));
     setNow(Date.now());
-  }, []);
+    if (d.captain) queueUnlocks(d.newlyUnlocked ?? []);
+    setAchievementRevision(n => n + 1);
+  }, [queueUnlocks]);
 
-  function openAccount() { playClick(); setLogOpen(false); setAccountOpen(true); }
+  function openAccount() { playClick(); setMenuTab(null); setAccountOpen(true); }
+  function openAccountForMenu(tab: MenuTab) { playClick(); returnToMenu.current = tab; setMenuTab(null); setAccountOpen(true); }
   async function sessionChanged(captain: Captain | null, linkedGuest: boolean) {
     const previous = daily?.captain?.id;
     await loadRun(captain?.id ?? null);
+    if (captain && returnToMenu.current) {
+      const target = returnToMenu.current;
+      returnToMenu.current = null;
+      setAccountOpen(false); setMenuTab(target);
+    }
     if (previous && previous !== captain?.id) clearCaptainCache(previous);
     if (linkedGuest && daily) clearLinkedGuest(daily.day);
     try { localStorage.setItem("luffillion:session-changed", String(Date.now())); } catch { /* Optional tab notification. */ }
@@ -197,11 +243,12 @@ export default function Game() {
       try {
         const accountId = daily.captain?.id ?? null;
         const answers = daily.questions.map((_, i) => progress.q[i]?.answer ?? "");
+        const mistakes = countMistakes(progress);
         // Backfill old guest score-only recaps if the browser still has the answers.
         const backfill = daily.finished && !daily.finished.legs && firstOpen(progress) === DAILY_QUESTION_COUNT;
         const data = !daily.finished || backfill
-          ? await voyageRequest<RunStats & { finished?: FinishedVoyage }>("/api/run", "POST", { accountId, day: progress.day, answers })
-          : await voyageRequest<RunStats & { finished?: FinishedVoyage }>(`/api/run?day=${progress.day}`);
+          ? await voyageRequest<RunStats & { finished?: FinishedVoyage; newlyUnlocked?: string[] }>("/api/run", "POST", { accountId, day: progress.day, answers, mistakes })
+          : await voyageRequest<RunStats & { finished?: FinishedVoyage; newlyUnlocked?: string[] }>(`/api/run?day=${progress.day}`);
         if (!current()) return;
         if (!data.you) throw new Error("Your session changed. Reload the game to reconnect.");
         if (data.finished?.legs?.some((leg, i) => (leg.answer ?? "") !== answers[i])) {
@@ -209,6 +256,8 @@ export default function Game() {
           return;
         }
         setStats(data); setSaveMessage(daily.captain ? "✓ Voyage saved to your Captain's Log." : "");
+        if (daily.captain) queueUnlocks(data.newlyUnlocked ?? []);
+        setAchievementRevision(n => n + 1);
       } catch (e) {
         if (!current()) return;
         setSaveMessage(e instanceof Error ? e.message : "Couldn't save your score. Retrying…");
@@ -217,7 +266,7 @@ export default function Game() {
     };
     void save();
     return () => { live = false; clearTimeout(retry); };
-  }, [runDone, progress, daily, loadRun]);
+  }, [runDone, progress, daily, loadRun, queueUnlocks]);
 
   useEffect(() => {
     if (!runDone || !showCountdown || !daily) return;
@@ -241,7 +290,7 @@ export default function Game() {
     const sync = async () => {
       try {
         setSaveMessage("Saving checkpoint…");
-        const saved = await voyageRequest<{ complete: boolean; progress: Progress | null }>("/api/account/progress", "PUT", {
+        const saved = await voyageRequest<{ complete: boolean; progress: Progress | null; newlyUnlocked?: string[] }>("/api/account/progress", "PUT", {
           accountId, progress: checkpointBody(progress),
         });
         if (!current()) return;
@@ -254,6 +303,8 @@ export default function Game() {
           setViewIndex(firstOpen(saved.progress));
         }
         setSaveMessage("✓ Checkpoint saved. Your timer follows you across devices.");
+        queueUnlocks(saved.newlyUnlocked ?? []);
+        setAchievementRevision(n => n + 1);
       } catch (e) {
         if (!current()) return;
         setSaveMessage(e instanceof Error ? e.message : "Checkpoint not synced. Retrying…");
@@ -262,7 +313,7 @@ export default function Game() {
     };
     void sync();
     return () => { live = false; clearTimeout(retry); };
-  }, [daily, progress, runDone, loadRun]);
+  }, [daily, progress, runDone, loadRun, queueUnlocks]);
 
   // Clock tick for the countdown.
   useEffect(() => {
@@ -325,6 +376,13 @@ export default function Game() {
     ? Object.values(progress.q).reduce((sum, q) => sum + (q?.status === "solved" ? q.points ?? 0 : 0), 0)
     : 0);
   const journeyPos = daily?.finished?.score ?? (progress ? progress.runs.reduce((sum, r) => sum + travelFor(r.points), 0) : 0);
+  const activeCharacter = characterById(equippedCharacter);
+  const hasGoldHat = Boolean(
+    daily?.finished?.legs?.some((leg) => leg.tier === "luffillion") ||
+      (progress &&
+        (Object.values(progress.q).some((st) => st?.status === "solved" && st.tier === "luffillion") ||
+          progress.runs.some((r) => r.tier === "luffillion"))),
+  );
 
   useEffect(() => {
     if (timerRunning) inputRef.current?.focus();
@@ -536,7 +594,7 @@ export default function Game() {
       {accountOpen && <CaptainLog captain={daily.captain} progress={progress} clockRunning={Boolean(progress.q[activeIndex]?.started && !progress.q[activeIndex]?.status)}
         historyRevision={`${daily.day}:${stats?.you?.score ?? "pending"}`} saveMessage={saveMessage}
         onSessionChange={sessionChanged} onClose={() => setAccountOpen(false)} />}
-      <PixelWorld key={`${daily.day}:${daily.captain?.id ?? "guest"}`} storageKey={daily.captain ? undefined : `luffillion-pos:${daily.day}`} signal={runSignal} initialPos={Math.max(initialPos, journeyPos)} onStatus={handleWorld} />
+      <PixelWorld key={`${daily.day}:${daily.captain?.id ?? "guest"}`} storageKey={daily.captain ? undefined : `luffillion-pos:${daily.day}`} signal={runSignal} initialPos={Math.max(initialPos, journeyPos)} goldHat={hasGoldHat} characterId={equippedCharacter} onStatus={handleWorld} />
       {sagaBanner && (
         <div
           key={sagaBanner.id}
@@ -557,6 +615,7 @@ export default function Game() {
           msLeft={nextRunAt - now}
           score={totalScore}
           saga={world.arc}
+          travelerName={activeCharacter.shortName}
           solved={daily.finished?.solved ?? daily.questions.filter((_, i) => progress.q[i]?.status === "solved").length}
           onAccount={openAccount}
           signedIn={!!daily.captain}
@@ -636,58 +695,87 @@ export default function Game() {
         </div>
       </div>
 
-      {/* ---------- Run log toggle + drawer ---------- */}
+      {/* ---------- Three-lines menu + drawer ---------- */}
       <button
         type="button"
         onClick={() => {
           playClick();
-          setLogOpen((o) => !o);
+          setMenuTab((t) => (t ? null : "log"));
         }}
-        aria-label="Toggle run log"
-        className="px-btn fixed left-3 top-[104px] z-30 grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-xl text-slate-200 hover:bg-[#24335a]"
+        aria-label={menuTab ? "Close game menu" : "Open game menu"}
+        aria-expanded={menuTab !== null}
+        aria-controls="game-menu"
+        className="px-btn fixed left-3 top-[104px] z-[60] grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-slate-200 hover:bg-[#24335a]"
       >
-        {logOpen ? "✕" : "☰"}
+        {menuTab ? <CloseIcon size={17} aria-hidden="true" /> : <MenuIcon size={17} aria-hidden="true" />}
       </button>
 
-      {/* ---------- Sound mute/unmute toggle ---------- */}
-      <button
-        type="button"
-        onClick={toggleMute}
-        aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
+      <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
         title={muted ? "Unmute sound effects" : "Mute sound effects"}
-        className="px-btn fixed right-3 top-[104px] z-30 grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-lg text-slate-200 hover:bg-[#24335a]"
-      >
+        className="px-btn fixed right-3 top-[104px] z-30 grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-lg text-slate-200 hover:bg-[#24335a]">
         {muted ? "🔇" : "🔊"}
       </button>
-      {logOpen && (
-        <div className="px-box px-scan fixed left-3 top-[150px] z-30 max-h-[50vh] w-72 overflow-y-auto p-4">
-          <p className="mb-2 text-sm tracking-[0.3em] text-[#ff4f7b]">RUN LOG</p>
-          {progress.runs.length === 0 ? (
-            <p className="text-base text-slate-400">No runs yet. Land a correct answer to get Luffy moving.</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {[...progress.runs].reverse().map((r, idx) => (
-                <li key={`${r.questionIndex}-${idx}`} className="flex items-center justify-between gap-2 bg-white/5 px-2 py-1 text-base">
-                  <span className="min-w-0 truncate">
-                    <span className={TIER_CONFIG[r.tier].text}>{TIER_LABELS[r.tier]}</span>
-                    <span className="text-slate-500"> · Q{r.questionIndex + 1} · {r.arc}</span>
-                  </span>
-                  <span className="shrink-0 tabular-nums text-white">+{r.points}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-3 border-t border-white/10 pt-2 text-sm leading-snug text-slate-400">
-            {TIER_ORDER.map((t) => (
-              <div key={t} className="flex justify-between">
-                <span className={TIER_CONFIG[t].text}>{TIER_LABELS[t]}</span>
-                <span>{TIER_CONFIG[t].points} pts</span>
+
+      {menuTab && (
+        <MenuPanel
+          tab={menuTab}
+          captain={daily.captain}
+          onSwitch={(next) => {
+            if (next === "achievements" && !daily.captain) {
+              setMenuTab(null);
+              setLockedAchievementsOpen(true);
+              return;
+            }
+            setMenuTab(next);
+          }}
+          onClose={() => setMenuTab(null)}
+        >
+          {menuTab === "log" && (
+            <div className="px-3 py-3">
+              <p className="mb-2 text-sm tracking-[0.3em] text-[#ff4f7b]">RUN LOG</p>
+              {progress.runs.length === 0 ? (
+                <p className="text-base text-slate-400">No runs yet. Land a correct answer to get your character moving.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {[...progress.runs].reverse().map((r, idx) => (
+                    <li key={`${r.questionIndex}-${idx}`} className="flex items-center justify-between gap-2 bg-white/5 px-2 py-1 text-base">
+                      <span className="min-w-0 truncate">
+                        <span className={TIER_CONFIG[r.tier].text}>{TIER_LABELS[r.tier]}</span>
+                        <span className="text-slate-500"> · Q{r.questionIndex + 1} · {r.arc}</span>
+                      </span>
+                      <span className="shrink-0 tabular-nums text-white">+{r.points}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 border-t border-white/10 pt-2 text-sm leading-snug text-slate-400">
+                {TIER_ORDER.map((t) => (
+                  <div key={t} className="flex justify-between">
+                    <span className={TIER_CONFIG[t].text}>{TIER_LABELS[t]}</span>
+                    <span>{TIER_CONFIG[t].points} pts</span>
+                  </div>
+                ))}
+                <p className="mt-2 text-slate-500">Rarer answers send Luffy farther and faster. Reach 500 points to find Laugh Tale.</p>
               </div>
-            ))}
-            <p className="mt-2 text-slate-500">Rarer answers send Luffy farther and faster. A Luffillion runs the whole series.</p>
-          </div>
-        </div>
+            </div>
+          )}
+          {menuTab === "achievements" && daily.captain && <AchievementsPanel key={daily.captain.id} captain={daily.captain} refreshKey={`${daily.day}:${achievementRevision}`} onUnlock={queueUnlocks} equippedCharacter={equippedCharacter} onEquip={handleEquip} />}
+          {menuTab === "archive" && <ArchivePanel captain={daily.captain} refreshKey={`${daily.day}:${stats?.you?.score ?? "pending"}`} />}
+          {menuTab === "bounties" && <BountiesPanel captain={daily.captain} onSignIn={() => openAccountForMenu("bounties")} />}
+        </MenuPanel>
       )}
+
+      {lockedAchievementsOpen && (
+        <LockedAchievements
+          onSignIn={() => {
+            returnToMenu.current = "achievements";
+            setLockedAchievementsOpen(false);
+            setAccountOpen(true);
+          }}
+          onClose={() => setLockedAchievementsOpen(false)}
+        />
+      )}
+      {daily.captain && unlockedToast.length > 0 && <AchievementToast unlocked={unlockedToast} onDone={dismissUnlock} />}
 
       {/* ---------- Center prompt card ---------- */}
       <div className="pointer-events-none fixed inset-x-0 top-[112px] z-10 flex justify-center px-3 sm:top-[120px]">
@@ -708,7 +796,7 @@ export default function Game() {
               </h2>
               <p className="mt-1.5 text-base leading-snug text-slate-300">
                 {activeIndex === 0
-                  ? `${DAILY_QUESTION_COUNT} One Piece questions · ${QUESTION_SECONDS} seconds each · infinite attempts, 1 correct answer. Rarer pulls score more points and send Luffy farther toward Laugh Tale.`
+                  ? `${DAILY_QUESTION_COUNT} One Piece questions · ${QUESTION_SECONDS} seconds each · infinite attempts, 1 correct answer. Rarer pulls score more points and send ${activeCharacter.shortName} farther toward Laugh Tale.`
                   : `The question stays hidden until you begin. Hit Set Sail to start the ${QUESTION_SECONDS}-second timer.`}
               </p>
               {activeIndex === 0 && (
@@ -720,6 +808,7 @@ export default function Game() {
                   ))}
                 </div>
               )}
+              <p className="mt-2 text-sm text-slate-400">Sailing as <span style={{ color: activeCharacter.color }}>{activeCharacter.shortName}</span> · {activeCharacter.epithet}</p>
               <div className="mt-4">
                 <button
                   type="button"
@@ -730,6 +819,9 @@ export default function Game() {
                   ⚓ SET SAIL ▸
                 </button>
               </div>
+              {activeIndex === 0 && <Link href="/adventure" onClick={playClick} className="daily-adventure-entry">
+                <span className="daily-adventure-mark">↗</span><span><strong>ADVENTURE MODE</strong><small>100 levels · 10 sagas · unlimited retries</small></span><span aria-hidden="true">▸</span>
+              </Link>}
             </div>
           ) : !allDone && question ? (
             <>
@@ -1064,7 +1156,8 @@ function percentMessage(stats: RunStats): string {
   if (!you) return "";
   if (stats.total <= 1) return "You're the first player to finish today!";
   if (you.beat >= 100) return "You did better than every other player today!";
-  if (you.beat <= 0) return "Everyone else beat you today. Tomorrow is a new voyage!";
+  if (you.rank === 1) return "You're tied for #1 today!";
+  if (you.beat <= 0) return "You beat 0% of players today. A new voyage awaits tomorrow!";
   return `You did better than ${you.beat}% of players today!`;
 }
 
@@ -1105,6 +1198,7 @@ function CountdownScreen({
   msLeft,
   score,
   saga,
+  travelerName,
   solved,
   copied,
   stats,
@@ -1117,6 +1211,7 @@ function CountdownScreen({
   msLeft: number;
   score: number;
   saga: string;
+  travelerName: string;
   solved: number;
   copied: boolean;
   stats: RunStats | null;
@@ -1131,7 +1226,7 @@ function CountdownScreen({
           {score} <span className="text-lg text-slate-400">/ {MAX_POINTS} pts</span>
         </p>
         <p className="text-base text-slate-400">
-          {solved} of {DAILY_QUESTION_COUNT} answered · Luffy reached <span className="text-amber-200">{saga}</span>
+          {solved} of {DAILY_QUESTION_COUNT} answered · {travelerName} reached <span className="text-amber-200">{saga}</span>
         </p>
 
         <div className="mt-4 border-t border-white/10 pt-3">
@@ -1185,6 +1280,7 @@ function CountdownScreen({
             {copied ? "COPIED!" : "SHARE"}
           </button>
         </div>
+        <Link href="/adventure" onClick={playClick} className="daily-adventure-entry"><span className="daily-adventure-mark">↗</span><span><strong>KEEP SAILING IN ADVENTURE</strong><small>A separate 100-level journey awaits</small></span><span aria-hidden="true">▸</span></Link>
         {saveMessage && <p role="status" className="mt-3 text-sm text-slate-300">{saveMessage}</p>}
         <button type="button" aria-haspopup="dialog" onClick={onAccount} className="mt-2 inline-flex items-center justify-center gap-2 py-1.5 text-base text-cyan-200 underline-offset-4 hover:underline">
           <LogIcon />{signedIn ? "Open my Captain's Log" : "Sign in or create an account to keep this voyage"} ▸

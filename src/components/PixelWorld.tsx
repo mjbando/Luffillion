@@ -4,7 +4,9 @@ import { useEffect, useRef } from "react";
 import { JOURNEY_MAX, SAGAS, SAGA_LENGTH, sagaIndexAt } from "@/data/arcs";
 import { startRunSound } from "@/lib/sound";
 import type { Tier } from "@/data/tiers";
-import { LUFFY_PAL, drawDust, drawSprite, luffyFrame, type Ctx } from "./pixel/art";
+import { drawDust, drawGoldHat, drawSprite, type Ctx } from "./pixel/art";
+import { runnerSprite } from "./pixel/runners";
+import { characterById, DEFAULT_CHARACTER, type CharacterId } from "@/data/playable-characters";
 import { SAGA_DETAILS, SAGA_SCENES, drawSignpost, type Env } from "./pixel/sagas";
 
 export interface RunSignal {
@@ -26,6 +28,8 @@ interface Props {
   signal: RunSignal | null;
   storageKey?: string; // persists Luffy's resting spot so he can never lose ground
   initialPos: number; // where Luffy currently stands (saved cumulative score); he never moves back
+  characterId?: CharacterId;
+  goldHat?: boolean; // earned upon landing a One in a Luffillion answer for this run
   onStatus?: (status: WorldStatus) => void;
 }
 
@@ -50,13 +54,19 @@ const smooth = (x: number) => {
 
 // Full-screen pixel world. Luffy's position is cumulative across the day:
 // each correct answer moves him forward by the points earned, through 12 sagas.
-export default function PixelWorld({ signal, initialPos, onStatus, storageKey }: Props) {
+export default function PixelWorld({ signal, initialPos, goldHat = false, characterId = DEFAULT_CHARACTER, onStatus, storageKey }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const runRef = useRef({ from: initialPos, to: initialPos, start: 0, dur: 1, running: false, pos: initialPos });
   const statusRef = useRef(onStatus);
   useEffect(() => {
     statusRef.current = onStatus;
   }, [onStatus]);
+  const characterRef = useRef(characterId);
+  useEffect(() => { characterRef.current = characterId; }, [characterId]);
+  const goldHatRef = useRef(goldHat);
+  useEffect(() => {
+    goldHatRef.current = goldHat;
+  }, [goldHat]);
 
   // Luffy's resting spot always follows the saved score and only ever moves forward.
   const floorRef = useRef(initialPos);
@@ -174,12 +184,13 @@ export default function PixelWorld({ signal, initialPos, onStatus, storageKey }:
         drawSignpost(c, sx, gy, k + 1, r.pos >= SAGAS[k].at, t);
       }
 
-      // --- Luffy.
-      const sx = Math.round(lx - cam - 8);
+      // The equipped character changes live; its appearance never restarts the run.
+      const sprite = runnerSprite(characterRef.current, r.running, t);
+      const sx = Math.round(lx - cam - sprite.width / 2);
       const celebrating = !r.running && finalRef.current.since > 0;
       const hop = celebrating ? -Math.round(Math.abs(Math.sin((t - finalRef.current.since) / 180)) * 8) : 0;
       const bob = r.running || celebrating ? 0 : Math.sin(t / 500) > 0.5 ? -1 : 0;
-      const sy = gy - 16 + bob + hop;
+      const sy = gy - sprite.height + bob + hop;
       if (celebrating) {
         // victory sparkles + a little shadow under the hop
         c.fillStyle = "rgba(0,0,0,0.25)";
@@ -211,7 +222,8 @@ export default function PixelWorld({ signal, initialPos, onStatus, storageKey }:
         if (d.life <= 0) dust.splice(i, 1);
         else drawDust(c, d);
       }
-      drawSprite(c, luffyFrame(r.running, t), sx, sy, LUFFY_PAL);
+      drawSprite(c, sprite.rows, sx, sy, sprite.palette);
+      if (goldHatRef.current) drawGoldHat(c, sx + sprite.goldHat.x, sy + sprite.goldHat.y, t);
 
       // --- Throttled HUD updates.
       const idx = sagaIndexAt(r.pos);
@@ -237,7 +249,9 @@ export default function PixelWorld({ signal, initialPos, onStatus, storageKey }:
       ref={canvasRef}
       className="fixed inset-0 z-0 h-screen w-screen"
       style={{ imageRendering: "pixelated" }}
-      aria-label="Luffy's journey through the sagas of One Piece"
+      aria-label={`${characterById(characterId).name}'s journey through the sagas of One Piece`}
+      data-character={characterId}
+      data-gold-hat={goldHat}
     />
   );
 }
