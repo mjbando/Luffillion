@@ -30,6 +30,10 @@ export interface FinishedVoyage {
   solved: number;
   // Older, anonymous score records predate per-question recaps.
   legs: VoyageLeg[] | null;
+  niche?: number | null;
+  mistakes?: number | null;
+  beat?: number | null;
+  rank?: number | null;
 }
 export interface VoyageHistory {
   voyages: FinishedVoyage[];
@@ -63,11 +67,13 @@ export function mergeProgress(saved: Progress, incoming: Progress): Progress {
     const a = saved.q[i], b = incoming.q[i];
     if (!a && !b) break;
     if (a?.status || !b) q[i] = a;
-    else if (!a || b.status) q[i] = { ...b, started: a?.started ?? b.started };
+    else if (!a) q[i] = b;
     else q[i] = {
       ...b,
       started: a.started && b.started ? Math.min(a.started, b.started) : a.started ?? b.started,
-      attempts: Math.max(a.attempts, b.attempts),
+      // A pending state's attempts are rejected guesses. Settling it on another
+      // device cannot erase those guesses or move the start time forward.
+      attempts: Math.max(a.attempts + (b.status === "solved" ? 1 : 0), b.attempts),
       wrong: [...new Set([...b.wrong, ...a.wrong])].slice(0, 40),
     };
     if (!q[i].status) break;

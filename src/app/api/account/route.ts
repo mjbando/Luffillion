@@ -5,6 +5,7 @@ import { accounts } from "@/db/schema";
 import { checkAuthBudget, currentCaptain, endSession, failure, guestId, hashPassword, privateJson, readMutation, RequestProblem, rotateGuest, startSession, verifyPassword } from "@/lib/account-server";
 import { claimGuestVoyages, finishVoyage, readCheckpoint, saveCheckpoint } from "@/lib/voyage-server";
 import { todayKey } from "@/lib/daily";
+import { countMistakes } from "@/lib/achievements";
 import { firstOpen, type Captain } from "@/lib/voyage";
 import { DAILY_QUESTION_COUNT } from "@/data/tiers";
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
       if (captain && body.accountId === captain.id && body.progress && typeof body.progress === "object" && "day" in body.progress && body.progress.day === todayKey()) {
         const p = readCheckpoint(body.progress);
         if (firstOpen(p) === DAILY_QUESTION_COUNT) {
-          await finishVoyage({ accountId: captain.id, playerId: `account:${captain.id}` }, p.day, Array.from({ length: DAILY_QUESTION_COUNT }, (_, i) => p.q[i]?.answer ?? ""));
+          await finishVoyage({ accountId: captain.id, playerId: `account:${captain.id}` }, p.day, Array.from({ length: DAILY_QUESTION_COUNT }, (_, i) => p.q[i]?.answer ?? ""), { mistakes: countMistakes(p) ?? undefined });
         } else if (Object.keys(p.q).length) await saveCheckpoint(captain.id, p);
       }
       const res = privateJson({ captain: null });

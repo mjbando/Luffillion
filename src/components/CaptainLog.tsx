@@ -4,13 +4,14 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { sagaAt } from "@/data/arcs";
 import { DAILY_QUESTION_COUNT, TIER_CONFIG } from "@/data/tiers";
 import { playClick } from "@/lib/sound";
+import AdventureLog from "./adventure/AdventureLog";
 import type { Captain, Progress, VoyageHistory } from "@/lib/voyage";
 import { checkpointBody, voyageRequest } from "@/lib/voyage-client";
 
 type Mode = "login" | "register";
 interface Props {
   captain: Captain | null;
-  progress: Progress;
+  progress?: Progress;
   clockRunning: boolean;
   historyRevision: string;
   saveMessage: string;
@@ -72,7 +73,7 @@ export default function CaptainLog({ captain, progress, clockRunning, historyRev
     try {
       const d = await voyageRequest<{ captain: Captain; imported: number; linkedGuest: boolean }>("/api/account", "POST", {
         action: mode, username, password, includeGuest,
-        ...(includeGuest ? { progress: checkpointBody(progress) } : {}),
+        ...(includeGuest && progress ? { progress: checkpointBody(progress) } : {}),
       });
       setPassword(""); setConfirmation("");
       await onSessionChange(d.captain, d.linkedGuest);
@@ -84,7 +85,7 @@ export default function CaptainLog({ captain, progress, clockRunning, historyRev
     if (busy) return;
     playClick(); setBusy(true); setError("");
     try {
-      await voyageRequest("/api/account", "POST", { action: "logout", accountId: captain?.id, progress: checkpointBody(progress) });
+      await voyageRequest("/api/account", "POST", { action: "logout", accountId: captain?.id, ...(progress ? { progress: checkpointBody(progress) } : {}) });
       await onSessionChange(null, false);
       onClose();
     } catch (e) { setError(e instanceof Error ? e.message : "Couldn't sign out."); }
@@ -152,12 +153,13 @@ export default function CaptainLog({ captain, progress, clockRunning, historyRev
           {saveMessage && <p role="status" className="mb-2 text-sm text-cyan-200">{saveMessage}</p>}
           {historyError && <p role="alert" className="mb-3 text-rose-200">{historyError} <button type="button" className="underline" onClick={() => { playClick(); setRetry(n => n + 1); }}>Retry</button></p>}
           {!history && !historyError && <p role="status" className="py-5 text-cyan-200">Fetching your voyages…</p>}
+          <AdventureLog key={captain.id} accountId={captain.id} revision={historyRevision}/>
           {history && <>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[["VOYAGES", history.summary.count], ["BEST / 700", history.summary.best], ["AVERAGE", history.summary.average]].map(([label, value]) =>
                 <div key={label} className="border border-white/10 bg-white/[.035] py-2"><p className="text-xs tracking-widest text-slate-400">{label}</p><p className="font-pixel-display text-xl text-cyan-200">{value}</p></div>)}
             </div>
-            <h3 className="mb-2 mt-5 text-sm tracking-[.24em] text-amber-200">VOYAGE HISTORY</h3>
+            <h3 className="mb-2 mt-5 text-sm tracking-[.24em] text-amber-200">DAILY VOYAGE HISTORY</h3>
             {!history.voyages.length ? <div className="border border-dashed border-slate-600 px-3 py-4 text-center">
               <p className="text-xl text-white">Your first entry awaits.</p><p className="text-base text-slate-400">Finish the seven daily questions to add a voyage here.</p>
             </div> : <div className="space-y-2">
