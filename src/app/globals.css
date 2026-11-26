@@ -28,6 +28,10 @@
 .daily-adventure-entry strong { display:block; font-size:15px; letter-spacing:.12em; font-weight:400; }
 .daily-adventure-entry small { display:block; font-size:15px; color:#8fb8c0; }
 .daily-adventure-mark { color:#92e5cd; font-size:24px; }
+.daily-ranked-entry { border-color:#7a3445; border-left-color:#ff4f7b; background:#431b2b80; color:#ffe3e8; }
+.daily-ranked-entry:hover { border-color:#ff7897; background:#592132; }
+.daily-ranked-entry small { color:#f0a3b2; }
+.daily-ranked-entry .daily-adventure-mark { color:#ff7d99; }
 .adventure-log { margin:1rem 0; padding:.85rem; border:1px solid #3d5269; border-top:2px solid #b99b55; background:#13233a; }
 
 /* ---------- Pixel UI chrome ---------- */

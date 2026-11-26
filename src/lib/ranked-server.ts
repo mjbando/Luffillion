@@ -1,0 +1,1016 @@
+import { and, desc, eq, gt, ilike, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { accounts, adventureProgress, bounties, rankedChallenges, rankedMatches, rankedProfiles } from "@/db/schema";
+import { adventureTitle } from "@/data/adventure/levels";
+import { isCharacterId, DEFAULT_CHARACTER } from "@/data/playable-characters";
+import { ORIGINAL_QUESTIONS, type Question } from "@/data/questions";
+import { checkGuess, getQuestionById, suggestGuess } from "./daily";
+import { RequestProblem } from "./account-server";
+import {
+  RANKED_INTRO_MS,
+  RANKED_MAX_ROUNDS,
+  RANKED_REVEAL_MS,
+  RANKED_SECONDS,
+  RANKED_STARTING_LIVES,
+  computeSingleDelta,
+  rankTierFor,
+} from "./ranked";
+import type {
+  OnlinePlayerSummary,
+  RankedChallengeView,
+  RankedLeaderboardEntry,
+  RankedLobbyResponse,
+  RankedMatchState,
+  RankedMatchView,
+  RankedPlayerCard,
+  RankedRoundReveal,
+  RankedRoundState,
+} from "./ranked-types";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type MatchRow = typeof rankedMatches.$inferSelect;
+
+const ONLINE_MS = 45_000;
+const CHALLENGE_TTL_MS = 60_000;
+const MATCH_STALE_ABORT_MS = 3 * 60_000;
+
+const isUuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
+
+function pickMatchQuestions(): Question[] {
+  const pool = [...ORIGINAL_QUESTIONS];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  // Prefer questions with plenty of answers so a 10-second duel feels rich and fair.
+  const rich = pool.filter((q) => Object.values(q.tiers).flat().length >= 12);
+  const rest = pool.filter((q) => Object.values(q.tiers).flat().length < 12);
+  return [...rich, ...rest].slice(0, RANKED_MAX_ROUNDS);
+}
+
+async function lockAccounts(tx: Tx, ids: string[]) {
+  const unique = [...new Set(ids)].sort();
+  for (const id of unique) {
+    await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, id)).for("update");
+  }
+}
+
+async function ensureRankedProfile(tx: Tx, accountId: string) {
+  await tx.insert(rankedProfiles).values({ accountId }).onConflictDoNothing();
+}
+
+async function buildPlayerCard(tx: Tx, accountId: string, lives = RANKED_STARTING_LIVES): Promise<RankedPlayerCard> {
+  await ensureRankedProfile(tx, accountId);
+  const [row] = await tx
+    .select({
+      accountId: accounts.id,
+      username: accounts.username,
+      equippedCharacter: accounts.equippedCharacter,
+      points: rankedProfiles.points,
+      wins: rankedProfiles.wins,
+      losses: rankedProfiles.losses,
+      draws: rankedProfiles.draws,
+      winStreak: rankedProfiles.winStreak,
+      bounty: bounties.total,
+      advCompleted: adventureProgress.completed,
+    })
+    .from(accounts)
+    .innerJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
+    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
+    .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+
+  if (!row) throw new RequestProblem(404, "Captain account not found.");
+  const tier = rankTierFor(row.points);
+  return {
+    accountId: row.accountId,
+    username: row.username,
+    title: adventureTitle(row.advCompleted ?? 0),
+    bounty: row.bounty ?? 0,
+    rankPoints: row.points,
+    rankTier: tier.id,
+    rankName: tier.name,
+    winStreak: row.winStreak,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    characterId: isCharacterId(row.equippedCharacter) ? row.equippedCharacter : DEFAULT_CHARACTER,
+    lives,
+  };
+}
+
+async function createMatch(tx: Tx, p1Id: string, p2Id: string): Promise<MatchRow> {
+  await lockAccounts(tx, [p1Id, p2Id]);
+  // Ensure neither captain already entered an active match.
+  const [existing] = await tx
+    .select({ id: rankedMatches.id })
+    .from(rankedMatches)
+    .where(
+      and(
+        eq(rankedMatches.status, "active"),
+        or(
+          eq(rankedMatches.player1Id, p1Id),
+          eq(rankedMatches.player2Id, p1Id),
+          eq(rankedMatches.player1Id, p2Id),
+          eq(rankedMatches.player2Id, p2Id),
+        ),
+      ),
+    )
+    .limit(1);
+  if (existing) throw new RequestProblem(409, "One of the captains is already in an active match.");
+
+  const [p1Card, p2Card] = await Promise.all([
+    buildPlayerCard(tx, p1Id, RANKED_STARTING_LIVES),
+    buildPlayerCard(tx, p2Id, RANKED_STARTING_LIVES),
+  ]);
+
+  const now = Date.now();
+  const roundStartAt = now + RANKED_INTRO_MS;
+  const roundEndAt = roundStartAt + RANKED_SECONDS * 1000;
+  const questions = pickMatchQuestions();
+
+  const state: RankedMatchState = {
+    p1: p1Card,
+    p2: p2Card,
+    questionIds: questions.map((q) => q.id),
+    roundIndex: 0,
+    roundStartAt,
+    roundEndAt,
+    rounds: {
+      0: {
+        questionId: questions[0].id,
+        startedAt: roundStartAt,
+        endsAt: roundEndAt,
+        p1: null,
+        p2: null,
+        p1Attempts: 0,
+        p2Attempts: 0,
+      },
+    },
+  };
+
+  await tx
+    .update(rankedProfiles)
+    .set({ queuedAt: null, updatedAt: new Date(now) })
+    .where(inArray(rankedProfiles.accountId, [p1Id, p2Id]));
+
+  await tx
+    .update(rankedChallenges)
+    .set({ status: "cancelled" })
+    .where(
+      and(
+        eq(rankedChallenges.status, "pending"),
+        or(
+          inArray(rankedChallenges.fromAccountId, [p1Id, p2Id]),
+          inArray(rankedChallenges.toAccountId, [p1Id, p2Id]),
+        ),
+      ),
+    );
+
+  const [created] = await tx
+    .insert(rankedMatches)
+    .values({
+      player1Id: p1Id,
+      player2Id: p2Id,
+      status: "active",
+      state,
+    })
+    .returning();
+
+  return created;
+}
+
+async function finalizeMatch(
+  tx: Tx,
+  match: MatchRow,
+  outcome: "p1" | "p2" | "draw",
+  reason: "knockout" | "rounds" | "forfeit",
+): Promise<MatchRow> {
+  if (match.status !== "active") return match;
+  await lockAccounts(tx, [match.player1Id, match.player2Id]);
+  const [fresh] = await tx.select().from(rankedMatches).where(eq(rankedMatches.id, match.id)).for("update");
+  if (!fresh || fresh.status !== "active") return fresh ?? match;
+
+  await Promise.all([ensureRankedProfile(tx, fresh.player1Id), ensureRankedProfile(tx, fresh.player2Id)]);
+  const [rp1] = await tx.select().from(rankedProfiles).where(eq(rankedProfiles.accountId, fresh.player1Id)).limit(1);
+  const [rp2] = await tx.select().from(rankedProfiles).where(eq(rankedProfiles.accountId, fresh.player2Id)).limit(1);
+
+  const p1Outcome = outcome === "draw" ? "draw" : outcome === "p1" ? "win" : "loss";
+  const p2Outcome = outcome === "draw" ? "draw" : outcome === "p2" ? "win" : "loss";
+
+  const p1Delta = computeSingleDelta(rp1.points, rp2.points, rp1.winStreak, p1Outcome);
+  const p2Delta = computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
+
+  const nowDate = new Date();
+  await tx
+    .update(rankedProfiles)
+    .set({
+      points: p1Delta.newPoints,
+      wins: rp1.wins + (p1Outcome === "win" ? 1 : 0),
+      losses: rp1.losses + (p1Outcome === "loss" ? 1 : 0),
+      draws: rp1.draws + (p1Outcome === "draw" ? 1 : 0),
+      winStreak: p1Delta.newStreak,
+      bestStreak: Math.max(rp1.bestStreak, p1Delta.newStreak),
+      updatedAt: nowDate,
+    })
+    .where(eq(rankedProfiles.accountId, fresh.player1Id));
+
+  await tx
+    .update(rankedProfiles)
+    .set({
+      points: p2Delta.newPoints,
+      wins: rp2.wins + (p2Outcome === "win" ? 1 : 0),
+      losses: rp2.losses + (p2Outcome === "loss" ? 1 : 0),
+      draws: rp2.draws + (p2Outcome === "draw" ? 1 : 0),
+      winStreak: p2Delta.newStreak,
+      bestStreak: Math.max(rp2.bestStreak, p2Delta.newStreak),
+      updatedAt: nowDate,
+    })
+    .where(eq(rankedProfiles.accountId, fresh.player2Id));
+
+  const nextState: RankedMatchState = {
+    ...fresh.state,
+    p1: {
+      ...fresh.state.p1,
+      rankPoints: p1Delta.newPoints,
+      rankTier: p1Delta.newTier,
+      rankName: rankTierFor(p1Delta.newPoints).name,
+      winStreak: p1Delta.newStreak,
+    },
+    p2: {
+      ...fresh.state.p2,
+      rankPoints: p2Delta.newPoints,
+      rankTier: p2Delta.newTier,
+      rankName: rankTierFor(p2Delta.newPoints).name,
+      winStreak: p2Delta.newStreak,
+    },
+    result: {
+      outcome,
+      reason,
+      p1: p1Delta,
+      p2: p2Delta,
+    },
+  };
+
+  const winnerId = outcome === "p1" ? fresh.player1Id : outcome === "p2" ? fresh.player2Id : null;
+  const [saved] = await tx
+    .update(rankedMatches)
+    .set({
+      status: "finished",
+      winnerId,
+      isDraw: outcome === "draw" ? 1 : 0,
+      state: nextState,
+      updatedAt: nowDate,
+    })
+    .where(eq(rankedMatches.id, fresh.id))
+    .returning();
+
+  return saved;
+}
+
+async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
+  if (match.status !== "active") return match;
+
+  let current = match;
+  const now = Date.now();
+  const state: RankedMatchState = structuredClone(current.state);
+
+  // Safety timeout if a match sits stale far beyond all rounds
+  if (now - current.updatedAt.getTime() > MATCH_STALE_ABORT_MS && now > state.roundEndAt + MATCH_STALE_ABORT_MS) {
+    const p1L = state.p1.lives;
+    const p2L = state.p2.lives;
+    const outcome = p1L > p2L ? "p1" : p2L > p1L ? "p2" : "draw";
+    return finalizeMatch(tx, current, outcome, "rounds");
+  }
+
+  let changed = false;
+  while (state.roundIndex < state.questionIds.length) {
+    const r = state.rounds[state.roundIndex];
+    if (!r) break;
+    const bothAnswered = Boolean(r.p1 && r.p2);
+    const expired = now >= r.endsAt;
+    if (!bothAnswered && !expired) break;
+
+    // Resolve this round
+    const p1Pts = r.p1?.points ?? 0;
+    const p2Pts = r.p2?.points ?? 0;
+    let loser: "p1" | "p2" | null = null;
+    if (p1Pts < p2Pts) {
+      loser = "p1";
+      state.p1.lives = Math.max(0, state.p1.lives - 1);
+    } else if (p2Pts < p1Pts) {
+      loser = "p2";
+      state.p2.lives = Math.max(0, state.p2.lives - 1);
+    }
+    r.resolvedAt = Math.min(now, r.endsAt);
+    r.loser = loser;
+    changed = true;
+
+    const knockout = state.p1.lives === 0 || state.p2.lives === 0;
+    const lastRound = state.roundIndex + 1 >= state.questionIds.length;
+    if (knockout || lastRound) {
+      const outcome = state.p1.lives > state.p2.lives ? "p1" : state.p2.lives > state.p1.lives ? "p2" : "draw";
+      const [updated] = await tx
+        .update(rankedMatches)
+        .set({ state, updatedAt: new Date(now) })
+        .where(eq(rankedMatches.id, current.id))
+        .returning();
+      return finalizeMatch(tx, updated ?? current, outcome, knockout ? "knockout" : "rounds");
+    }
+
+    // Prepare next round after a brief reveal pause
+    const nextIdx = state.roundIndex + 1;
+    const nextStart = now + RANKED_REVEAL_MS;
+    const nextEnd = nextStart + RANKED_SECONDS * 1000;
+    state.roundIndex = nextIdx;
+    state.roundStartAt = nextStart;
+    state.roundEndAt = nextEnd;
+    state.rounds[nextIdx] = {
+      questionId: state.questionIds[nextIdx],
+      startedAt: nextStart,
+      endsAt: nextEnd,
+      p1: null,
+      p2: null,
+      p1Attempts: 0,
+      p2Attempts: 0,
+    };
+    break;
+  }
+
+  if (changed) {
+    const [updated] = await tx
+      .update(rankedMatches)
+      .set({ state, updatedAt: new Date(now) })
+      .where(eq(rankedMatches.id, current.id))
+      .returning();
+    if (updated) current = updated;
+  }
+  return current;
+}
+
+function toReveal(
+  idx: number,
+  r: RankedRoundState,
+  youRole: "p1" | "p2",
+): RankedRoundReveal {
+  const q = getQuestionById(r.questionId);
+  const yourPick = youRole === "p1" ? r.p1 ?? null : r.p2 ?? null;
+  const oppPick = youRole === "p1" ? r.p2 ?? null : r.p1 ?? null;
+  const loser = !r.loser ? null : r.loser === youRole ? "you" : "opponent";
+  return {
+    roundNumber: idx + 1,
+    prompt: q?.prompt ?? "One Piece Question",
+    yourPick,
+    opponentPick: oppPick,
+    loser,
+  };
+}
+
+function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedMatchView {
+  const youRole: "p1" | "p2" = match.player1Id === viewerId ? "p1" : "p2";
+  const state = match.state;
+  const you = youRole === "p1" ? state.p1 : state.p2;
+  const opponent = youRole === "p1" ? state.p2 : state.p1;
+
+  const history: RankedRoundReveal[] = [];
+  for (let i = 0; i < state.questionIds.length; i++) {
+    const r = state.rounds[i];
+    if (r && r.resolvedAt) history.push(toReveal(i, r, youRole));
+  }
+
+  let roundView: RankedMatchView["round"] = null;
+  if (match.status === "active") {
+    const r = state.rounds[state.roundIndex];
+    if (r) {
+      const q = getQuestionById(r.questionId);
+      const yourPick = youRole === "p1" ? r.p1 ?? null : r.p2 ?? null;
+      const oppPick = youRole === "p1" ? r.p2 ?? null : r.p1 ?? null;
+      const phase: "intro" | "answering" | "reveal" = now < r.startedAt ? (state.roundIndex === 0 ? "intro" : "reveal") : "answering";
+      roundView = {
+        roundNumber: state.roundIndex + 1,
+        prompt: q?.prompt ?? "Name a One Piece answer.",
+        hint: q?.hint ?? "Rarer answers deal more damage!",
+        phase,
+        startsAt: r.startedAt,
+        endsAt: r.endsAt,
+        yourPick,
+        opponentLocked: Boolean(oppPick),
+      };
+    }
+  }
+
+  let resultView: RankedMatchView["result"] = null;
+  if (state.result) {
+    const raw = state.result;
+    const outcome = raw.outcome === "draw" ? "draw" : raw.outcome === youRole ? "win" : "loss";
+    resultView = {
+      outcome,
+      reason: raw.reason,
+      you: youRole === "p1" ? raw.p1 : raw.p2,
+      opponent: youRole === "p1" ? raw.p2 : raw.p1,
+    };
+  }
+
+  return {
+    id: match.id,
+    status: match.status as "active" | "finished",
+    youRole,
+    you,
+    opponent,
+    round: roundView,
+    lastReveal: history.length ? history[history.length - 1] : null,
+    history,
+    result: resultView,
+  };
+}
+
+async function tryPairFromQueue(tx: Tx, accountId: string): Promise<MatchRow | null> {
+  const cutoff = new Date(Date.now() - ONLINE_MS);
+  const candidates = await tx
+    .select({
+      accountId: rankedProfiles.accountId,
+      points: rankedProfiles.points,
+      queuedAt: rankedProfiles.queuedAt,
+    })
+    .from(rankedProfiles)
+    .where(
+      and(
+        ne(rankedProfiles.accountId, accountId),
+        isNotNull(rankedProfiles.queuedAt),
+        gt(rankedProfiles.queuedAt, cutoff),
+        gt(rankedProfiles.lastSeenAt, cutoff),
+      ),
+    )
+    .limit(20);
+
+  if (!candidates.length) return null;
+  const [self] = await tx
+    .select({ points: rankedProfiles.points })
+    .from(rankedProfiles)
+    .where(eq(rankedProfiles.accountId, accountId))
+    .limit(1);
+  const selfPoints = self?.points ?? 0;
+
+  // Prefer closest rank points, breaking ties by longest queue wait
+  candidates.sort((a, b) => {
+    const da = Math.abs(a.points - selfPoints);
+    const dbDiff = Math.abs(b.points - selfPoints);
+    if (da !== dbDiff) return da - dbDiff;
+    return (a.queuedAt?.getTime() ?? 0) - (b.queuedAt?.getTime() ?? 0);
+  });
+
+  for (const peer of candidates) {
+    const [busy] = await tx
+      .select({ id: rankedMatches.id })
+      .from(rankedMatches)
+      .where(
+        and(
+          eq(rankedMatches.status, "active"),
+          or(eq(rankedMatches.player1Id, peer.accountId), eq(rankedMatches.player2Id, peer.accountId)),
+        ),
+      )
+      .limit(1);
+    if (busy) continue;
+    return createMatch(tx, peer.accountId, accountId);
+  }
+  return null;
+}
+
+async function fetchLeaderboard(tx: Tx, viewerId: string | null): Promise<RankedLeaderboardEntry[]> {
+  const rows = await tx
+    .select({
+      accountId: accounts.id,
+      username: accounts.username,
+      equippedCharacter: accounts.equippedCharacter,
+      points: rankedProfiles.points,
+      wins: rankedProfiles.wins,
+      losses: rankedProfiles.losses,
+      draws: rankedProfiles.draws,
+      winStreak: rankedProfiles.winStreak,
+      bounty: bounties.total,
+      advCompleted: adventureProgress.completed,
+    })
+    .from(rankedProfiles)
+    .innerJoin(accounts, eq(accounts.id, rankedProfiles.accountId))
+    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
+    .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+    .orderBy(desc(rankedProfiles.points), desc(rankedProfiles.wins), accounts.username)
+    .limit(50);
+
+  return rows.map((row, idx) => {
+    const tier = rankTierFor(row.points);
+    return {
+      rank: idx + 1,
+      accountId: row.accountId,
+      username: row.username,
+      title: adventureTitle(row.advCompleted ?? 0),
+      bounty: row.bounty ?? 0,
+      rankPoints: row.points,
+      rankTier: tier.id,
+      rankName: tier.name,
+      wins: row.wins,
+      losses: row.losses,
+      draws: row.draws,
+      winStreak: row.winStreak,
+      characterId: isCharacterId(row.equippedCharacter) ? row.equippedCharacter : DEFAULT_CHARACTER,
+      isYou: row.accountId === viewerId,
+    };
+  });
+}
+
+async function buildLobbyData(
+  tx: Tx,
+  accountId: string | null,
+  searchQuery: string,
+  activeMatchRow: MatchRow | null,
+): Promise<Omit<RankedLobbyResponse, "captain" | "feedback">> {
+  const nowDate = new Date();
+  const cutoff = new Date(nowDate.getTime() - ONLINE_MS);
+
+  // Expire stale pending challenges
+  await tx
+    .update(rankedChallenges)
+    .set({ status: "expired" })
+    .where(and(eq(rankedChallenges.status, "pending"), sql`${rankedChallenges.expiresAt} < ${nowDate}`));
+
+  // Active match IDs for status flags
+  const activeMatches = await tx
+    .select({ p1: rankedMatches.player1Id, p2: rankedMatches.player2Id })
+    .from(rankedMatches)
+    .where(eq(rankedMatches.status, "active"));
+  const busyIds = new Set<string>();
+  for (const m of activeMatches) {
+    busyIds.add(m.p1);
+    busyIds.add(m.p2);
+  }
+
+  const trimmed = searchQuery.trim();
+  const onlineRows = await tx
+    .select({
+      accountId: accounts.id,
+      username: accounts.username,
+      equippedCharacter: accounts.equippedCharacter,
+      points: rankedProfiles.points,
+      winStreak: rankedProfiles.winStreak,
+      queuedAt: rankedProfiles.queuedAt,
+      bounty: bounties.total,
+      advCompleted: adventureProgress.completed,
+    })
+    .from(rankedProfiles)
+    .innerJoin(accounts, eq(accounts.id, rankedProfiles.accountId))
+    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
+    .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+    .where(
+      and(
+        gt(rankedProfiles.lastSeenAt, cutoff),
+        accountId ? ne(rankedProfiles.accountId, accountId) : undefined,
+        trimmed ? ilike(accounts.username, `%${trimmed}%`) : undefined,
+      ),
+    )
+    .orderBy(desc(rankedProfiles.lastSeenAt))
+    .limit(30);
+
+  const toOnlineSummary = (row: (typeof onlineRows)[number]): OnlinePlayerSummary => {
+    const tier = rankTierFor(row.points);
+    return {
+      accountId: row.accountId,
+      username: row.username,
+      title: adventureTitle(row.advCompleted ?? 0),
+      bounty: row.bounty ?? 0,
+      rankPoints: row.points,
+      rankTier: tier.id,
+      rankName: tier.name,
+      winStreak: row.winStreak,
+      characterId: isCharacterId(row.equippedCharacter) ? row.equippedCharacter : DEFAULT_CHARACTER,
+      inMatch: busyIds.has(row.accountId),
+      inQueue: Boolean(row.queuedAt && row.queuedAt > cutoff),
+    };
+  };
+
+  const onlinePlayers = onlineRows.map(toOnlineSummary);
+
+  let profile: RankedPlayerCard | null = null;
+  let inQueue = false;
+  let challenges: RankedChallengeView[] = [];
+  let recentMatches: RankedMatchView[] = [];
+
+  if (accountId) {
+    profile = await buildPlayerCard(tx, accountId);
+    const [rp] = await tx
+      .select({ queuedAt: rankedProfiles.queuedAt })
+      .from(rankedProfiles)
+      .where(eq(rankedProfiles.accountId, accountId))
+      .limit(1);
+    inQueue = Boolean(rp?.queuedAt && rp.queuedAt > cutoff);
+
+    const chRows = await tx
+      .select()
+      .from(rankedChallenges)
+      .where(
+        and(
+          eq(rankedChallenges.status, "pending"),
+          or(eq(rankedChallenges.fromAccountId, accountId), eq(rankedChallenges.toAccountId, accountId)),
+        ),
+      )
+      .orderBy(desc(rankedChallenges.createdAt))
+      .limit(10);
+
+    const peerIds = [...new Set(chRows.map((c) => (c.fromAccountId === accountId ? c.toAccountId : c.fromAccountId)))];
+    const peerMap = new Map<string, OnlinePlayerSummary>();
+    if (peerIds.length) {
+      const peerRows = await tx
+        .select({
+          accountId: accounts.id,
+          username: accounts.username,
+          equippedCharacter: accounts.equippedCharacter,
+          points: rankedProfiles.points,
+          winStreak: rankedProfiles.winStreak,
+          queuedAt: rankedProfiles.queuedAt,
+          bounty: bounties.total,
+          advCompleted: adventureProgress.completed,
+        })
+        .from(accounts)
+        .innerJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
+        .leftJoin(bounties, eq(bounties.accountId, accounts.id))
+        .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+        .where(inArray(accounts.id, peerIds));
+      for (const r of peerRows) peerMap.set(r.accountId, toOnlineSummary(r));
+    }
+
+    challenges = chRows
+      .map((c) => {
+        const peerId = c.fromAccountId === accountId ? c.toAccountId : c.fromAccountId;
+        const opponent = peerMap.get(peerId);
+        if (!opponent) return null;
+        return {
+          id: c.id,
+          direction: c.fromAccountId === accountId ? ("outgoing" as const) : ("incoming" as const),
+          opponent,
+          expiresAt: c.expiresAt.getTime(),
+        };
+      })
+      .filter((c): c is RankedChallengeView => Boolean(c));
+
+    const recentRows = await tx
+      .select()
+      .from(rankedMatches)
+      .where(
+        and(
+          eq(rankedMatches.status, "finished"),
+          or(eq(rankedMatches.player1Id, accountId), eq(rankedMatches.player2Id, accountId)),
+        ),
+      )
+      .orderBy(desc(rankedMatches.updatedAt))
+      .limit(5);
+    recentMatches = recentRows.map((m) => serializeMatch(m, accountId, nowDate.getTime()));
+  }
+
+  const [{ onlineCount }] = await tx
+    .select({ onlineCount: sql<number>`count(*)::int` })
+    .from(rankedProfiles)
+    .where(gt(rankedProfiles.lastSeenAt, cutoff));
+
+  const leaderboard = await fetchLeaderboard(tx, accountId);
+  const activeMatch = activeMatchRow && accountId ? serializeMatch(activeMatchRow, accountId, nowDate.getTime()) : null;
+
+  return {
+    profile,
+    inQueue,
+    onlineCount,
+    onlinePlayers,
+    challenges,
+    activeMatch,
+    recentMatches,
+    leaderboard,
+    serverNow: nowDate.getTime(),
+  };
+}
+
+export async function readRankedLobby(
+  accountId: string | null,
+  searchQuery = "",
+  matchId?: string | null,
+): Promise<Omit<RankedLobbyResponse, "captain" | "feedback">> {
+  return db.transaction(async (tx) => {
+    let activeMatch: MatchRow | null = null;
+    if (accountId) {
+      await ensureRankedProfile(tx, accountId);
+      const nowDate = new Date();
+      await tx
+        .update(rankedProfiles)
+        .set({ lastSeenAt: nowDate })
+        .where(eq(rankedProfiles.accountId, accountId));
+
+      if (isUuid(matchId)) {
+        const [found] = await tx
+          .select()
+          .from(rankedMatches)
+          .where(
+            and(
+              eq(rankedMatches.id, matchId),
+              or(eq(rankedMatches.player1Id, accountId), eq(rankedMatches.player2Id, accountId)),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (found) activeMatch = found.status === "active" ? await advanceMatch(tx, found) : found;
+      }
+
+      if (!activeMatch) {
+        const [live] = await tx
+          .select()
+          .from(rankedMatches)
+          .where(
+            and(
+              eq(rankedMatches.status, "active"),
+              or(eq(rankedMatches.player1Id, accountId), eq(rankedMatches.player2Id, accountId)),
+            ),
+          )
+          .orderBy(desc(rankedMatches.createdAt))
+          .for("update")
+          .limit(1);
+        if (live) activeMatch = await advanceMatch(tx, live);
+      }
+
+      // If still queued and no active match yet, try pairing on poll too!
+      if (!activeMatch || activeMatch.status !== "active") {
+        const [self] = await tx
+          .select({ queuedAt: rankedProfiles.queuedAt })
+          .from(rankedProfiles)
+          .where(eq(rankedProfiles.accountId, accountId))
+          .limit(1);
+        if (self?.queuedAt && self.queuedAt.getTime() > Date.now() - ONLINE_MS) {
+          const paired = await tryPairFromQueue(tx, accountId);
+          if (paired) activeMatch = paired;
+        }
+      }
+    }
+
+    return buildLobbyData(tx, accountId, searchQuery, activeMatch);
+  });
+}
+
+export async function rankedAction(
+  accountId: string,
+  body: Record<string, unknown>,
+): Promise<Omit<RankedLobbyResponse, "captain">> {
+  const action = typeof body.action === "string" ? body.action : "";
+  const searchQuery = typeof body.q === "string" ? body.q : "";
+
+  return db.transaction(async (tx) => {
+    await ensureRankedProfile(tx, accountId);
+    const nowDate = new Date();
+    const now = nowDate.getTime();
+    await tx.update(rankedProfiles).set({ lastSeenAt: nowDate }).where(eq(rankedProfiles.accountId, accountId));
+
+    // Helper: check if viewer already has an active match (after advancing expired rounds)
+    const getLiveMatch = async (): Promise<MatchRow | null> => {
+      const [live] = await tx
+        .select()
+        .from(rankedMatches)
+        .where(
+          and(
+            eq(rankedMatches.status, "active"),
+            or(eq(rankedMatches.player1Id, accountId), eq(rankedMatches.player2Id, accountId)),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!live) return null;
+      const advanced = await advanceMatch(tx, live);
+      return advanced.status === "active" ? advanced : null;
+    };
+
+    if (action === "queue") {
+      const current = await getLiveMatch();
+      if (current) {
+        return { ...(await buildLobbyData(tx, accountId, searchQuery, current)) };
+      }
+      await tx
+        .update(rankedProfiles)
+        .set({ queuedAt: nowDate, updatedAt: nowDate })
+        .where(eq(rankedProfiles.accountId, accountId));
+      const matched = await tryPairFromQueue(tx, accountId);
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, matched)) };
+    }
+
+    if (action === "unqueue") {
+      await tx
+        .update(rankedProfiles)
+        .set({ queuedAt: null, updatedAt: nowDate })
+        .where(eq(rankedProfiles.accountId, accountId));
+      const current = await getLiveMatch();
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, current)) };
+    }
+
+    if (action === "challenge") {
+      const current = await getLiveMatch();
+      if (current) throw new RequestProblem(409, "Finish your current battle before sending another challenge.");
+
+      let targetId = isUuid(body.targetId) ? body.targetId : null;
+      if (!targetId && typeof body.targetUsername === "string" && body.targetUsername.trim()) {
+        const key = body.targetUsername.trim().toLowerCase();
+        const [target] = await tx
+          .select({ id: accounts.id })
+          .from(accounts)
+          .where(eq(accounts.usernameKey, key))
+          .limit(1);
+        if (!target) throw new RequestProblem(404, "No captain with that username was found.");
+        targetId = target.id;
+      }
+      if (!targetId) throw new RequestProblem(400, "Choose an online captain to challenge.");
+      if (targetId === accountId) throw new RequestProblem(400, "You cannot challenge yourself.");
+
+      await ensureRankedProfile(tx, targetId);
+      const [targetStatus] = await tx
+        .select({ lastSeenAt: rankedProfiles.lastSeenAt })
+        .from(rankedProfiles)
+        .where(eq(rankedProfiles.accountId, targetId))
+        .limit(1);
+      if (!targetStatus || targetStatus.lastSeenAt.getTime() < now - ONLINE_MS) {
+        throw new RequestProblem(409, "That captain is not currently online in Ranked mode.");
+      }
+      const [targetBusy] = await tx
+        .select({ id: rankedMatches.id })
+        .from(rankedMatches)
+        .where(
+          and(
+            eq(rankedMatches.status, "active"),
+            or(eq(rankedMatches.player1Id, targetId), eq(rankedMatches.player2Id, targetId)),
+          ),
+        )
+        .limit(1);
+      if (targetBusy) throw new RequestProblem(409, "That captain is already in a ranked battle.");
+
+      // Replace any duplicate pending challenge from this sender to this target
+      await tx
+        .update(rankedChallenges)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(rankedChallenges.fromAccountId, accountId),
+            eq(rankedChallenges.toAccountId, targetId),
+            eq(rankedChallenges.status, "pending"),
+          ),
+        );
+
+      await tx.insert(rankedChallenges).values({
+        fromAccountId: accountId,
+        toAccountId: targetId,
+        status: "pending",
+        expiresAt: new Date(now + CHALLENGE_TTL_MS),
+      });
+
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, null)) };
+    }
+
+    if (action === "accept") {
+      const challengeId = body.challengeId;
+      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid challenge.");
+      const [ch] = await tx
+        .select()
+        .from(rankedChallenges)
+        .where(and(eq(rankedChallenges.id, challengeId), eq(rankedChallenges.toAccountId, accountId)))
+        .for("update")
+        .limit(1);
+      if (!ch || ch.status !== "pending" || ch.expiresAt.getTime() < now) {
+        throw new RequestProblem(409, "That challenge has expired.");
+      }
+      const match = await createMatch(tx, ch.fromAccountId, ch.toAccountId);
+      await tx
+        .update(rankedChallenges)
+        .set({ status: "accepted", matchId: match.id })
+        .where(eq(rankedChallenges.id, ch.id));
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
+    }
+
+    if (action === "decline") {
+      const challengeId = body.challengeId;
+      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid challenge.");
+      await tx
+        .update(rankedChallenges)
+        .set({ status: "declined" })
+        .where(and(eq(rankedChallenges.id, challengeId), eq(rankedChallenges.toAccountId, accountId), eq(rankedChallenges.status, "pending")));
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, null)) };
+    }
+
+    if (action === "cancel") {
+      const challengeId = body.challengeId;
+      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid challenge.");
+      await tx
+        .update(rankedChallenges)
+        .set({ status: "cancelled" })
+        .where(and(eq(rankedChallenges.id, challengeId), eq(rankedChallenges.fromAccountId, accountId), eq(rankedChallenges.status, "pending")));
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, null)) };
+    }
+
+    if (action === "guess") {
+      const matchId = body.matchId;
+      if (!isUuid(matchId)) throw new RequestProblem(400, "Invalid match.");
+      const guess = typeof body.guess === "string" ? body.guess.trim().slice(0, 80) : "";
+      if (!guess) throw new RequestProblem(400, "Type an answer.");
+
+      const [rawMatch] = await tx
+        .select()
+        .from(rankedMatches)
+        .where(
+          and(
+            eq(rankedMatches.id, matchId),
+            or(eq(rankedMatches.player1Id, accountId), eq(rankedMatches.player2Id, accountId)),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!rawMatch) throw new RequestProblem(404, "Match not found.");
+
+      let match = await advanceMatch(tx, rawMatch);
+      if (match.status !== "active") {
+        return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
+      }
+
+      const role: "p1" | "p2" = match.player1Id === accountId ? "p1" : "p2";
+      const state: RankedMatchState = structuredClone(match.state);
+      const r = state.rounds[state.roundIndex];
+      if (!r || now < r.startedAt) {
+        throw new RequestProblem(409, "Wait for the round timer to start.");
+      }
+      if (now >= r.endsAt) {
+        match = await advanceMatch(tx, match);
+        return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
+      }
+
+      const alreadyPicked = role === "p1" ? r.p1 : r.p2;
+      if (alreadyPicked) {
+        return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
+      }
+
+      const question = getQuestionById(r.questionId);
+      if (!question) throw new RequestProblem(500, "Question missing.");
+
+      if (role === "p1") r.p1Attempts++;
+      else r.p2Attempts++;
+
+      const hit = checkGuess(question, guess);
+      if (!hit) {
+        const [saved] = await tx
+          .update(rankedMatches)
+          .set({ state, updatedAt: nowDate })
+          .where(eq(rankedMatches.id, match.id))
+          .returning();
+        return {
+          ...(await buildLobbyData(tx, accountId, searchQuery, saved ?? match)),
+          feedback: { kind: "wrong", suggestion: suggestGuess(question, guess) },
+        };
+      }
+
+      const pick = {
+        answer: hit.name,
+        tier: hit.tier,
+        points: hit.points,
+        answeredAt: now,
+      };
+      if (role === "p1") r.p1 = pick;
+      else r.p2 = pick;
+
+      const [saved] = await tx
+        .update(rankedMatches)
+        .set({ state, updatedAt: nowDate })
+        .where(eq(rankedMatches.id, match.id))
+        .returning();
+
+      // If both players have now answered, resolve the round immediately!
+      const finalMatch = await advanceMatch(tx, saved ?? match);
+      return {
+        ...(await buildLobbyData(tx, accountId, searchQuery, finalMatch)),
+        feedback: { kind: "correct", pick },
+      };
+    }
+
+    if (action === "forfeit") {
+      const matchId = body.matchId;
+      if (!isUuid(matchId)) throw new RequestProblem(400, "Invalid match.");
+      const [rawMatch] = await tx
+        .select()
+        .from(rankedMatches)
+        .where(
+          and(
+            eq(rankedMatches.id, matchId),
+            or(eq(rankedMatches.player1Id, accountId), eq(rankedMatches.player2Id, accountId)),
+          ),
+        )
+        .for("update")
+        .limit(1);
+      if (!rawMatch) throw new RequestProblem(404, "Match not found.");
+      const settled = await advanceMatch(tx, rawMatch);
+      if (settled.status !== "active") {
+        return { ...(await buildLobbyData(tx, accountId, searchQuery, settled)) };
+      }
+      const winnerOutcome = settled.player1Id === accountId ? "p2" : "p1";
+      const finalized = await finalizeMatch(tx, settled, winnerOutcome, "forfeit");
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, finalized)) };
+    }
+
+    throw new RequestProblem(400, "Unknown ranked action.");
+  });
+}

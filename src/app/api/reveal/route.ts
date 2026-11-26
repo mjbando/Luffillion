@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // with how many players have found each one. Called after a question is finished.
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const question = getQuestionById(url.searchParams.get("q") ?? "");
+  const question = getQuestionById(url.searchParams.get("q") ?? "", todayKey());
   if (!question) {
     return Response.json({ error: "Invalid question." }, { status: 400 });
   }

@@ -3,7 +3,7 @@ import type { Question } from "../questions";
 export const ARCS_QUESTION: Question = {
   id: "arcs",
   prompt: "Name an arc of One Piece.",
-  hint: "Canon manga arcs, sagas, anime filler arcs, or manga cover story arcs — with or without 'Arc'.",
+  hint: "Canon and filler arcs, sagas, manga cover stories, and named special storylines — with or without 'Arc'.",
   tiers: {
     common: [
       "Romance Dawn Arc|Romance Dawn",

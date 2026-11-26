@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
   const questionId = typeof body.questionId === "string" ? body.questionId : "";
   const guess = typeof body.guess === "string" ? body.guess.trim().slice(0, 80) : "";
-  const question = getQuestionById(questionId);
+  const question = getQuestionById(questionId, todayKey());
   if (!question) return Response.json({ error: "Invalid question." }, { status: 400 });
   if (!guess) return Response.json({ correct: false });
 

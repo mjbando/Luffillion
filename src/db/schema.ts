@@ -1,6 +1,7 @@
 import { index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import type { Progress, VoyageLeg } from "@/lib/voyage";
 import type { AdventureState, AdventureStatus } from "@/lib/adventure-types";
+import type { RankedMatchState } from "@/lib/ranked-types";
 
 export const solves = pgTable("solves", {
   id: serial("id").primaryKey(),
@@ -99,3 +100,48 @@ export const adventureAttempts = pgTable("adventure_attempts", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("adventure_attempt_owner_status_idx").on(t.accountId, t.status)]);
+
+export const rankedProfiles = pgTable("ranked_profiles", {
+  accountId: uuid("account_id").primaryKey().references(() => accounts.id, { onDelete: "cascade" }),
+  points: integer("points").notNull().default(0),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  draws: integer("draws").notNull().default(0),
+  winStreak: integer("win_streak").notNull().default(0),
+  bestStreak: integer("best_streak").notNull().default(0),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  queuedAt: timestamp("queued_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("ranked_profiles_points_idx").on(t.points),
+  index("ranked_profiles_queue_idx").on(t.queuedAt),
+  index("ranked_profiles_seen_idx").on(t.lastSeenAt),
+]);
+
+export const rankedChallenges = pgTable("ranked_challenges", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fromAccountId: uuid("from_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  toAccountId: uuid("to_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 16 }).notNull().default("pending"),
+  matchId: uuid("match_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (t) => [
+  index("ranked_challenges_to_idx").on(t.toAccountId, t.status),
+  index("ranked_challenges_from_idx").on(t.fromAccountId, t.status),
+]);
+
+export const rankedMatches = pgTable("ranked_matches", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  player1Id: uuid("player1_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  player2Id: uuid("player2_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 16 }).notNull().default("active"),
+  winnerId: uuid("winner_id"),
+  isDraw: integer("is_draw").notNull().default(0),
+  state: jsonb("state").$type<RankedMatchState>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("ranked_matches_p1_idx").on(t.player1Id, t.status),
+  index("ranked_matches_p2_idx").on(t.player2Id, t.status),
+]);

@@ -6,7 +6,7 @@ export const DEVIL_FRUITS_QUESTION: Question = {
   hint: "Paramecia, Zoan, Logia, Ancient Zoan, Mythical Zoan, or film fruits. Japanese or English names count.",
   tiers: {
     common: [
-      "Gomu Gomu no Mi|Gum-Gum Fruit|Rubber-Rubber Fruit|Hito Hito no Mi, Model: Nika|Human-Human Fruit, Model: Nika|Nika Fruit",
+      "Gomu Gomu no Mi|Gum-Gum Fruit|Rubber-Rubber Fruit|Rubber Fruit|Hito Hito no Mi, Model: Nika|Human-Human Fruit, Model: Nika|Nika Fruit|Sun God Nika",
       "Mera Mera no Mi|Flame-Flame Fruit|Flare-Flare Fruit|Fire-Fire Fruit",
       "Hie Hie no Mi|Ice-Ice Fruit|Chilly-Chilly Fruit",
       "Pika Pika no Mi|Glint-Glint Fruit|Light-Light Fruit",
