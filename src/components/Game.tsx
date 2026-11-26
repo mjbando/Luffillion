@@ -849,9 +849,16 @@ export default function Game() {
                   ⚓ SET SAIL ▸
                 </button>
               </div>
-              {activeIndex === 0 && <Link href="/adventure" onClick={playClick} className="daily-adventure-entry">
-                <span className="daily-adventure-mark">↗</span><span><strong>ADVENTURE MODE</strong><small>100 levels · 10 sagas · unlimited retries</small></span><span aria-hidden="true">▸</span>
-              </Link>}
+              {activeIndex === 0 && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <Link href="/adventure" onClick={playClick} className="daily-adventure-entry !mt-0">
+                    <span className="daily-adventure-mark">↗</span><span><strong>ADVENTURE MODE</strong><small>100 levels · 10 sagas · unlimited retries</small></span><span aria-hidden="true">▸</span>
+                  </Link>
+                  <Link href="/ranked" onClick={playClick} className="daily-adventure-entry !mt-0">
+                    <span className="daily-adventure-mark">⚔</span><span><strong>ONLINE RANKED</strong><small>10s 1v1 duels | Bronze to Legend</small></span><span aria-hidden="true">▸</span>
+                  </Link>
+                </div>
+              )}
             </div>
           ) : !allDone && question ? (
             <>

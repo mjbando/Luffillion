@@ -17,7 +17,7 @@ export const SWORDS_QUESTION: Question = {
       "Gryphon|Griffin",
       "Kikoku",
       "Napoleon",
-      "Murakumogiri",
+      "Murakumogiri|Whitebeard's Bisento|Whitebeard's Naginata",
       "Ame no Habakiri|Habakiri",
     ],
     rare: [

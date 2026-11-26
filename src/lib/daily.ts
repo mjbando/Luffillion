@@ -1,5 +1,11 @@
-import { QUESTION_BANK, type Question } from "@/data/questions";
+import { ORIGINAL_QUESTIONS, QUESTION_BANK, type Question } from "@/data/questions";
+import { DAILY_SCHEDULE } from "@/data/dailySchedule";
+import LEGACY_NOV_25_QUESTIONS from "@/data/legacyNov25.json";
 import { DAILY_QUESTION_COUNT, TIER_CONFIG, TIER_ORDER, type Tier } from "@/data/tiers";
+
+const LEGACY_NOV_25_DAY = "2026-11-25";
+const legacyNov25Questions = LEGACY_NOV_25_QUESTIONS as unknown as Question[];
+const legacyNov25ById = new Map(legacyNov25Questions.map((question) => [question.id, question] as const));
 
 export interface ParsedEntry {
   name: string;
@@ -50,7 +56,8 @@ function mulberry32(seed: number) {
   };
 }
 
-export function getQuestionById(id: string): Question | undefined {
+export function getQuestionById(id: string, day?: string): Question | undefined {
+  if (day === LEGACY_NOV_25_DAY) return legacyNov25ById.get(id);
   return QUESTION_BANK.find((q) => q.id === id);
 }
 
@@ -69,7 +76,7 @@ export function pickRunQuestions(exclude: string[] = [], rand: () => number = Ma
   // gets a fair share instead of the most numerous kind dominating.
   const kindOf = (q: Question) => (q.id.includes("--or--") ? "or" : (q.id.split("--")[1] ?? "base").replace(/-.*/, ""));
   const kindCount = new Map<string, number>();
-  for (const q of QUESTION_BANK) kindCount.set(kindOf(q), (kindCount.get(kindOf(q)) ?? 0) + 1);
+  for (const q of ORIGINAL_QUESTIONS) kindCount.set(kindOf(q), (kindCount.get(kindOf(q)) ?? 0) + 1);
   const KIND_WEIGHT: Record<string, number> = { base: 6, or: 2, starts: 0.6 };
   const weightOf = (q: Question) => (KIND_WEIGHT[kindOf(q)] ?? 1) / (kindCount.get(kindOf(q)) ?? 1);
   const weighted = (arr: Question[]) =>
@@ -77,8 +84,8 @@ export function pickRunQuestions(exclude: string[] = [], rand: () => number = Ma
       .map((q) => ({ q, k: Math.pow(rand(), 1 / weightOf(q)) }))
       .sort((x, y) => y.k - x.k)
       .map((x) => x.q);
-  const fresh = weighted(QUESTION_BANK.filter((q) => !ex.has(q.id)));
-  const seen = shuffle(QUESTION_BANK.filter((q) => ex.has(q.id)));
+  const fresh = weighted(ORIGINAL_QUESTIONS.filter((q) => !ex.has(q.id)));
+  const seen = shuffle(ORIGINAL_QUESTIONS.filter((q) => ex.has(q.id)));
   // Variety: at most one question per base category (e.g. one "characters" twist per run).
   const groupOf = (q: Question) => q.id.split("--")[0];
   const picked: Question[] = [];
@@ -121,21 +128,34 @@ function shiftDay(day: string, delta: number): string {
 export function getDailyRun(day: string): Question[] {
   const cached = dailyCache.get(day);
   if (cached) return cached;
-  const fixedIds = FIXED_DAILY_QUESTION_IDS[day];
-  if (fixedIds) {
-    const questionsById = new Map(QUESTION_BANK.map((question) => [question.id, question]));
-    const run = fixedIds.map((id) => {
-      const question = questionsById.get(id);
-      if (!question) throw new Error(`Unknown fixed daily question: ${id}`);
-      return question;
-    });
+
+  if (day === LEGACY_NOV_25_DAY) {
+    const run = [...legacyNov25Questions];
     dailyCache.set(day, run);
     return run;
   }
+
+  const scheduledIds = DAILY_SCHEDULE[day];
+  if (scheduledIds) {
+    const scheduledQuestions = scheduledIds.map((id) => QUESTION_BANK.find((question) => question.id === id));
+    if (scheduledQuestions.length !== DAILY_QUESTION_COUNT || scheduledQuestions.some((question) => !question)) {
+      throw new Error(`Invalid daily schedule for ${day}`);
+    }
+    const run = scheduledQuestions as Question[];
+    dailyCache.set(day, run);
+    return run;
+  }
+
   const exclude: string[] = [];
-  for (let k = 1; k <= 7; k++) {
+  for (let k = 1; k <= 30; k++) {
     const prev = shiftDay(day, -k);
-    exclude.push(...pickRunQuestions([], mulberry32(hash(`luffillion-daily-${prev}`))).map((q) => q.id));
+    if (prev === LEGACY_NOV_25_DAY) {
+      exclude.push(...legacyNov25Questions.map((question) => question.id));
+    } else if (DAILY_SCHEDULE[prev]) {
+      exclude.push(...DAILY_SCHEDULE[prev]);
+    } else {
+      exclude.push(...pickRunQuestions([], mulberry32(hash(`luffillion-daily-${prev}`))).map((q) => q.id));
+    }
   }
   const run = pickRunQuestions(exclude, mulberry32(hash(`luffillion-daily-${day}`)));
   dailyCache.set(day, run);
