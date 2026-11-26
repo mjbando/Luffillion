@@ -260,13 +260,14 @@
 /* Three-way hamburger menu and the captain's achievement collection. */
 .voyage-menu {
   position: fixed;
-  left: .75rem;
-  top: 150px;
+  /* Opens beside the left rail (hamburger, Shop, Achievements) so the rail stays visible. */
+  left: calc(.75rem + 40px + .5rem);
+  top: 104px;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  width: min(28rem, calc(100vw - 1.5rem));
-  max-height: min(680px, calc(100dvh - 174px));
+  width: min(28rem, calc(100vw - 1.5rem - 48px));
+  max-height: min(720px, calc(100dvh - 128px));
   background-color: #0b1628;
   filter: drop-shadow(0 12px 24px #0007);
 }
@@ -334,3 +335,17 @@
   50% { filter: drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 14px #a78bfa99); transform: translateY(-2px); }
 }
 @media (prefers-reduced-motion: reduce) { .portrait-legendary, .portrait-mythic, .chest-card-mythic, .chest-card-mythic .chest-stage::before { animation: none !important; } }
+
+/* Square buttons under the hamburger. */
+.rail-square {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 40px; height: 48px; border: 2px solid #2a3a5c; background: #1a2540f2; color: #cbd5e1;
+}
+.rail-square:hover { background: #24335a; color: #fff; }
+.rail-square span { font-size: 9px; line-height: 1; letter-spacing: .08em; }
+.rail-square svg { image-rendering: pixelated; transition: transform .15s ease; }
+.rail-square:hover svg { transform: translateY(-1px) scale(1.06); }
+.rail-square.is-active { border-color: #fcd34d; background: #2b3550; color: #fde68a; box-shadow: 0 0 10px #fcd34d55; }
+.rail-square[data-rail="shop"]:not(.is-active) svg { animation: rail-chest 3.2s ease-in-out infinite; }
+@keyframes rail-chest { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(-6deg); } 94% { transform: rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .rail-square svg { animation: none !important; } }

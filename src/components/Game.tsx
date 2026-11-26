@@ -18,7 +18,9 @@ import Effects from "./Effects";
 import CaptainLog, { LogIcon } from "./CaptainLog";
 import BountiesPanel from "./BountiesPanel";
 import TreasureShop from "./TreasureShop";
-import MenuPanel, { type MenuTab } from "./MenuPanel";
+import MenuPanel, { isStandaloneTab, type MenuTab } from "./MenuPanel";
+import PixelChest from "./PixelChest";
+import PixelEmblem from "./pixel-emblems";
 import AchievementsPanel from "./AchievementsPanel";
 import ArchivePanel from "./ArchivePanel";
 import AchievementToast from "./AchievementToast";
@@ -108,6 +110,7 @@ export default function Game() {
   const [copied, setCopied] = useState(false);
   const [world, setWorld] = useState<WorldStatus>({ pct: 0, arc: "East Blue", saga: 0, running: false });
   const [menuTab, setMenuTab] = useState<MenuTab | null>(null);
+  const hamburgerOpen = menuTab !== null && !isStandaloneTab(menuTab);
   const [lockedAchievementsOpen, setLockedAchievementsOpen] = useState(false);
   const [unlockedToast, setUnlockedToast] = useState<AchievementDef[]>([]);
   const [achievementRevision, setAchievementRevision] = useState(0);
@@ -726,19 +729,49 @@ export default function Game() {
         </div>
       </div>
 
-      {/* ---------- Three-lines menu + drawer ---------- */}
+      {/* ---------- Left rail: hamburger menu, then Shop and Achievements squares ---------- */}
       <button
         type="button"
         onClick={() => {
           playClick();
-          setMenuTab((t) => (t ? null : "log"));
+          setMenuTab((t) => (t && !isStandaloneTab(t) ? null : "log"));
         }}
-        aria-label={menuTab ? "Close game menu" : "Open game menu"}
-        aria-expanded={menuTab !== null}
+        aria-label={hamburgerOpen ? "Close game menu" : "Open game menu"}
+        aria-expanded={hamburgerOpen}
         aria-controls="game-menu"
-        className="px-btn fixed left-3 top-[104px] z-[60] grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-slate-200 hover:bg-[#24335a]"
+        className="px-btn fixed left-3 top-[104px] z-[60] grid h-10 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-slate-200 hover:bg-[#24335a]"
       >
-        {menuTab ? <CloseIcon size={17} aria-hidden="true" /> : <MenuIcon size={17} aria-hidden="true" />}
+        {hamburgerOpen ? <CloseIcon size={17} aria-hidden="true" /> : <MenuIcon size={17} aria-hidden="true" />}
+      </button>
+      <button
+        type="button"
+        onClick={() => { playClick(); setMenuTab((t) => (t === "treasure-chests" ? null : "treasure-chests")); }}
+        aria-label={menuTab === "treasure-chests" ? "Close treasure shop" : "Open treasure shop"}
+        aria-expanded={menuTab === "treasure-chests"}
+        aria-controls="panel-treasure-chests"
+        title="Treasure Shop"
+        data-rail="shop"
+        className={`rail-square px-btn fixed left-3 top-[152px] z-[60] ${menuTab === "treasure-chests" ? "is-active" : ""}`}
+      >
+        <PixelChest chest="legendary" size={26} />
+        <span>SHOP</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          playClick();
+          if (!daily.captain) { setMenuTab(null); setLockedAchievementsOpen(true); return; }
+          setMenuTab((t) => (t === "achievements" ? null : "achievements"));
+        }}
+        aria-label={menuTab === "achievements" ? "Close achievements and characters" : "Open achievements and characters"}
+        aria-expanded={menuTab === "achievements"}
+        aria-controls="panel-achievements"
+        title="Achievements & Characters"
+        data-rail="achievements"
+        className={`rail-square px-btn fixed left-3 top-[208px] z-[60] ${menuTab === "achievements" ? "is-active" : ""}`}
+      >
+        <PixelEmblem kind="seal" size={24} />
+        <span>CREW</span>
       </button>
 
       <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
@@ -749,6 +782,7 @@ export default function Game() {
 
       {menuTab && (
         <MenuPanel
+          key={isStandaloneTab(menuTab) ? menuTab : "menu"}
           tab={menuTab}
           captain={daily.captain}
           onSwitch={(next) => {
@@ -810,7 +844,7 @@ export default function Game() {
       {daily.captain && unlockedToast.length > 0 && <AchievementToast unlocked={unlockedToast} onDone={dismissUnlock} />}
 
       {/* ---------- Center prompt card ---------- */}
-      <div className="pointer-events-none fixed inset-x-0 top-[112px] z-10 flex justify-center px-3 sm:top-[120px]">
+      <div className="pointer-events-none fixed inset-x-0 top-[112px] z-10 flex justify-center pl-[60px] pr-3 sm:top-[120px] md:px-3">
         <div
           className={`px-box px-scan pointer-events-auto max-h-[calc(100vh-260px)] w-full max-w-xl overflow-y-auto px-6 py-5 ${
             nopeOn ? "nope" : ""
