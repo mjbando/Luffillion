@@ -7,6 +7,7 @@ import CharacterPortrait from "./CharacterPortrait";
 import ChestOpening, { type ChestReward } from "./ChestOpening";
 import PixelChest from "./PixelChest";
 import { characterById, type CharacterId } from "@/data/playable-characters";
+import { CHEST_CHARACTERS } from "@/data/chest-characters";
 import { ACHIEVEMENT_GRADE_COINS, COINS_PER_ADVENTURE_LEVEL, COINS_PER_DAILY_VOYAGE, COINS_PER_RANKED_WIN } from "@/lib/coins";
 import { CHARACTER_POOLS, CHEST_PRICES, chestOdds, TREASURE_CHESTS, TREASURE_RARITIES, TREASURE_RARITY_COLORS, type ChestRarity, type TreasureRarity } from "@/lib/treasure";
 import type { Captain } from "@/lib/voyage";
@@ -186,26 +187,35 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
 
           {data && (
             <section className="mt-5 border-t border-white/10 pt-3">
-              <h3 className="mb-2 font-pixel-display text-lg text-white">RECRUIT POOLS</h3>
-              <ul className="space-y-1.5">
-                {[...TREASURE_RARITIES].reverse().map((rarity) => (
-                  <li key={rarity} className="flex items-center gap-2">
-                    <span className="w-20 shrink-0 text-xs" style={{ color: TREASURE_RARITY_COLORS[rarity] }}>{displayRarity(rarity)}</span>
-                    <span className="flex flex-wrap gap-1">
-                      {CHARACTER_POOLS[rarity].map((id) => {
-                        const character = characterById(id);
-                        const have = owned.has(character.id);
-                        return (
-                          <span key={id} title={`${character.shortName}${have ? " · in your crew" : ""}`}
-                            className={`border ${have ? "border-amber-300/50 bg-amber-300/[.06]" : "border-white/10 bg-white/[.02]"}`}>
-                            <CharacterPortrait characterId={character.id} size={32} dim={!have} />
-                          </span>
-                        );
-                      })}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <h3 className="mb-1 font-pixel-display text-lg text-white">TREASURE RECRUITS</h3>
+              <p className="mb-2 text-xs text-slate-400">A chest-only crew of {CHEST_CHARACTERS.length} characters. Achievement recruits never drop from chests.</p>
+              <div className="space-y-1.5">
+                {[...TREASURE_RARITIES].map((rarity) => {
+                  const pool = CHARACTER_POOLS[rarity];
+                  const have = pool.filter((id) => owned.has(id)).length;
+                  return (
+                    <details key={rarity} className="ts-pool border border-white/10 bg-white/[.02]" style={{ "--ts-color": TREASURE_RARITY_COLORS[rarity] } as CSSProperties}>
+                      <summary className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm">
+                        <span className="w-20 shrink-0" style={{ color: TREASURE_RARITY_COLORS[rarity] }}>{displayRarity(rarity)}</span>
+                        <span className="h-1 flex-1 bg-white/10"><span className="block h-full" style={{ width: `${have / pool.length * 100}%`, background: TREASURE_RARITY_COLORS[rarity] }} /></span>
+                        <span className="w-14 shrink-0 text-right tabular-nums text-slate-300">{have}/{pool.length}</span>
+                      </summary>
+                      <div className="flex flex-wrap gap-1 px-2 pb-2">
+                        {pool.map((id) => {
+                          const character = characterById(id);
+                          const mine = owned.has(id);
+                          return (
+                            <span key={id} title={mine ? character.name : `??? · ${displayRarity(rarity)}`}
+                              className={`border ${mine ? "border-amber-300/50 bg-amber-300/[.06]" : "border-white/10 bg-white/[.02]"}`}>
+                              <CharacterPortrait characterId={id} size={36} className={mine ? "" : "brightness-0 opacity-60"} />
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
             </section>
           )}
 

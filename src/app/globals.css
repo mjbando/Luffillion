@@ -311,3 +311,26 @@
 }
 .locked-dialog::backdrop { background: rgb(5 10 22 / 0.78); backdrop-filter: blur(2px); }
 .locked-dialog :is(button, summary, input):focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+
+/* Treasure (chest-only) recruits in the collection. */
+.chest-card { border-color: color-mix(in srgb, var(--chest-color) 28%, #2d3d55); background: #101d30; }
+.chest-stage { overflow: hidden; background: radial-gradient(ellipse at 50% 70%, color-mix(in srgb, var(--chest-color) 22%, #1b2d45), #0d192b 75%); }
+.chest-stage svg { position: relative; z-index: 1; }
+.chest-card[data-unlocked='false'] .chest-stage { background: radial-gradient(ellipse at 50% 70%, #1d2a3d, #0b1525 75%); }
+.chest-card-legendary[data-unlocked='true'] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chest-color) 45%, transparent); }
+.chest-card-mythic { position: relative; }
+.chest-card-mythic[data-unlocked='true'] { border-color: transparent; background:
+  linear-gradient(#101d30, #101d30) padding-box,
+  linear-gradient(120deg, #fb7185, #fbbf24, #a78bfa, #67e8f9, #fb7185) border-box; background-size: 100% 100%, 300% 100%; animation: chest-mythic-border 3s linear infinite; }
+.chest-card-mythic[data-unlocked='true'] .chest-stage { background: radial-gradient(ellipse at 50% 60%, #5b2a4a, #1a1030 60%, #0d192b); }
+.chest-card-mythic[data-unlocked='true'] .chest-stage::before { content: ''; position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 60%, #fbbf2418 0 10deg, transparent 10deg 30deg); animation: chest-spin 12s linear infinite; }
+@keyframes chest-spin { to { rotate: 360deg; } }
+@keyframes chest-mythic-border { to { background-position: 0 0, 300% 0; } }
+.portrait-legendary:not(.brightness-0) { animation: portrait-legendary 2.6s ease-in-out infinite; }
+.portrait-mythic:not(.brightness-0) { animation: portrait-mythic 2s ease-in-out infinite; }
+@keyframes portrait-legendary { 50% { filter: drop-shadow(0 0 4px #fbbf24aa); } }
+@keyframes portrait-mythic {
+  0%, 100% { filter: drop-shadow(0 0 3px #fb7185) drop-shadow(0 0 8px #fbbf2466); }
+  50% { filter: drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 14px #a78bfa99); transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) { .portrait-legendary, .portrait-mythic, .chest-card-mythic, .chest-card-mythic .chest-stage::before { animation: none !important; } }

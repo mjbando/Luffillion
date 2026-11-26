@@ -1,3 +1,5 @@
+import { CHEST_POOLS, type ChestCharacterId } from "@/data/chest-characters";
+
 export const TREASURE_CHESTS = ["common", "uncommon", "rare", "epic", "legendary", "mythic"] as const;
 export type ChestRarity = (typeof TREASURE_CHESTS)[number];
 export type TreasureRarity = ChestRarity;
@@ -22,14 +24,8 @@ const CHEST_ODDS_BPS: Record<ChestRarity, Record<TreasureRarity, number>> = {
   mythic: { mythic: 2500, legendary: 7500, epic: 0, rare: 0, uncommon: 0, common: 0 },
 };
 
-export const CHARACTER_POOLS: Record<TreasureRarity, readonly string[]> = {
-  common: ["chopper", "nami", "usopp"],
-  uncommon: ["zoro", "sanji", "robin"],
-  rare: ["jinbe", "ace"],
-  epic: ["law", "rayleigh"],
-  legendary: ["whitebeard", "shanks", "kaido"],
-  mythic: ["roger", "gear-5"],
-};
+/** Chest drops come only from the chest-only roster — never from achievement rewards. */
+export const CHARACTER_POOLS: Record<TreasureRarity, readonly ChestCharacterId[]> = CHEST_POOLS;
 
 export const TREASURE_RARITY_COLORS: Record<TreasureRarity, string> = {
   common: "#cbd5e1",

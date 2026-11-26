@@ -542,3 +542,47 @@ export function playChestBurst(rank: number): void {
     playNoise(ctx, out, t, 0.55, 0.9, 0.08, "highpass", 3000, 9000);
   }
 }
+
+/** Heavy chest landing on the deck. */
+export function playChestThud(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playTone(a.ctx, a.out, t, { freq: 120, slideTo: 45, dur: 0.22, type: "sine", vol: 0.38, attack: 0.003 });
+  playNoise(a.ctx, a.out, t, 0, 0.14, 0.1, "lowpass", 900, 200);
+}
+
+/** Wood straining as light leaks from the seams: a heartbeat that quickens with rarity. */
+export function playChestCrack(rank: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  const beats = 2 + Math.min(3, Math.floor(rank / 2));
+  for (let i = 0; i < beats; i++) {
+    const s = i * Math.max(0.16, 0.34 - rank * 0.03);
+    playTone(a.ctx, a.out, t, { freq: 70, slideTo: 48, start: s, dur: 0.12, type: "sine", vol: 0.32 });
+    playNoise(a.ctx, a.out, t, s + 0.02, 0.05, 0.05, "highpass", 2600, 0);
+  }
+  playNoise(a.ctx, a.out, t, 0, 0.6 + rank * 0.1, 0.04, "bandpass", 300, 4200);
+}
+
+/** A rising shimmer while the recruit's silhouette floats out of the chest. */
+export function playChestRise(rank: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  const dur = 0.9 + rank * 0.15;
+  playTone(a.ctx, a.out, t, { freq: 220, slideTo: 880 + rank * 120, dur, type: "triangle", vol: 0.08 });
+  playTone(a.ctx, a.out, t, { freq: 330, slideTo: 1320 + rank * 160, dur, type: "sine", vol: 0.05 });
+  if (rank >= 4) playNoise(a.ctx, a.out, t, 0, dur, 0.05, "bandpass", 800, 7000);
+}
+
+/** Final reveal sting. */
+export function playChestReveal(rank: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  const chord = rank >= 4 ? [523.25, 659.25, 783.99, 1046.5] : [523.25, 659.25, 783.99];
+  chord.forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: i * 0.03, dur: 0.6 + rank * 0.1, type: "triangle", vol: 0.1 }));
+  if (rank >= 5) [1567.98, 2093, 2637, 3135.96].forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: 0.15 + i * 0.08, dur: 0.4, type: "sine", vol: 0.06 }));
+}

@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { runnerSprite } from "./pixel/runners";
+import { chestCharacterById } from "@/data/chest-characters";
 import type { CharacterId } from "@/data/playable-characters";
 
 function CharacterPortrait({ characterId, size = 64, dim = false, className = "" }: {
@@ -11,9 +12,12 @@ function CharacterPortrait({ characterId, size = 64, dim = false, className = ""
   className?: string;
 }) {
   const sprite = runnerSprite(characterId);
-  const left = Math.floor((32 - sprite.width) / 2), top = 31 - sprite.height;
-  return <svg viewBox="0 0 32 32" width={size} height={size} shapeRendering="crispEdges" aria-hidden="true"
-    className={className} data-portrait={characterId}>
+  // Aura sprites (legendary/mythic) can be larger than 32px, so the view box grows to fit.
+  const box = Math.max(32, sprite.width, sprite.height + 1);
+  const left = Math.floor((box - sprite.width) / 2), top = box - 1 - sprite.height;
+  const tier = chestCharacterById(characterId)?.rarity;
+  return <svg viewBox={`0 0 ${box} ${box}`} width={size} height={size} shapeRendering="crispEdges" aria-hidden="true"
+    className={`${className}${tier ? ` portrait-${tier}` : ""}`} data-portrait={characterId} data-tier={tier}>
     <g opacity={dim ? 0.5 : 1}>
       {sprite.rows.flatMap((row, y) => [...row].map((pixel, x) => sprite.palette[pixel]
         ? <rect key={`${x}:${y}`} x={left + x} y={top + y} width={1} height={1} fill={sprite.palette[pixel]} /> : null))}

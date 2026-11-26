@@ -29,24 +29,78 @@
   position: absolute; inset: 0;
   background:
     radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--tc-glow) 30%, transparent), transparent 55%),
-    rgba(4, 8, 18, .93);
+    rgba(4, 8, 18, .94);
   transition: background .35s ease;
-  animation: tc-fade-in .25s ease-out;
+  animation: tc-fade-in .3s ease-out;
 }
-.tc-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px; width: min(420px, 100vw); }
-.tc-title { color: #e2e8f0; font-size: 18px; letter-spacing: .3em; text-transform: uppercase; opacity: .85; }
-.tc-chest-zone { position: relative; display: grid; place-items: center; width: 100%; height: 240px; }
+/* Slow drifting star field behind everything. */
+.tc-stars {
+  position: absolute; inset: -50%; pointer-events: none; opacity: .55;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 80%, #fff, transparent),
+    radial-gradient(2px 2px at 40% 70%, color-mix(in srgb, var(--tc-glow) 80%, #fff), transparent),
+    radial-gradient(1px 1px at 85% 15%, #fff, transparent), radial-gradient(2px 2px at 10% 85%, color-mix(in srgb, var(--tc-glow) 80%, #fff), transparent);
+  background-size: 180px 180px;
+  animation: tc-drift 30s linear infinite;
+}
+.tc-phase-charging .tc-stars, .tc-phase-crack .tc-stars { animation-duration: 6s; }
+@keyframes tc-drift { to { transform: translate(180px, -180px); } }
 
-/* Chest: idle wobble while the server rolls, then a shake that intensifies with each rarity step. */
+.tc-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px; width: min(440px, 100vw); }
+.tc-title { color: #e2e8f0; font-size: 18px; letter-spacing: .3em; text-transform: uppercase; opacity: .85; animation: tc-title-in .6s ease-out; }
+@keyframes tc-title-in { from { letter-spacing: 1em; opacity: 0; } }
+.tc-chest-zone { position: relative; display: grid; place-items: center; width: 100%; height: 260px; }
+
+/* Act 1: the chest crashes down and kicks up a little dust. */
 .tc-chest { position: relative; z-index: 2; filter: drop-shadow(0 0 calc(6px + var(--tc-shake) * 3) var(--tc-glow)); transition: filter .3s ease; }
+.tc-phase-intro .tc-chest { animation: tc-drop .62s cubic-bezier(.5, 0, .75, 0) both, tc-land .5s ease-out .62s both; }
+.tc-phase-intro .tc-chest-zone::after {
+  content: ''; position: absolute; bottom: 52px; left: 50%; width: 220px; height: 22px; translate: -50% 0; border-radius: 50%;
+  background: radial-gradient(ellipse, #cbd5e155, transparent 70%); opacity: 0; animation: tc-dust .7s ease-out .58s;
+}
+@keyframes tc-drop { 0% { transform: translateY(-110vh) rotate(-14deg); } 100% { transform: translateY(0) rotate(0); } }
+@keyframes tc-land { 0% { transform: scale(1.25, .7); } 45% { transform: scale(.9, 1.12) translateY(-14px); } 100% { transform: scale(1); } }
+@keyframes tc-dust { 0% { opacity: 1; transform: scaleX(.4); } 100% { opacity: 0; transform: scaleX(1.6); } }
 .tc-phase-waiting .tc-chest { animation: tc-wobble .9s ease-in-out infinite; }
+
+/* Act 2: charging — the shake grows with every rarity step. */
 .tc-phase-charging .tc-chest { animation: tc-shake .12s linear infinite; }
 .tc-chest .pc-keyhole, .tc-chest .pc-seam { transition: fill .25s ease; }
 .tc-phase-charging .pc-keyhole { animation: tc-blink .26s steps(2) infinite; }
-.tc-chest .pc-lid, .tc-chest .pc-lock { transform-box: view-box; transform-origin: 4px 12px; transition: transform .35s cubic-bezier(.2, 1.6, .4, 1), opacity .3s; }
-.tc-chest.is-open .pc-lid { transform: translate(-2px, -7px) rotate(-24deg); }
-.tc-chest.is-open .pc-lock { opacity: 0; transform: translateY(6px); }
-.tc-chest.is-open { animation: tc-pop .35s ease-out; }
+.tc-orbs { position: absolute; z-index: 1; left: 50%; top: 50%; }
+.tc-orbs span {
+  position: absolute; left: 0; top: 0; border-radius: 50%; background: var(--tc-glow); box-shadow: 0 0 8px var(--tc-glow), 0 0 2px #fff;
+  animation: tc-suck 1s ease-in infinite;
+}
+@keyframes tc-suck {
+  0% { transform: rotate(var(--a)) translateX(var(--d)) scale(1.2); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: rotate(calc(var(--a) + 70deg)) translateX(0) scale(.2); opacity: 0; }
+}
+
+/* Rarity gem ladder under the chest. */
+.tc-gems { display: flex; gap: 10px; margin-top: 2px; }
+.tc-gems span {
+  width: 14px; height: 14px; rotate: 45deg; border: 2px solid #334155; background: #0f172a; transition: background .2s, box-shadow .2s, border-color .2s;
+}
+.tc-gems span.is-lit { border-color: #fff; background: var(--gem); box-shadow: 0 0 10px var(--gem); }
+.tc-gems span.is-current { animation: tc-gem-pop .4s cubic-bezier(.2, 1.8, .4, 1); }
+@keyframes tc-gem-pop { 0% { scale: 2.2; } 100% { scale: 1; } }
+
+/* Act 3: crack — the chest strains and light leaks from the seams. */
+.tc-phase-crack .tc-chest { animation: tc-strain var(--tc-crack-ms) ease-in forwards, tc-shake .07s linear infinite; }
+.tc-phase-crack .pc-lid { transform-box: view-box; transform-origin: 4px 12px; animation: tc-lid-rattle .18s steps(2) infinite; }
+@keyframes tc-strain { 0% { scale: 1; } 70% { scale: 1.06 .95; } 100% { scale: 1.12 .9; } }
+@keyframes tc-lid-rattle { 50% { transform: translateY(-1.5px) rotate(-3deg); } }
+.tc-leaks { position: absolute; z-index: 3; left: 50%; top: calc(50% - 18px); pointer-events: none; }
+.tc-leaks span {
+  position: absolute; left: -2px; bottom: 0; width: 4px; height: 190px; transform-origin: 50% 100%; rotate: var(--r);
+  background: linear-gradient(to top, #fff, var(--tc-glow) 30%, transparent); mix-blend-mode: screen; opacity: 0;
+  animation: tc-leak .55s ease-out infinite alternate;
+}
+@keyframes tc-leak { 0% { opacity: 0; scale: 1 .2; } 100% { opacity: .9; scale: 1 1; } }
+.tc-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 46%, transparent 18%, #000d 70%); animation: tc-heartbeat .5s ease-in-out infinite; }
+@keyframes tc-heartbeat { 0%, 100% { opacity: .65; } 30% { opacity: 1; } }
 
 @keyframes tc-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
 @keyframes tc-shake {
@@ -54,24 +108,36 @@
   50% { transform: translate(calc(var(--tc-shake) * -1), 0); } 75% { transform: translate(0, var(--tc-shake)); } 100% { transform: translate(0, 0); }
 }
 @keyframes tc-blink { 50% { opacity: .35; } }
-@keyframes tc-pop { 0% { transform: scale(1.12, .88); } 60% { transform: scale(.94, 1.08); } 100% { transform: scale(1); } }
 
-.tc-climb { color: var(--tc-glow); font-size: 26px; letter-spacing: .12em; text-shadow: 0 0 12px var(--tc-glow); animation: tc-climb-in .3s ease-out; }
+/* Act 4: burst — the lid is blown clean off. */
+.tc-chest .pc-lid, .tc-chest .pc-lock { transform-box: view-box; transform-origin: 4px 12px; transition: transform .45s cubic-bezier(.2, 1.4, .4, 1), opacity .3s; }
+.tc-chest.is-open .pc-lid { transform: translate(-6px, -16px) rotate(-38deg); }
+.tc-rank-3.tc-phase-burst .tc-chest.is-open .pc-lid, .tc-rank-4 .tc-chest.is-open .pc-lid, .tc-rank-5 .tc-chest.is-open .pc-lid { transform: translate(-30px, -60px) rotate(-120deg); opacity: 0; }
+.tc-chest.is-open .pc-lock { opacity: 0; transform: translateY(10px); }
+.tc-chest.is-open { animation: tc-pop .4s ease-out; }
+.tc-phase-rise .tc-chest { opacity: .55; filter: drop-shadow(0 0 16px var(--tc-glow)); transform: translateY(70px) scale(.7); transition: transform .8s ease, opacity .8s ease; }
+@keyframes tc-pop { 0% { transform: scale(1.18, .82); } 60% { transform: scale(.94, 1.08); } 100% { transform: scale(1); } }
+
+.tc-climb { color: var(--tc-glow); font-size: 26px; letter-spacing: .12em; text-align: center; text-shadow: 0 0 12px var(--tc-glow); animation: tc-climb-in .3s ease-out; }
+.tc-phase-crack .tc-climb { font-size: 20px; animation: tc-climb-in .3s ease-out, tc-blink .5s steps(2) infinite .3s; }
+.tc-rise-text { font-size: 16px; max-width: 100%; letter-spacing: .06em; }
 @keyframes tc-climb-in { from { transform: scale(1.5); opacity: 0; } }
 .tc-hint { color: #94a3b8; font-size: 14px; letter-spacing: .15em; animation: tc-blink 1.4s steps(2) infinite; }
 
 /* Light beam from the open chest. */
 .tc-beam {
-  position: absolute; z-index: 1; bottom: 50%; left: 50%; width: 150px; height: 340px; transform: translateX(-50%);
+  position: absolute; z-index: 1; bottom: 46%; left: 50%; width: 170px; height: 400px; transform: translateX(-50%);
   background: linear-gradient(to top, var(--tc-glow), color-mix(in srgb, var(--tc-glow) 30%, transparent) 55%, transparent);
   clip-path: polygon(30% 100%, 70% 100%, 100% 0, 0 0); opacity: .8; mix-blend-mode: screen;
-  animation: tc-beam-in .4s ease-out;
+  animation: tc-beam-in .4s ease-out, tc-beam-pulse 1.2s ease-in-out infinite .4s;
 }
 @keyframes tc-beam-in { from { transform: translateX(-50%) scaleY(0); transform-origin: bottom; opacity: 0; } }
+@keyframes tc-beam-pulse { 50% { opacity: 1; filter: brightness(1.3); } }
 
 /* Shockwave rings. */
-.tc-ring { position: absolute; z-index: 1; width: 40px; height: 40px; border: 4px solid var(--tc-glow); border-radius: 50%; animation: tc-ring .7s ease-out forwards; }
+.tc-ring { position: absolute; z-index: 1; width: 40px; height: 40px; border: 4px solid var(--tc-glow); border-radius: 50%; animation: tc-ring .8s ease-out forwards; }
 .tc-ring-late { animation-delay: .35s; opacity: 0; border-width: 6px; }
+.tc-ring-later { animation-delay: .7s; opacity: 0; border-width: 8px; border-color: #fff; }
 @keyframes tc-ring { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(calc(6 + var(--tc-rank) * 1.6)); opacity: 0; } }
 
 /* Burst particles. */
@@ -97,30 +163,38 @@
   animation: tc-spin 5s linear infinite, tc-hue 2.4s linear infinite, tc-fade-in .5s ease-out;
   mask-image: radial-gradient(circle, #000 0, transparent 52%);
 }
+.tc-rank-5 .tc-rays-reverse { opacity: .6; animation: tc-spin-rev 9s linear infinite, tc-hue 3s linear infinite reverse, tc-fade-in .5s ease-out; }
 @keyframes tc-spin { to { rotate: 360deg; } }
+@keyframes tc-spin-rev { to { rotate: -360deg; } }
 @keyframes tc-hue { to { filter: hue-rotate(360deg); } }
 @keyframes tc-fade-in { from { opacity: 0; } }
 
-/* Screen flash (Epic+) and quake (Legendary+). */
+/* Screen flash (Rare+) and quake (Legendary+). */
 .tc-flash { position: absolute; inset: 0; z-index: 4; background: #fff; pointer-events: none; animation: tc-flash .5s ease-out forwards; }
-.tc-rank-5 .tc-flash { background: var(--tc-glow); animation: tc-flash .45s ease-out 2 forwards; }
+.tc-rank-5 .tc-flash { background: var(--tc-glow); animation: tc-flash .45s ease-out 3 forwards; }
 @keyframes tc-flash { 0% { opacity: .85; } 100% { opacity: 0; } }
-.tc-phase-burst.tc-rank-4 .tc-stage { animation: tc-quake .5s linear; }
-.tc-phase-burst.tc-rank-5 .tc-stage { animation: tc-quake .45s linear 2; }
+.tc-phase-burst.tc-rank-4 .tc-stage, .tc-phase-crack.tc-rank-5 .tc-stage { animation: tc-quake .5s linear; }
+.tc-phase-burst.tc-rank-5 .tc-stage { animation: tc-quake .45s linear 3; }
+.tc-phase-rise.tc-rank-5 .tc-stage { animation: tc-quake .35s linear 2 .6s; }
 @keyframes tc-quake {
   0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-8px, 4px); } 40% { transform: translate(7px, -6px); }
   60% { transform: translate(-5px, -3px); } 80% { transform: translate(4px, 5px); }
 }
 
+/* Lightning for Legendary and Mythic. */
+.tc-bolt { position: absolute; top: 0; width: 18vw; max-width: 140px; height: 70vh; z-index: 2; pointer-events: none; opacity: 0; animation: tc-bolt .5s steps(3) 2 both; }
+.tc-bolt polyline { fill: none; stroke: #fff; stroke-width: 2.5; filter: drop-shadow(0 0 4px var(--tc-glow)) drop-shadow(0 0 10px var(--tc-glow)); vector-effect: non-scaling-stroke; }
+@keyframes tc-bolt { 0% { opacity: 0; } 20% { opacity: 1; } 50% { opacity: .2; } 70% { opacity: 1; } 100% { opacity: 0; } }
+
 /* Rarity banner. */
 .tc-banner {
-  position: absolute; z-index: 5; top: 38%; left: 0; right: 0; text-align: center;
+  position: absolute; z-index: 5; top: 36%; left: 0; right: 0; text-align: center;
   font-size: clamp(32px, 11vw, 52px); font-weight: 700; letter-spacing: .08em; color: #fff;
   text-shadow: 0 0 18px var(--tc-glow), 4px 4px 0 color-mix(in srgb, var(--tc-glow) 60%, #000);
   animation: tc-banner .9s cubic-bezier(.2, 1.5, .4, 1) forwards;
 }
 .tc-reward-mythic .tc-banner {
-  font-size: clamp(36px, 13vw, 60px);
+  font-size: clamp(36px, 13vw, 64px);
   background: linear-gradient(90deg, #fb7185, #fbbf24, #4ade80, #60a5fa, #c084fc, #fb7185);
   background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: tc-banner .9s cubic-bezier(.2, 1.5, .4, 1) forwards, tc-rainbow 1s linear infinite;
@@ -128,26 +202,76 @@
 @keyframes tc-banner { 0% { transform: scale(3) rotate(-8deg); opacity: 0; } 50% { opacity: 1; } 100% { transform: scale(1) rotate(-3deg); opacity: 1; } }
 @keyframes tc-rainbow { to { background-position: 200% 0; } }
 
-/* Reveal card. */
+/* Act 5: the silhouette rises through the beam. */
+.tc-silhouette {
+  position: absolute; z-index: 4; display: grid; place-items: center;
+  filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 18px var(--tc-glow));
+  animation: tc-rise var(--tc-rise-ms) cubic-bezier(.2, .8, .3, 1) both;
+}
+.tc-question { position: absolute; color: #fff; font-size: 44px; text-shadow: 0 0 14px var(--tc-glow); animation: tc-blink .6s steps(2) infinite; }
+@keyframes tc-rise {
+  0% { transform: translateY(10px) scale(.25); opacity: 0; }
+  30% { opacity: 1; }
+  80% { transform: translateY(-62px) scale(1.06); }
+  100% { transform: translateY(-56px) scale(1); filter: drop-shadow(0 0 14px #fff) drop-shadow(0 0 40px var(--tc-glow)); }
+}
+
+/* Act 6: reveal card. */
 .tc-card {
   position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 14px 26px 16px; min-width: 250px; text-align: center;
-  background: rgba(11, 20, 38, .92); border: 2px solid var(--tc-glow);
+  padding: 14px 26px 16px; min-width: 260px; text-align: center;
+  background: rgba(11, 20, 38, .94); border: 2px solid var(--tc-glow);
   box-shadow: 0 0 0 4px rgba(0,0,0,.4), 0 0 32px color-mix(in srgb, var(--tc-glow) 55%, transparent);
-  animation: tc-card-in .55s cubic-bezier(.2, 1.4, .4, 1);
+  animation: tc-card-in .7s cubic-bezier(.2, 1.3, .4, 1);
+  transform-style: preserve-3d;
 }
-.tc-reward-mythic .tc-card { animation: tc-card-in .55s cubic-bezier(.2, 1.4, .4, 1), tc-mythic-glow 1.6s ease-in-out infinite; }
-@keyframes tc-mythic-glow { 50% { box-shadow: 0 0 0 4px rgba(0,0,0,.4), 0 0 56px #fbbf24; border-color: #fbbf24; } }
-@keyframes tc-card-in { from { transform: translateY(70px) scale(.4); opacity: 0; } }
+.tc-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, #ffffff40 50%, transparent 65%); background-size: 250% 100%;
+  animation: tc-sheen 2.6s ease-in-out .6s infinite;
+}
+@keyframes tc-sheen { 0% { background-position: 150% 0; } 60%, 100% { background-position: -100% 0; } }
+.tc-reward-legendary .tc-card { border-width: 3px; }
+.tc-reward-mythic .tc-card {
+  border: 3px solid transparent;
+  background: linear-gradient(rgba(11, 20, 38, .96), rgba(24, 12, 40, .96)) padding-box,
+    linear-gradient(120deg, #fb7185, #fbbf24, #4ade80, #60a5fa, #c084fc, #fb7185) border-box;
+  background-size: 100% 100%, 300% 100%;
+  animation: tc-card-in .7s cubic-bezier(.2, 1.3, .4, 1), tc-mythic-glow 1.6s ease-in-out infinite, tc-mythic-border 2.4s linear infinite;
+}
+@keyframes tc-mythic-glow { 50% { box-shadow: 0 0 0 4px rgba(0,0,0,.4), 0 0 70px #fbbf24, 0 0 120px #c084fc66; } }
+@keyframes tc-mythic-border { to { background-position: 0 0, 300% 0; } }
+@keyframes tc-card-in { 0% { transform: perspective(600px) rotateY(90deg) scale(.6); opacity: 0; } 60% { transform: perspective(600px) rotateY(-12deg) scale(1.05); opacity: 1; } 100% { transform: none; } }
+.tc-card-halo {
+  position: absolute; left: 50%; top: 78px; width: 220px; height: 220px; translate: -50% -50%; z-index: -1; pointer-events: none; border-radius: 50%;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--tc-glow) 50%, transparent) 0 12deg, transparent 12deg 30deg);
+  mask-image: radial-gradient(circle, #000 20%, transparent 70%); animation: tc-spin 8s linear infinite;
+}
+.tc-reward-mythic .tc-card-halo { animation: tc-spin 4s linear infinite, tc-hue 3s linear infinite; }
 .tc-portrait { filter: drop-shadow(0 0 10px var(--tc-glow)); animation: tc-float 2.4s ease-in-out infinite; }
+.tc-portrait .portrait-mythic, .tc-portrait .portrait-legendary { animation: none; }
 @keyframes tc-float { 50% { transform: translateY(-5px); } }
 .tc-rarity { color: var(--tc-glow); font-size: 15px; letter-spacing: .3em; text-transform: uppercase; }
-.tc-name { color: #fff; font-size: 24px; line-height: 1.15; }
-.tc-new { color: #86efac; font-size: 14px; letter-spacing: .1em; margin-top: 4px; }
+.tc-reward-mythic .tc-rarity {
+  background: linear-gradient(90deg, #fb7185, #fbbf24, #4ade80, #60a5fa, #c084fc, #fb7185); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: tc-rainbow 1.2s linear infinite;
+}
+.tc-name { color: #fff; font-size: 24px; line-height: 1.15; animation: tc-name-in .5s ease-out .25s both; }
+.tc-epithet { color: #94a3b8; font-size: 14px; letter-spacing: .08em; animation: tc-fade-in .5s ease-out .45s both; }
+@keyframes tc-name-in { from { opacity: 0; letter-spacing: .4em; filter: blur(3px); } }
+.tc-new { color: #86efac; font-size: 14px; letter-spacing: .1em; margin-top: 4px; animation: tc-fade-in .4s ease-out .6s both; }
 .tc-dupe { display: inline-flex; align-items: center; gap: 4px; color: #fde68a; font-size: 14px; margin-top: 4px; }
-.tc-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 6px; animation: tc-fade-in .4s ease-out .2s both; }
+.tc-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 6px; animation: tc-fade-in .4s ease-out .5s both; }
+
+/* Confetti for Epic and better. */
+.tc-confetti { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+.tc-confetti span { position: absolute; top: -12px; width: 6px; height: 10px; opacity: 0; animation: tc-confetti 3s linear infinite; }
+@keyframes tc-confetti {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--drift), 105vh) rotate(var(--spin)); opacity: 1; }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .tc-overlay *, .tc-overlay *::before, .ts-card-chest { animation: none !important; transition: none !important; }
-  .tc-rays, .tc-flash, .tc-particles, .tc-ring { display: none; }
+  .tc-overlay *, .tc-overlay *::before, .tc-overlay *::after, .ts-card-chest { animation: none !important; transition: none !important; }
+  .tc-rays, .tc-flash, .tc-particles, .tc-ring, .tc-bolt, .tc-confetti, .tc-orbs, .tc-leaks, .tc-stars { display: none; }
 }

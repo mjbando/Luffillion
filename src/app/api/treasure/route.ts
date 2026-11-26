@@ -1,7 +1,8 @@
 import { randomInt } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
-import { PLAYABLE_CHARACTERS, characterById } from "@/data/playable-characters";
+import { PLAYABLE_CHARACTERS } from "@/data/playable-characters";
+import { chestCharacterById, isChestCharacterId } from "@/data/chest-characters";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, characterUnlocks, treasureChestOpenings } from "@/db/schema";
 import { currentCaptain, failure, privateJson, readMutation, RequestProblem } from "@/lib/account-server";
@@ -32,10 +33,13 @@ export async function GET(req: NextRequest) {
 
     const chestIds = new Set(chestCharacters.map((row) => row.characterId));
     const achievementIds = new Set(achievements.map((row) => row.achievementId));
-    const unlockedCharacterIds = PLAYABLE_CHARACTERS
-      .filter((character) => character.id !== "gear-6" || account.usernameKey === "luffy")
-      .filter((character) => !character.achievementId || achievementIds.has(character.achievementId) || chestIds.has(character.id))
-      .map((character) => character.id);
+    const unlockedCharacterIds = [
+      ...PLAYABLE_CHARACTERS
+        .filter((character) => character.id !== "gear-6" || account.usernameKey === "luffy")
+        .filter((character) => !character.achievementId || achievementIds.has(character.achievementId))
+        .map((character) => character.id),
+      ...[...chestIds].filter(isChestCharacterId),
+    ];
 
     return privateJson({ coins: account.coins, unlockedCharacterIds, recentOpenings });
   } catch (error) {
@@ -64,14 +68,10 @@ export async function POST(req: NextRequest) {
 
       const pool = CHARACTER_POOLS[rewardRarity];
       const characterId = pool[randomInt(pool.length)];
-      const character = characterById(characterId);
-      const [earnedByAchievement] = character.achievementId
-        ? await tx.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks)
-            .where(and(eq(achievementUnlocks.accountId, captain.id), eq(achievementUnlocks.achievementId, character.achievementId))).limit(1)
-        : [];
+      const character = chestCharacterById(characterId)!;
       const [earnedFromChest] = await tx.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
         .where(and(eq(characterUnlocks.accountId, captain.id), eq(characterUnlocks.characterId, character.id))).limit(1);
-      const duplicate = Boolean(earnedByAchievement || earnedFromChest);
+      const duplicate = Boolean(earnedFromChest);
       const duplicateCoins = duplicate ? Math.floor(cost / 2) : 0;
 
       if (!duplicate) {
