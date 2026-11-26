@@ -89,10 +89,10 @@ export default function RankedLobby({
 
       <div className="rk-page">
         <section className="rk-hero">
-          <p className="rk-eyebrow">10-SECOND NICHE KNOWLEDGE DUELS · 2 LIVES</p>
+          <p className="rk-eyebrow">10-SECOND NICHE KNOWLEDGE DUELS · BEST OF 3 · 3 LIVES</p>
           <h1>Ranked Battle Arena</h1>
           <p>
-            Search for an online pirate or enter matchmaking. Deeper pulls deal damage — whoever scores lower each round loses a life.
+            Search for an online pirate or enter matchmaking. Best of 3 — a wrong answer costs a life, and the lower total scores a life lost.
           </p>
         </section>
 
@@ -230,6 +230,7 @@ export default function RankedLobby({
                 ))}
               </ul>
               <div className="mt-3 space-y-1 text-sm text-slate-400">
+                <p>• Best of 3: a wrong answer costs a life; lower total points costs a life</p>
                 <p>• Win: +30 RP (more vs higher ranks, less vs lower)</p>
                 <p>• Loss: -15 RP (bigger drop vs lower ranks, 0 floor)</p>
                 <p>• Draw: +10 RP for both players</p>

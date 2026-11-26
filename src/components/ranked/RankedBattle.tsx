@@ -122,6 +122,24 @@ export default function RankedBattle({
         : "reveal"
       : "answering";
 
+  // Best-of-3 reveal messaging: life loss comes from wrong answers.
+  const reveal = match.lastReveal;
+  const revealColor =
+    reveal && reveal.youLostLife && !reveal.opponentLostLife
+      ? "text-rose-300"
+      : reveal && !reveal.youLostLife && reveal.opponentLostLife
+        ? "text-emerald-300"
+        : "text-amber-200";
+  const revealMessage = !reveal
+    ? ""
+    : reveal.youLostLife && reveal.opponentLostLife
+      ? "Both got it wrong — both lose a life!"
+      : reveal.youLostLife
+        ? "You got it wrong — you lose a life!"
+        : reveal.opponentLostLife
+          ? `${match.opponent.username} got it wrong — they lose a life!`
+          : "Correct — no life lost!";
+
   const remainingMs =
     round && phase === "answering" ? Math.max(0, round.endsAt - currentServerMs) : RANKED_SECONDS * 1000;
   const remainingSec = Math.ceil(remainingMs / 1000);
@@ -164,7 +182,7 @@ export default function RankedBattle({
     if (!match.lastReveal) return;
     if (lastRevealRef.current === match.lastReveal.roundNumber) return;
     lastRevealRef.current = match.lastReveal.roundNumber;
-    if (match.lastReveal.loser === "you") playTimeout();
+    if (match.lastReveal.youLostLife) playTimeout();
   }, [match.lastReveal]);
 
   // Victory sound
@@ -341,28 +359,14 @@ export default function RankedBattle({
                 {match.you.username} vs {match.opponent.username}
               </h1>
               <p className="mt-2 text-lg text-slate-300">
-                {RANKED_SECONDS} seconds per round · Deeper pulls win the clash!
+                Best of 3 · {RANKED_SECONDS}s per round · Deeper pulls win the clash!
               </p>
               <p className="mt-4 font-pixel-display text-5xl text-amber-300">{prepSec}</p>
             </div>
           ) : phase === "reveal" && match.lastReveal ? (
             <div className="py-3 text-center">
               <p className="rk-eyebrow">ROUND {match.lastReveal.roundNumber} RESULT</p>
-              <h2
-                className={`mt-1 font-pixel-display text-3xl ${
-                  match.lastReveal.loser === "opponent"
-                    ? "text-emerald-300"
-                    : match.lastReveal.loser === "you"
-                      ? "text-rose-300"
-                      : "text-amber-200"
-                }`}
-              >
-                {match.lastReveal.loser === "opponent"
-                  ? `${match.opponent.username} loses a life!`
-                  : match.lastReveal.loser === "you"
-                    ? "You lost a life!"
-                    : "Round Tied — No life lost!"}
-              </h2>
+              <h2 className={`mt-1 font-pixel-display text-3xl ${revealColor}`}>{revealMessage}</h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="border border-white/10 bg-white/[.04] p-3">
                   <p className="text-xs tracking-widest text-slate-400">YOUR PULL</p>

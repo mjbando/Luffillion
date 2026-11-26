@@ -35,7 +35,11 @@ export interface RankedRoundState {
   p1Attempts: number;
   p2Attempts: number;
   resolvedAt?: number;
+  /** Round score loser (lower points) — for display only. */
   loser?: "p1" | "p2" | null;
+  /** True when a player failed to answer the question correctly (loses a life). */
+  p1Wrong?: boolean;
+  p2Wrong?: boolean;
 }
 
 export interface RankedMatchResult {
@@ -72,7 +76,11 @@ export interface RankedRoundReveal {
   prompt: string;
   yourPick: RankedRoundPick | null;
   opponentPick: RankedRoundPick | null;
+  /** Round score loser (lower points) — for display only. */
   loser: "you" | "opponent" | null;
+  /** Whether each player lost a life on this question (got it wrong). */
+  youLostLife: boolean;
+  opponentLostLife: boolean;
 }
 
 export interface RankedMatchView {
