@@ -7,6 +7,7 @@ import { ORIGINAL_QUESTIONS, type Question } from "@/data/questions";
 import { ACHIEVEMENTS } from "./achievements";
 import { checkGuess, getQuestionById, suggestGuess } from "./daily";
 import { RequestProblem } from "./account-server";
+import { COINS_PER_RANKED_WIN } from "./coins";
 import { creditCoins } from "./currency-server";
 import {
   RANKED_INTRO_MS,
@@ -255,7 +256,7 @@ async function finalizeMatch(
       .where(eq(rankedProfiles.accountId, fresh.player2Id));
 
     if (outcome !== "draw") {
-      await creditCoins(tx, outcome === "p1" ? fresh.player1Id : fresh.player2Id, 10);
+      await creditCoins(tx, outcome === "p1" ? fresh.player1Id : fresh.player2Id, { source: "ranked", ref: fresh.id, amount: COINS_PER_RANKED_WIN });
     }
   }
 

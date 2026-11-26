@@ -1,0 +1,153 @@
+/* ───────────── Treasure shop ───────────── */
+.ts-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 14px; font-size: 16px; letter-spacing: 1px; white-space: nowrap;
+}
+.ts-btn:disabled { cursor: not-allowed; filter: grayscale(.6); opacity: .55; }
+.ts-btn-gold { border: 1px solid #f5d26b; background: #e8be4a; color: #241a04; box-shadow: inset 0 -3px 0 #a37b1d; }
+.ts-btn-gold:hover:not(:disabled) { background: #f8d46e; }
+.ts-btn-gold:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -1px 0 #a37b1d; }
+.ts-btn-muted { border: 1px solid #485d78; background: #1a2940; color: #cbd5e1; }
+.ts-btn-muted:hover:not(:disabled) { background: #263b5c; color: #fff; }
+.ts-error { border-left: 3px solid #fb7185; background: #fb71851a; padding: 8px 12px; color: #fecdd3; }
+
+.ts-card { position: relative; border: 1px solid rgba(255,255,255,.1); border-top: 3px solid var(--ts-color); background: rgba(255,255,255,.03); }
+.ts-card-chest { transition: transform .2s ease, filter .2s ease; filter: drop-shadow(0 0 0 transparent); }
+.ts-card:hover .ts-card-chest { transform: translateY(-2px) rotate(-2deg); filter: drop-shadow(0 0 10px var(--ts-color)); }
+.ts-card-mythic { background: linear-gradient(160deg, rgba(251,113,133,.09), rgba(251,191,36,.05) 55%, rgba(255,255,255,.03)); }
+.ts-card-mythic .ts-card-chest { animation: ts-idle-glow 2.4s ease-in-out infinite; }
+.ts-card-legendary .ts-card-chest { animation: ts-idle-glow 3.2s ease-in-out infinite; }
+@keyframes ts-idle-glow { 50% { filter: drop-shadow(0 0 8px var(--ts-color)); } }
+
+/* ───────────── Opening overlay ───────────── */
+.tc-overlay {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; overflow: hidden;
+  cursor: pointer; user-select: none; font-family: var(--font-pixel-display);
+}
+.tc-phase-reveal { cursor: default; }
+.tc-backdrop {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--tc-glow) 30%, transparent), transparent 55%),
+    rgba(4, 8, 18, .93);
+  transition: background .35s ease;
+  animation: tc-fade-in .25s ease-out;
+}
+.tc-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px; width: min(420px, 100vw); }
+.tc-title { color: #e2e8f0; font-size: 18px; letter-spacing: .3em; text-transform: uppercase; opacity: .85; }
+.tc-chest-zone { position: relative; display: grid; place-items: center; width: 100%; height: 240px; }
+
+/* Chest: idle wobble while the server rolls, then a shake that intensifies with each rarity step. */
+.tc-chest { position: relative; z-index: 2; filter: drop-shadow(0 0 calc(6px + var(--tc-shake) * 3) var(--tc-glow)); transition: filter .3s ease; }
+.tc-phase-waiting .tc-chest { animation: tc-wobble .9s ease-in-out infinite; }
+.tc-phase-charging .tc-chest { animation: tc-shake .12s linear infinite; }
+.tc-chest .pc-keyhole, .tc-chest .pc-seam { transition: fill .25s ease; }
+.tc-phase-charging .pc-keyhole { animation: tc-blink .26s steps(2) infinite; }
+.tc-chest .pc-lid, .tc-chest .pc-lock { transform-box: view-box; transform-origin: 4px 12px; transition: transform .35s cubic-bezier(.2, 1.6, .4, 1), opacity .3s; }
+.tc-chest.is-open .pc-lid { transform: translate(-2px, -7px) rotate(-24deg); }
+.tc-chest.is-open .pc-lock { opacity: 0; transform: translateY(6px); }
+.tc-chest.is-open { animation: tc-pop .35s ease-out; }
+
+@keyframes tc-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+@keyframes tc-shake {
+  0% { transform: translate(0, 0); } 25% { transform: translate(var(--tc-shake), calc(var(--tc-shake) * -.5)); }
+  50% { transform: translate(calc(var(--tc-shake) * -1), 0); } 75% { transform: translate(0, var(--tc-shake)); } 100% { transform: translate(0, 0); }
+}
+@keyframes tc-blink { 50% { opacity: .35; } }
+@keyframes tc-pop { 0% { transform: scale(1.12, .88); } 60% { transform: scale(.94, 1.08); } 100% { transform: scale(1); } }
+
+.tc-climb { color: var(--tc-glow); font-size: 26px; letter-spacing: .12em; text-shadow: 0 0 12px var(--tc-glow); animation: tc-climb-in .3s ease-out; }
+@keyframes tc-climb-in { from { transform: scale(1.5); opacity: 0; } }
+.tc-hint { color: #94a3b8; font-size: 14px; letter-spacing: .15em; animation: tc-blink 1.4s steps(2) infinite; }
+
+/* Light beam from the open chest. */
+.tc-beam {
+  position: absolute; z-index: 1; bottom: 50%; left: 50%; width: 150px; height: 340px; transform: translateX(-50%);
+  background: linear-gradient(to top, var(--tc-glow), color-mix(in srgb, var(--tc-glow) 30%, transparent) 55%, transparent);
+  clip-path: polygon(30% 100%, 70% 100%, 100% 0, 0 0); opacity: .8; mix-blend-mode: screen;
+  animation: tc-beam-in .4s ease-out;
+}
+@keyframes tc-beam-in { from { transform: translateX(-50%) scaleY(0); transform-origin: bottom; opacity: 0; } }
+
+/* Shockwave rings. */
+.tc-ring { position: absolute; z-index: 1; width: 40px; height: 40px; border: 4px solid var(--tc-glow); border-radius: 50%; animation: tc-ring .7s ease-out forwards; }
+.tc-ring-late { animation-delay: .35s; opacity: 0; border-width: 6px; }
+@keyframes tc-ring { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(calc(6 + var(--tc-rank) * 1.6)); opacity: 0; } }
+
+/* Burst particles. */
+.tc-particles { position: absolute; z-index: 3; left: 50%; top: 50%; }
+.tc-particle { position: absolute; left: 0; top: 0; opacity: 0; box-shadow: 0 0 6px currentColor; animation: tc-fly 1s cubic-bezier(.15, .7, .3, 1) forwards; }
+.tc-star { clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+@keyframes tc-fly {
+  0% { transform: translate(0, 0) scale(.4) rotate(0); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(var(--dx), calc(var(--dy) + 60px)) scale(1) rotate(400deg); opacity: 0; }
+}
+
+/* Rotating god-rays behind Rare and better pulls. */
+.tc-rays {
+  position: absolute; left: 50%; top: 46%; width: 150vmax; height: 150vmax; translate: -50% -50%; pointer-events: none; will-change: rotate;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--tc-glow) 34%, transparent) 0deg 8deg, transparent 8deg 22deg);
+  mask-image: radial-gradient(circle, #000 0, transparent 38%);
+  animation: tc-spin 14s linear infinite, tc-fade-in .5s ease-out;
+}
+.tc-rank-3 .tc-rays { animation-duration: 10s, .5s; }
+.tc-rank-4 .tc-rays { animation-duration: 7s, .5s; mask-image: radial-gradient(circle, #000 0, transparent 46%); }
+.tc-rank-5 .tc-rays {
+  animation: tc-spin 5s linear infinite, tc-hue 2.4s linear infinite, tc-fade-in .5s ease-out;
+  mask-image: radial-gradient(circle, #000 0, transparent 52%);
+}
+@keyframes tc-spin { to { rotate: 360deg; } }
+@keyframes tc-hue { to { filter: hue-rotate(360deg); } }
+@keyframes tc-fade-in { from { opacity: 0; } }
+
+/* Screen flash (Epic+) and quake (Legendary+). */
+.tc-flash { position: absolute; inset: 0; z-index: 4; background: #fff; pointer-events: none; animation: tc-flash .5s ease-out forwards; }
+.tc-rank-5 .tc-flash { background: var(--tc-glow); animation: tc-flash .45s ease-out 2 forwards; }
+@keyframes tc-flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+.tc-phase-burst.tc-rank-4 .tc-stage { animation: tc-quake .5s linear; }
+.tc-phase-burst.tc-rank-5 .tc-stage { animation: tc-quake .45s linear 2; }
+@keyframes tc-quake {
+  0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-8px, 4px); } 40% { transform: translate(7px, -6px); }
+  60% { transform: translate(-5px, -3px); } 80% { transform: translate(4px, 5px); }
+}
+
+/* Rarity banner. */
+.tc-banner {
+  position: absolute; z-index: 5; top: 38%; left: 0; right: 0; text-align: center;
+  font-size: clamp(32px, 11vw, 52px); font-weight: 700; letter-spacing: .08em; color: #fff;
+  text-shadow: 0 0 18px var(--tc-glow), 4px 4px 0 color-mix(in srgb, var(--tc-glow) 60%, #000);
+  animation: tc-banner .9s cubic-bezier(.2, 1.5, .4, 1) forwards;
+}
+.tc-reward-mythic .tc-banner {
+  font-size: clamp(36px, 13vw, 60px);
+  background: linear-gradient(90deg, #fb7185, #fbbf24, #4ade80, #60a5fa, #c084fc, #fb7185);
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: tc-banner .9s cubic-bezier(.2, 1.5, .4, 1) forwards, tc-rainbow 1s linear infinite;
+}
+@keyframes tc-banner { 0% { transform: scale(3) rotate(-8deg); opacity: 0; } 50% { opacity: 1; } 100% { transform: scale(1) rotate(-3deg); opacity: 1; } }
+@keyframes tc-rainbow { to { background-position: 200% 0; } }
+
+/* Reveal card. */
+.tc-card {
+  position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 14px 26px 16px; min-width: 250px; text-align: center;
+  background: rgba(11, 20, 38, .92); border: 2px solid var(--tc-glow);
+  box-shadow: 0 0 0 4px rgba(0,0,0,.4), 0 0 32px color-mix(in srgb, var(--tc-glow) 55%, transparent);
+  animation: tc-card-in .55s cubic-bezier(.2, 1.4, .4, 1);
+}
+.tc-reward-mythic .tc-card { animation: tc-card-in .55s cubic-bezier(.2, 1.4, .4, 1), tc-mythic-glow 1.6s ease-in-out infinite; }
+@keyframes tc-mythic-glow { 50% { box-shadow: 0 0 0 4px rgba(0,0,0,.4), 0 0 56px #fbbf24; border-color: #fbbf24; } }
+@keyframes tc-card-in { from { transform: translateY(70px) scale(.4); opacity: 0; } }
+.tc-portrait { filter: drop-shadow(0 0 10px var(--tc-glow)); animation: tc-float 2.4s ease-in-out infinite; }
+@keyframes tc-float { 50% { transform: translateY(-5px); } }
+.tc-rarity { color: var(--tc-glow); font-size: 15px; letter-spacing: .3em; text-transform: uppercase; }
+.tc-name { color: #fff; font-size: 24px; line-height: 1.15; }
+.tc-new { color: #86efac; font-size: 14px; letter-spacing: .1em; margin-top: 4px; }
+.tc-dupe { display: inline-flex; align-items: center; gap: 4px; color: #fde68a; font-size: 14px; margin-top: 4px; }
+.tc-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 6px; animation: tc-fade-in .4s ease-out .2s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tc-overlay *, .tc-overlay *::before, .ts-card-chest { animation: none !important; transition: none !important; }
+  .tc-rays, .tc-flash, .tc-particles, .tc-ring { display: none; }
+}

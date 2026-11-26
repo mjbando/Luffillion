@@ -5,7 +5,7 @@ import { PLAYABLE_CHARACTERS, characterById } from "@/data/playable-characters";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, characterUnlocks, treasureChestOpenings } from "@/db/schema";
 import { currentCaptain, failure, privateJson, readMutation, RequestProblem } from "@/lib/account-server";
-import { CHARACTER_POOLS, CHEST_PRICES, TREASURE_CHESTS, chestOdds, TREASURE_RARITIES, type ChestRarity } from "@/lib/treasure";
+import { CHARACTER_POOLS, CHEST_PRICES, TREASURE_CHESTS, rollRarity, type ChestRarity } from "@/lib/treasure";
 
 export const dynamic = "force-dynamic";
 
@@ -60,17 +60,7 @@ export async function POST(req: NextRequest) {
       if (!account) throw new RequestProblem(404, "Captain account not found.");
       if (account.coins < cost) throw new RequestProblem(409, `You need ${cost} coins to open this chest.`);
 
-      const odds = chestOdds(chest);
-      const ticket = randomInt(10_000);
-      let cursor = 0;
-      let rewardRarity = TREASURE_RARITIES[TREASURE_RARITIES.length - 1];
-      for (const rarity of TREASURE_RARITIES) {
-        cursor += odds[rarity];
-        if (ticket < cursor) {
-          rewardRarity = rarity;
-          break;
-        }
-      }
+      const rewardRarity = rollRarity(chest, randomInt(10_000));
 
       const pool = CHARACTER_POOLS[rewardRarity];
       const characterId = pool[randomInt(pool.length)];

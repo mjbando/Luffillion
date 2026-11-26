@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Coins, PackageOpen } from "lucide-react";
+import "./treasure.css";
 import CharacterPortrait from "./CharacterPortrait";
+import ChestOpening, { type ChestReward } from "./ChestOpening";
+import PixelChest from "./PixelChest";
 import { characterById, type CharacterId } from "@/data/playable-characters";
-import { CHEST_PRICES, chestOdds, TREASURE_CHESTS, TREASURE_RARITIES, TREASURE_RARITY_COLORS, type ChestRarity, type TreasureRarity } from "@/lib/treasure";
+import { ACHIEVEMENT_GRADE_COINS, COINS_PER_ADVENTURE_LEVEL, COINS_PER_DAILY_VOYAGE, COINS_PER_RANKED_WIN } from "@/lib/coins";
+import { CHARACTER_POOLS, CHEST_PRICES, chestOdds, TREASURE_CHESTS, TREASURE_RARITIES, TREASURE_RARITY_COLORS, type ChestRarity, type TreasureRarity } from "@/lib/treasure";
 import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
 
-interface ChestOpening {
+interface ChestOpeningRecord {
   chestRarity: ChestRarity;
   rewardRarity: TreasureRarity;
   characterId: CharacterId;
@@ -21,12 +25,18 @@ interface ChestOpening {
 interface ShopData {
   coins: number;
   unlockedCharacterIds: CharacterId[];
-  recentOpenings: ChestOpening[];
+  recentOpenings: ChestOpeningRecord[];
 }
 
 interface OpenResult {
   coins: number;
-  result: Omit<ChestOpening, "createdAt"> & { characterName: string };
+  result: ChestReward;
+}
+
+interface Session {
+  id: number;
+  chest: ChestRarity;
+  reward: ChestReward | null;
 }
 
 function displayRarity(rarity: string) {
@@ -37,12 +47,22 @@ function oddsLabel(basisPoints: number) {
   return `${Number((basisPoints / 100).toFixed(2))}%`;
 }
 
+const EARN_RULES = [
+  { label: "Daily Voyage completed", coins: `+${COINS_PER_DAILY_VOYAGE}` },
+  { label: "Adventure level beaten", coins: `+${COINS_PER_ADVENTURE_LEVEL}` },
+  { label: "Ranked battle won", coins: `+${COINS_PER_RANKED_WIN}` },
+  {
+    label: "Achievements (Crew / Elite / Legendary / Mythic)",
+    coins: `+${ACHIEVEMENT_GRADE_COINS.Crew} / ${ACHIEVEMENT_GRADE_COINS.Elite} / ${ACHIEVEMENT_GRADE_COINS.Legendary} / ${ACHIEVEMENT_GRADE_COINS.Mythic}`,
+  },
+];
+
 export default function TreasureShop({ captain, onSignIn }: { captain: Captain | null; onSignIn: () => void }) {
   const [data, setData] = useState<ShopData | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(Boolean(captain));
-  const [opening, setOpening] = useState<ChestRarity | null>(null);
-  const [result, setResult] = useState<OpenResult["result"] | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const sessionCounter = useRef(0);
   const captainId = captain?.id;
 
   useEffect(() => {
@@ -56,14 +76,15 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
   }, [captainId]);
 
   async function open(chest: ChestRarity) {
-    if (!captain || opening || !data || data.coins < CHEST_PRICES[chest]) return;
+    if (!captain || !data || data.coins < CHEST_PRICES[chest]) return;
+    if (session && !session.reward) return; // a roll is already in flight
     playClick();
-    setOpening(chest);
+    const id = ++sessionCounter.current;
+    setSession({ id, chest, reward: null });
     setError("");
-    setResult(null);
     try {
       const response = await voyageRequest<OpenResult>("/api/treasure", "POST", { chest });
-      setResult(response.result);
+      setSession((current) => current && current.id === id ? { ...current, reward: response.result } : current);
       setData((current) => current ? {
         ...current,
         coins: response.coins,
@@ -73,11 +94,12 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
         recentOpenings: [{ ...response.result, createdAt: new Date().toISOString() }, ...current.recentOpenings].slice(0, 8),
       } : current);
     } catch (cause) {
+      setSession((current) => current && current.id === id ? null : current);
       setError(cause instanceof Error ? cause.message : "The chest could not be opened.");
-    } finally {
-      setOpening(null);
     }
   }
+
+  const owned = new Set(data?.unlockedCharacterIds ?? []);
 
   return (
     <div className="px-3 py-3">
@@ -88,7 +110,7 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
         <div className="min-w-0 flex-1">
           <p className="text-xs tracking-[.25em] text-amber-300">CAPTAIN&apos;S TREASURE</p>
           <h2 className="font-pixel-display text-xl font-bold text-white">Treasure Chests</h2>
-          <p className="text-sm text-slate-400">Find new characters in the Grand Line.</p>
+          <p className="text-sm text-slate-400">Spend coins to recruit new characters.</p>
         </div>
       </header>
 
@@ -101,28 +123,28 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
         </div>
       ) : (
         <>
-          <div className="mb-4 flex items-center justify-between border border-amber-300/30 bg-amber-300/[.07] px-4 py-3">
+          <div className="mb-3 flex items-center justify-between border border-amber-300/30 bg-amber-300/[.07] px-4 py-3">
             <span className="text-sm tracking-wider text-amber-100">YOUR COINS</span>
             <span className="flex items-center gap-2 font-pixel-display text-2xl tabular-nums text-amber-200">
               <Coins size={20} /> {loading ? "…" : (data?.coins ?? 0).toLocaleString()}
             </span>
           </div>
 
-          {error && <p role="alert" className="rk-error mb-3">{error}</p>}
-          {!data && !error && <p role="status" className="py-4 text-center text-cyan-200">Counting your coins…</p>}
+          <details className="mb-4 border border-white/10 bg-white/[.02] px-3 py-2 text-sm text-slate-300">
+            <summary className="cursor-pointer text-amber-100">How to earn coins</summary>
+            <ul className="mt-2 space-y-1">
+              {EARN_RULES.map((rule) => (
+                <li key={rule.label} className="flex justify-between gap-3">
+                  <span>{rule.label}</span>
+                  <span className="shrink-0 tabular-nums text-amber-200">{rule.coins}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-slate-500">Duplicate recruits refund half the chest&apos;s price.</p>
+          </details>
 
-          {result && (
-            <div className="mb-4 flex items-center gap-3 border border-amber-300/40 bg-amber-300/[.08] p-3" role="status">
-              <CharacterPortrait characterId={result.characterId} size={56} />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs tracking-widest text-amber-300">{result.duplicateCoins ? "DUPLICATE TREASURE" : "NEW RECRUIT"}</p>
-                <p className="font-pixel-display text-lg text-white">{result.characterName}</p>
-                <p className="text-sm" style={{ color: TREASURE_RARITY_COLORS[result.rewardRarity] }}>
-                  {displayRarity(result.rewardRarity)} pull{result.duplicateCoins ? ` · +${result.duplicateCoins} coins` : ""}
-                </p>
-              </div>
-            </div>
-          )}
+          {error && <p role="alert" className="ts-error mb-3">{error}</p>}
+          {!data && !error && <p role="status" className="py-4 text-center text-cyan-200">Counting your coins…</p>}
 
           {data && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -132,31 +154,59 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
                 const color = TREASURE_RARITY_COLORS[chest];
                 const canAfford = data.coins >= price;
                 return (
-                  <article key={chest} className="border border-white/10 bg-white/[.03] p-3" style={{ borderTopColor: color }}>
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <h3 className="font-pixel-display text-lg" style={{ color }}>{displayRarity(chest)} Chest</h3>
-                      <span className="flex shrink-0 items-center gap-1 text-base text-amber-200"><Coins size={14} /> {price}</span>
+                  <article key={chest} className={`ts-card ts-card-${chest} p-3`} style={{ "--ts-color": color } as CSSProperties}>
+                    <div className="mb-2 flex items-center gap-3">
+                      <PixelChest chest={chest} size={52} className="ts-card-chest shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-pixel-display text-lg leading-tight" style={{ color }}>{displayRarity(chest)} Chest</h3>
+                        <span className="flex items-center gap-1 text-base text-amber-200"><Coins size={14} /> {price.toLocaleString()}</span>
+                      </div>
                     </div>
                     <div className="mb-3 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
                       {TREASURE_RARITIES.filter((rarity) => odds[rarity] > 0).map((rarity) => (
                         <span key={rarity} className="flex justify-between gap-1 text-slate-400">
                           <span style={{ color: TREASURE_RARITY_COLORS[rarity] }}>{displayRarity(rarity)}</span>
-                          <span>{oddsLabel(odds[rarity])}</span>
+                          <span className="tabular-nums">{oddsLabel(odds[rarity])}</span>
                         </span>
                       ))}
                     </div>
                     <button
                       type="button"
-                      disabled={loading || !!opening || !canAfford}
+                      disabled={loading || Boolean(session) || !canAfford}
                       onClick={() => void open(chest)}
-                      className="rk-btn-gold h-9 w-full text-base"
+                      className="ts-btn ts-btn-gold h-9 w-full"
                     >
-                      {opening === chest ? "OPENING…" : canAfford ? "OPEN CHEST" : `NEED ${price - data.coins} MORE COINS`}
+                      {canAfford ? "OPEN CHEST" : `NEED ${(price - data.coins).toLocaleString()} MORE COINS`}
                     </button>
                   </article>
                 );
               })}
             </div>
+          )}
+
+          {data && (
+            <section className="mt-5 border-t border-white/10 pt-3">
+              <h3 className="mb-2 font-pixel-display text-lg text-white">RECRUIT POOLS</h3>
+              <ul className="space-y-1.5">
+                {[...TREASURE_RARITIES].reverse().map((rarity) => (
+                  <li key={rarity} className="flex items-center gap-2">
+                    <span className="w-20 shrink-0 text-xs" style={{ color: TREASURE_RARITY_COLORS[rarity] }}>{displayRarity(rarity)}</span>
+                    <span className="flex flex-wrap gap-1">
+                      {CHARACTER_POOLS[rarity].map((id) => {
+                        const character = characterById(id);
+                        const have = owned.has(character.id);
+                        return (
+                          <span key={id} title={`${character.shortName}${have ? " · in your crew" : ""}`}
+                            className={`border ${have ? "border-amber-300/50 bg-amber-300/[.06]" : "border-white/10 bg-white/[.02]"}`}>
+                            <CharacterPortrait characterId={character.id} size={32} dim={!have} />
+                          </span>
+                        );
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
           {!!data?.recentOpenings.length && (
@@ -178,6 +228,17 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
             </section>
           )}
         </>
+      )}
+
+      {session && (
+        <ChestOpening
+          key={session.id}
+          chest={session.chest}
+          reward={session.reward}
+          coins={data?.coins ?? 0}
+          onAgain={() => void open(session.chest)}
+          onClose={() => setSession(null)}
+        />
       )}
     </div>
   );

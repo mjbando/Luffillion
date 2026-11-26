@@ -40,9 +40,30 @@ export const TREASURE_RARITY_COLORS: Record<TreasureRarity, string> = {
   mythic: "#fb7185",
 };
 
+/**
+ * Odds in basis points (1/100 of a percent), always totalling exactly 10,000.
+ * Some published tables add up to less than 100% (e.g. Legendary = 96%), so the
+ * leftover chance goes to the chest's own rarity rather than to Common.
+ */
 export function chestOdds(chest: ChestRarity): Record<TreasureRarity, number> {
   const odds = { ...CHEST_ODDS_BPS[chest] };
   const remainder = 10_000 - Object.values(odds).reduce((sum, value) => sum + value, 0);
-  odds.common += remainder;
+  odds[chest] += remainder;
   return odds;
+}
+
+/** Maps a ticket in [0, 10000) to a reward rarity, rarest first. */
+export function rollRarity(chest: ChestRarity, ticket: number): TreasureRarity {
+  const odds = chestOdds(chest);
+  let cursor = 0;
+  for (const rarity of TREASURE_RARITIES) {
+    cursor += odds[rarity];
+    if (ticket < cursor) return rarity;
+  }
+  return chest;
+}
+
+/** Ordinal rank used for animation intensity: common = 0 … mythic = 5. */
+export function rarityRank(rarity: TreasureRarity): number {
+  return TREASURE_CHESTS.indexOf(rarity);
 }
