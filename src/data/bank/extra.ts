@@ -324,7 +324,7 @@ export const EXTRA_QUESTIONS: Question[] = [
       common: ["Tony Tony Chopper|Chopper", "Trafalgar D. Water Law|Trafalgar Law|Law"],
       uncommon: ["Dr. Kureha|Doctor Kureha|Kureha|Doctorine", "Dr. Hiriluk|Doctor Hiriluk|Hiriluk|Hiluluk|Hiruluk", "Crocus", "Dr. Hogback|Doctor Hogback|Hogback", "Mansherry|Princess Mansherry"],
       rare: ["Doc Q|Doctor Q", "Dr. Vegapunk|Doctor Vegapunk|Vegapunk", "Marco|Marco the Phoenix", "Emporio Ivankov|Ivankov", "Aladdin", "Miyagi", "Tristan", "Gerd", "Hongo"],
-      epic: ["Dr. Indigo|Doctor Indigo|Indigo", "Nako|Dr. Nako", "Dr. Tsukimi|Tsukimi", "Leo", "Chiyu Chiyu no Mi"],
+      epic: ["Dr. Indigo|Doctor Indigo|Indigo", "Nako|Dr. Nako", "Dr. Tsukimi|Tsukimi", "Leo"],
       luffillion: ["Isshi-20|Twenty MDs"],
     },
   },

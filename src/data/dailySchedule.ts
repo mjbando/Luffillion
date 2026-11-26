@@ -1,7 +1,7 @@
 // Explicit 31-day schedule from November 26, 2026 through December 26, 2026.
 // Every single day has 7 unique original One Piece questions (217 distinct questions, zero repeats).
 export const DAILY_SCHEDULE: Record<string, string[]> = {
-  "2026-11-26": ["q-arc-zou","arcs","q-straw-hat-items","q-revolutionary","q-d-clan","q-animal-fruit","doctors"],
+  "2026-11-26": ["q-arc-zou","arcs","q-luffy-forms","q-revolutionary","q-d-clan","q-animal-fruit","doctors"],
   "2026-11-27": ["q-arc-alabasta","locations","techniques","minks","q-glasses-goggles","q-ancient-zoan-fruit","q-emperor-crews"],
   "2026-11-28": ["q-arc-enies-lobby","q-east-blue-loc","swords","q-supernova-crews-allies","q-fought-commander","q-armament","q-arc-fishman"],
   "2026-11-29": ["q-arc-drum-island","q-one-piece-movies","q-ancient-weapons","q-cross-guild","q-former-warlord-bounty","q-substance-fruits","donquixote-family"],

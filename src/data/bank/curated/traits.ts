@@ -4,7 +4,7 @@ import { C, DF, LOC, SHIP, ranked } from "./names";
 // 32 distinct character-trait, feat, title, and Devil Fruit subtype questions.
 export const CURATED_TRAITS: Question[] = [
   ranked("q-d-clan", "Name a character with 'D.' in their name.", "Known carriers of the Will of D.",
-    "Luffy, Ace, Roger, Blackbeard, Law, Garp, Dragon, Saul, Rouge, Xebec, Vivi, Cobra, Nefertari Lily|Lily, Clapp, Lami", C),
+    "Luffy, Ace, Roger, Blackbeard, Law, Garp, Dragon, Saul, Rouge, Xebec, Nefertari D. Vivi|Vivi|Nefertari Vivi, Nefertari D. Cobra|Cobra|Nefertari Cobra, Nefertari D. Lily|Lily|Nefertari Lily", C),
 
   ranked("q-non-human", "Name a non-human character.", "Fish-Men, Minks, Giants, Animals, Cyborgs, Skeletons, Dwarves, Lunarians, or Buccaneers.",
     "Chopper, Brook, Jinbe, Franky, Carrot, Pedro, Bepo, Laboon, Karoo, Yamato, Kaido, Arlong, Hatchan, Shirahoshi, Neptune, Otohime, Hody, FisherTiger, King, Kuma, Bonney, Dorry, Brogy, Hajrudin, Oimo, Kashii, Loki, Jarul, Jorul, Inuarashi, Nekomamushi, Wanda, Shishilian, Leo, Mansherry, Kabu, Bian, Wicca, Zeus, Prometheus, Napoleon, Emet, SSnake, SHawk, SBear, SShark, Saul, Oars, LittleOarsJr, Wadatsumi, Pekoms, Tamago, Zunesha, Richie, Chouchou, Momoo, Lassoo, Funkfreed, Pierre, Su, Nola, Hattori, Stronger, Onimaru, Komachiyo, Hihimaru, Den, Shyarly, Camie, Pappag, Kokoro, Chimney, Morgans, Smiley", C),

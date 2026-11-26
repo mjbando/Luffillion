@@ -4,6 +4,19 @@ import { ARC, C, CREW, LOC, SHIP, SWORD, TECH, ranked } from "./names";
 // 32 distinct attack, sword, ship, location, and deep lore questions.
 export const CURATED_MOVES_AND_LORE: Question[] = [
   // ---------------- Attacks & Techniques ----------------
+  {
+    id: "q-luffy-forms",
+    prompt: "Name any form Luffy has taken throughout One Piece.",
+    hint: "Base Luffy, Gears, and other forms count.",
+    tiers: {
+      common: ["Base Luffy|Luffy|Monkey D. Luffy|Straw Hat Luffy", "Gear 2|Gear Second", "Gear 3|Gear Third"],
+      uncommon: ["Gear 4: Boundman|Boundman|Bounceman", "Gear 4: Snakeman|Snakeman", "Gear 5 (Nika)|Gear 5|Gear Fifth|Nika|Sun God Nika"],
+      rare: ["Gear 2 + Gear 3|Gear 2 and Gear 3", "Gear 4: Tankman|Tankman", "Gear 5: Giant Luffy|Giant Luffy|Gear 5 Giant", "Nightmare Luffy"],
+      epic: ["Afro Luffy|Afro", "Water Luffy|Mizu Luffy", "Balloon Luffy|Gomu Gomu no Balloon|Gum-Gum Balloon"],
+      luffillion: ["Mini Luffy (Post-Gear 3)|Mini Luffy"],
+    },
+  },
+
   ranked("q-luffy-moves", "Name one of Luffy's attacks or Gears.", "Any named Gomu Gomu move, Gear form, or Nika attack.",
     "Gomu Gomu no Pistol|Gum-Gum Pistol|Pistol, Gomu Gomu no Gatling|Gum-Gum Gatling|Gatling, Gomu Gomu no Bazooka|Gum-Gum Bazooka|Bazooka, Gear Second|Gear 2, Gear Third|Gear 3, Gear Fourth|Gear 4, Gear Fifth|Gear 5, Boundman|Bounceman, Snakeman, Tankman, Gomu Gomu no Rifle|Rifle, Gomu Gomu no Whip|Whip, Gomu Gomu no Balloon|Balloon, Gomu Gomu no Rocket|Rocket, Gomu Gomu no Jet Pistol|Jet Pistol, Gomu Gomu no Jet Gatling|Jet Gatling, Gomu Gomu no Gigant Pistol|Gigant Pistol, Gomu Gomu no Elephant Gun|Elephant Gun, Gomu Gomu no Red Hawk|Red Hawk, Gomu Gomu no Red Roc|Red Roc, Gomu Gomu no Kong Gun|Kong Gun, Gomu Gomu no King Kong Gun|King Kong Gun, Gomu Gomu no Bajrang Gun|Bajrang Gun, Gomu Gomu no Bullet|Bullet, Gomu Gomu no Stamp|Stamp, Gomu Gomu no Spear|Spear, Gomu Gomu no Axe|Battle Axe, Gomu Gomu no Bell|Bell, Gomu Gomu no Storm|Storm, Gomu Gomu no Fireworks|Fireworks, Gomu Gomu no Jet Bazooka|Jet Bazooka, Gomu Gomu no Grizzly Magnum|Grizzly Magnum, Gomu Gomu no Elephant Gatling|Elephant Gatling, Gomu Gomu no Hawk Gatling|Hawk Gatling, Gomu Gomu no Leo Bazooka|Leo Bazooka, Gomu Gomu no Culverin|Culverin, Gomu Gomu no Black Mamba|Black Mamba, Gomu Gomu no King Cobra|King Cobra, Gomu Gomu no Dawn Rocket|Dawn Rocket, Gomu Gomu no Dawn Whip|Dawn Whip, Gomu Gomu no Dawn Gatling|Dawn Gatling, Gomu Gomu no Star Gun|White Star Gun, Gomu Gomu no Roc Gun|Roc Gun, Gomu Gomu no Over Kong Gun|Over Kong Gun, Gomu Gomu no Rhino Schneider|Rhino Schneider, Gomu Gomu no Kong Organ|Kong Organ, Gomu Gomu no Python|Python, Gomu Gomu no Dawn Cymbal|Dawn Cymbal, Gomu Gomu no Gigant|Gum-Gum Giant, Gomu Gomu no Kaminari|Gum-Gum Lightning, Mizu Luffy|Water Luffy, Nightmare Luffy, Gomu Gomu no Pinwheel|Kazaguruma, Gomu Gomu no Boh|Spaced Out, Gomu Gomu no UFO|UFO", TECH),
 
