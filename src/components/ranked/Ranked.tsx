@@ -188,7 +188,10 @@ export default function Ranked() {
           onMute={toggleMute}
           onGuess={(guess) => void act({ action: "guess", matchId: currentMatch.id, guess })}
           onForfeit={() => {
-            if (window.confirm("Forfeit this ranked match? You will lose rank points.")) {
+            const prompt = currentMatch.mode === "friendly"
+              ? "Forfeit this friendly battle?"
+              : "Forfeit this ranked match? You will lose rank points.";
+            if (window.confirm(prompt)) {
               void act({ action: "forfeit", matchId: currentMatch.id });
             }
           }}
@@ -223,21 +226,21 @@ export default function Ranked() {
             playClick();
             void act({ action: "unqueue" });
           }}
-          onChallenge={(target) => {
+          onInviteFriend={(target) => {
             playClick();
-            void act({ action: "challenge", ...target });
+            void act({ action: "friendlyInvite", ...target });
           }}
-          onAccept={(challengeId) => {
+          onAcceptInvite={(challengeId) => {
             playClick();
-            void act({ action: "accept", challengeId });
+            void act({ action: "acceptInvite", challengeId });
           }}
-          onDecline={(challengeId) => {
+          onDeclineInvite={(challengeId) => {
             playClick();
-            void act({ action: "decline", challengeId });
+            void act({ action: "declineInvite", challengeId });
           }}
-          onCancel={(challengeId) => {
+          onCancelInvite={(challengeId) => {
             playClick();
-            void act({ action: "cancel", challengeId });
+            void act({ action: "cancelInvite", challengeId });
           }}
           onInspectMatch={(m) => {
             setInspectingMatchId(m.id);

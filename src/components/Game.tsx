@@ -17,6 +17,7 @@ import PixelWorld, { type RunSignal, type WorldStatus } from "./PixelWorld";
 import Effects from "./Effects";
 import CaptainLog, { LogIcon } from "./CaptainLog";
 import BountiesPanel from "./BountiesPanel";
+import TreasureShop from "./TreasureShop";
 import MenuPanel, { type MenuTab } from "./MenuPanel";
 import AchievementsPanel from "./AchievementsPanel";
 import ArchivePanel from "./ArchivePanel";
@@ -792,6 +793,7 @@ export default function Game() {
           {menuTab === "achievements" && daily.captain && <AchievementsPanel key={daily.captain.id} captain={daily.captain} refreshKey={`${daily.day}:${achievementRevision}`} onUnlock={queueUnlocks} equippedCharacter={equippedCharacter} onEquip={handleEquip} />}
           {menuTab === "archive" && <ArchivePanel captain={daily.captain} refreshKey={`${daily.day}:${stats?.you?.score ?? "pending"}`} />}
           {menuTab === "bounties" && <BountiesPanel captain={daily.captain} onSignIn={() => openAccountForMenu("bounties")} />}
+          {menuTab === "treasure-chests" && <TreasureShop key={daily.captain?.id ?? "guest"} captain={daily.captain} onSignIn={() => openAccountForMenu("treasure-chests")} />}
         </MenuPanel>
       )}
 

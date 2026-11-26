@@ -7,6 +7,7 @@ import { checkGuess, getDailyRun, todayKey } from "./daily";
 import { RequestProblem } from "./account-server";
 import { countMistakes } from "./achievements";
 import { evaluateAchievementsFor } from "./achievements-server";
+import { creditCoins } from "./currency-server";
 import { awardBounty, bountyGain } from "./bounty-server";
 import { firstOpen, fromQuestions, mergeProgress, type FinishedVoyage, type Progress, type VoyageLeg } from "./voyage";
 
@@ -131,7 +132,10 @@ export async function finishVoyage(owner: Owner, day: string, answers: string[],
     if (owner.accountId) await tx.delete(checkpoints).where(and(eq(checkpoints.accountId, owner.accountId), eq(checkpoints.dayKey, day)));
     // Credit the captain exactly once per voyage — the insert above only runs on a
     // newly completed record, never on a backfill or resubmission.
-    if (owner.accountId && inserted) await awardBounty(tx, owner.accountId, day, bountyGain(legs));
+    if (owner.accountId && inserted) {
+      await awardBounty(tx, owner.accountId, day, bountyGain(legs));
+      await creditCoins(tx, owner.accountId, 10);
+    }
     if (owner.accountId) newlyUnlocked = (await evaluateAchievementsFor(tx, owner.accountId)).newlyUnlocked;
     return { final, newlyUnlocked };
   });
@@ -156,6 +160,7 @@ export async function claimGuestVoyages(accountId: string, guest: string, curren
     for (const row of moved) {
       const gain = bountyGain((row.legs ?? []) as VoyageLeg[]);
       if (gain > 0) await awardBounty(tx, accountId, row.dayKey, gain);
+      await creditCoins(tx, accountId, 10);
     }
     return moved.length;
   });
