@@ -854,7 +854,7 @@ export default function Game() {
                   <Link href="/adventure" onClick={playClick} className="daily-adventure-entry !mt-0">
                     <span className="daily-adventure-mark">↗</span><span><strong>ADVENTURE MODE</strong><small>100 levels · 10 sagas · unlimited retries</small></span><span aria-hidden="true">▸</span>
                   </Link>
-                  <Link href="/ranked" onClick={playClick} className="daily-adventure-entry !mt-0">
+                  <Link href="/ranked" onClick={playClick} className="daily-adventure-entry daily-ranked-entry !mt-0">
                     <span className="daily-adventure-mark">⚔</span><span><strong>ONLINE RANKED</strong><small>10s 1v1 duels | Bronze to Legend</small></span><span aria-hidden="true">▸</span>
                   </Link>
                 </div>
@@ -1317,7 +1317,10 @@ function CountdownScreen({
             {copied ? "COPIED!" : "SHARE"}
           </button>
         </div>
-        <Link href="/adventure" onClick={playClick} className="daily-adventure-entry"><span className="daily-adventure-mark">↗</span><span><strong>KEEP SAILING IN ADVENTURE</strong><small>A separate 100-level journey awaits</small></span><span aria-hidden="true">▸</span></Link>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Link href="/adventure" onClick={playClick} className="daily-adventure-entry !mt-0"><span className="daily-adventure-mark">↗</span><span><strong>KEEP SAILING IN ADVENTURE</strong><small>A separate 100-level journey awaits</small></span><span aria-hidden="true">▸</span></Link>
+          <Link href="/ranked" onClick={playClick} className="daily-adventure-entry daily-ranked-entry !mt-0"><span className="daily-adventure-mark">⚔</span><span><strong>ONLINE RANKED</strong><small>10s 1v1 duels | Bronze to Legend</small></span><span aria-hidden="true">▸</span></Link>
+        </div>
         {saveMessage && <p role="status" className="mt-3 text-sm text-slate-300">{saveMessage}</p>}
         <button type="button" aria-haspopup="dialog" onClick={onAccount} className="mt-2 inline-flex items-center justify-center gap-2 py-1.5 text-base text-cyan-200 underline-offset-4 hover:underline">
           <LogIcon />{signedIn ? "Open my Captain's Log" : "Sign in or create an account to keep this voyage"} ▸
