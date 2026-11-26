@@ -1,10 +1,15 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Compass, Flame, Search, Shield, Swords, Trophy, Users, Volume2, VolumeX, X } from "lucide-react";
 import CharacterPortrait from "../CharacterPortrait";
+import PixelEmblem from "../pixel-emblems";
+import RankedUsername from "./RankedUsername";
+import { characterById } from "@/data/playable-characters";
 import { RANK_TIERS, rankTierFor } from "@/lib/ranked";
-import type { RankedLobbyResponse, RankedMatchView } from "@/lib/ranked-types";
+import type { RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
+import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
 
 function RankBadge({ points }: { points: number }) {
@@ -27,10 +32,10 @@ export default function RankedLobby({
   onAccount,
   onQueue,
   onUnqueue,
-  onChallenge,
-  onAccept,
-  onDecline,
-  onCancel,
+  onInviteFriend,
+  onAcceptInvite,
+  onDeclineInvite,
+  onCancelInvite,
   onInspectMatch,
 }: {
   data: RankedLobbyResponse;
@@ -43,17 +48,57 @@ export default function RankedLobby({
   onAccount: () => void;
   onQueue: () => void;
   onUnqueue: () => void;
-  onChallenge: (target: { targetId?: string; targetUsername?: string }) => void;
-  onAccept: (id: string) => void;
-  onDecline: (id: string) => void;
-  onCancel: (id: string) => void;
+  onInviteFriend: (target: { targetId?: string; targetUsername?: string }) => void;
+  onAcceptInvite: (id: string) => void;
+  onDeclineInvite: (id: string) => void;
+  onCancelInvite: (id: string) => void;
   onInspectMatch: (m: RankedMatchView) => void;
 }) {
-  const { captain, profile, inQueue, onlineCount, onlinePlayers, challenges, leaderboard, recentMatches, serverNow } = data;
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [viewedProfile, setViewedProfile] = useState<RankedPublicProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const profileRequest = useRef(0);
+  const profileTrigger = useRef<HTMLButtonElement | null>(null);
+  const profileCloseButton = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (selectedProfileId) profileCloseButton.current?.focus();
+  }, [selectedProfileId]);
+  const { captain, profile, inQueue, onlineCount, onlinePlayers, friendlyInvites, leaderboard, recentMatches, serverNow } = data;
   const tier = rankTierFor(profile?.rankPoints ?? 0);
   const pctToNext = tier.nextMin && profile
     ? Math.min(100, Math.round(((profile.rankPoints - tier.min) / (tier.nextMin - tier.min)) * 100))
     : 100;
+
+  async function openProfile(accountId: string, trigger: HTMLButtonElement) {
+    const requestId = ++profileRequest.current;
+    profileTrigger.current = trigger;
+    setSelectedProfileId(accountId);
+    setViewedProfile(null);
+    setProfileError("");
+    setProfileLoading(true);
+    try {
+      const result = await voyageRequest<RankedPublicProfile>(
+        `/api/ranked/profile?accountId=${encodeURIComponent(accountId)}`,
+      );
+      if (profileRequest.current === requestId) setViewedProfile(result);
+    } catch (error) {
+      if (profileRequest.current === requestId) {
+        setProfileError(error instanceof Error ? error.message : "Could not load this player card.");
+      }
+    } finally {
+      if (profileRequest.current === requestId) setProfileLoading(false);
+    }
+  }
+
+  function closeProfile() {
+    profileRequest.current++;
+    setSelectedProfileId(null);
+    setViewedProfile(null);
+    setProfileError("");
+    setProfileLoading(false);
+    profileTrigger.current?.focus();
+  }
 
   return (
     <main className="ranked-shell">
@@ -82,17 +127,17 @@ export default function RankedLobby({
             {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
           </button>
           <button type="button" onClick={onAccount} className="rk-account">
-            {captain ? captain.username : "Sign in / Create account"}
+            {captain ? <RankedUsername username={captain.username} /> : "Sign in / Create account"}
           </button>
         </div>
       </header>
 
       <div className="rk-page">
         <section className="rk-hero">
-          <p className="rk-eyebrow">10-SECOND NICHE KNOWLEDGE DUELS · 2 LIVES</p>
+          <p className="rk-eyebrow">10-SECOND KNOWLEDGE DUELS · 3 LIVES</p>
           <h1>Ranked Battle Arena</h1>
           <p>
-            Search for an online pirate or enter matchmaking. Deeper pulls deal damage — whoever scores lower each round loses a life.
+            Ranked battles use matchmaking only. Invite an online friend for a friendly match that never changes rank points.
           </p>
         </section>
 
@@ -102,20 +147,19 @@ export default function RankedLobby({
           </p>
         )}
 
-        {/* Incoming / Outgoing Challenges */}
-        {challenges.length > 0 && (
-          <section className="rk-challenges" aria-label="Active challenges">
-            {challenges.map((ch) => {
+        {friendlyInvites.length > 0 && (
+          <section className="rk-challenges" aria-label="Friendly battle invitations">
+            {friendlyInvites.map((ch) => {
               const sec = Math.max(0, Math.ceil((ch.expiresAt - serverNow) / 1000));
               return (
                 <div key={ch.id} className={`rk-challenge-card ${ch.direction === "incoming" ? "is-incoming" : ""}`}>
                   <CharacterPortrait characterId={ch.opponent.characterId} size={52} />
                   <div className="min-w-0 flex-1">
                     <p className="rk-eyebrow">
-                      {ch.direction === "incoming" ? "INCOMING RANKED CHALLENGE" : "CHALLENGE SENT"} · {sec}S
+                      {ch.direction === "incoming" ? "FRIENDLY BATTLE INVITE" : "INVITE SENT"} · {sec}S
                     </p>
                     <p className="rk-challenge-title">
-                      <strong>{ch.opponent.username}</strong> · {ch.opponent.title} ·{" "}
+                      <strong><RankedUsername username={ch.opponent.username} /></strong> · {ch.opponent.title} ·{" "}
                       <span style={{ color: rankTierFor(ch.opponent.rankPoints).color }}>
                         {ch.opponent.rankName} ({ch.opponent.rankPoints} RP)
                       </span>{" "}
@@ -124,15 +168,15 @@ export default function RankedLobby({
                   </div>
                   {ch.direction === "incoming" ? (
                     <div className="flex gap-2">
-                      <button type="button" disabled={busy} onClick={() => onAccept(ch.id)} className="rk-btn-gold">
+                      <button type="button" disabled={busy} onClick={() => onAcceptInvite(ch.id)} className="rk-btn-gold">
                         ACCEPT ▸
                       </button>
-                      <button type="button" disabled={busy} onClick={() => onDecline(ch.id)} className="rk-btn-muted">
+                      <button type="button" disabled={busy} onClick={() => onDeclineInvite(ch.id)} className="rk-btn-muted">
                         DECLINE
                       </button>
                     </div>
                   ) : (
-                    <button type="button" disabled={busy} onClick={() => onCancel(ch.id)} className="rk-btn-muted">
+                    <button type="button" disabled={busy} onClick={() => onCancelInvite(ch.id)} className="rk-btn-muted">
                       CANCEL
                     </button>
                   )}
@@ -154,7 +198,7 @@ export default function RankedLobby({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="rk-eyebrow">CAPTAIN CARD</p>
-                      <h2 className="rk-username">{profile.username}</h2>
+                      <h2 className="rk-username"><RankedUsername username={profile.username} /></h2>
                       <p className="text-base text-amber-200">{profile.title}</p>
                     </div>
                   </div>
@@ -278,15 +322,15 @@ export default function RankedLobby({
             <div className="rk-card px-scan">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="rk-eyebrow">DIRECT CHALLENGE</p>
-                  <h2 className="font-pixel-display text-xl text-white">Search Online Players</h2>
+                  <p className="rk-eyebrow">FRIENDLY BATTLE</p>
+                  <h2 className="font-pixel-display text-xl text-white">Invite an Online Friend</h2>
                 </div>
               </div>
 
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (search.trim() && captain) onChallenge({ targetUsername: search.trim() });
+                  if (search.trim() && captain) onInviteFriend({ targetUsername: search.trim() });
                 }}
                 className="mt-3 flex gap-2"
               >
@@ -302,7 +346,7 @@ export default function RankedLobby({
                 </div>
                 {captain && search.trim() && (
                   <button type="submit" disabled={busy} className="rk-btn-cyan h-10 px-4">
-                    CHALLENGE ▸
+                    INVITE ▸
                   </button>
                 )}
               </form>
@@ -312,7 +356,7 @@ export default function RankedLobby({
                   <p className="border border-dashed border-white/15 py-5 text-center text-base text-slate-400">
                     {search.trim()
                       ? `No online players matching "${search.trim()}".`
-                      : "No other captains are in Ranked right now. Stay in queue or invite a friend to open /ranked!"}
+                      : "No other captains are online right now."}
                   </p>
                 ) : (
                   onlinePlayers.map((p) => (
@@ -320,7 +364,7 @@ export default function RankedLobby({
                       <CharacterPortrait characterId={p.characterId} size={44} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-pixel-display text-lg text-white">{p.username}</span>
+                          <RankedUsername username={p.username} className="font-pixel-display text-lg text-white" />
                           <RankBadge points={p.rankPoints} />
                         </div>
                         <p className="text-sm text-slate-400">
@@ -334,10 +378,10 @@ export default function RankedLobby({
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => onChallenge({ targetId: p.accountId })}
+                          onClick={() => onInviteFriend({ targetId: p.accountId })}
                           className="rk-btn-cyan h-9 px-3 text-base"
                         >
-                          CHALLENGE ▸
+                          INVITE ▸
                         </button>
                       ) : (
                         <button type="button" onClick={onAccount} className="rk-btn-muted h-9 px-3 text-sm">
@@ -376,7 +420,7 @@ export default function RankedLobby({
                         >
                           {m.result?.outcome.toUpperCase()}
                         </span>{" "}
-                        vs <strong className="font-normal text-white">{m.opponent.username}</strong> ({m.opponent.rankName})
+                        vs <strong className="font-normal text-white"><RankedUsername username={m.opponent.username} /></strong> ({m.opponent.rankName})
                       </span>
                       <span className="shrink-0 text-base text-cyan-200">
                         {m.result ? `${m.result.you.delta >= 0 ? "+" : ""}${m.result.you.delta} RP` : ""} ▸
@@ -404,30 +448,34 @@ export default function RankedLobby({
             ) : (
               <ol className="max-h-[540px] space-y-1.5 overflow-y-auto pr-1">
                 {leaderboard.map((entry) => (
-                  <li
-                    key={entry.accountId}
-                    className={`flex items-center gap-2 border px-2.5 py-1.5 ${
-                      entry.isYou ? "border-amber-300/60 bg-amber-300/10" : "border-white/5 bg-white/[.03]"
-                    }`}
-                  >
-                    <span className="w-7 text-right font-pixel-display text-base text-slate-400">#{entry.rank}</span>
-                    <CharacterPortrait characterId={entry.characterId} size={30} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-base text-white">
-                        {entry.username} {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
-                      </p>
-                      <p className="truncate text-xs text-slate-400">
-                        {entry.title} · {entry.bounty.toLocaleString()} berries
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-base font-bold" style={{ color: rankTierFor(entry.rankPoints).color }}>
-                        {entry.rankPoints} RP
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {entry.wins}W-{entry.losses}L
-                      </p>
-                    </div>
+                  <li key={entry.accountId}>
+                    <button
+                      type="button"
+                      onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
+                      aria-label={`View ${entry.username}'s player card`}
+                      className={`flex w-full items-center gap-2 border px-2.5 py-1.5 text-left hover:border-cyan-300/50 hover:bg-cyan-300/[.06] ${
+                        entry.isYou ? "border-amber-300/60 bg-amber-300/10" : "border-white/5 bg-white/[.03]"
+                      }`}
+                    >
+                      <span className="w-7 text-right font-pixel-display text-base text-slate-400">#{entry.rank}</span>
+                      <CharacterPortrait characterId={entry.characterId} size={30} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base text-white">
+                          <RankedUsername username={entry.username} /> {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
+                        </p>
+                        <p className="truncate text-xs text-slate-400">
+                          {entry.title} · {entry.bounty.toLocaleString()} berries
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-base font-bold" style={{ color: rankTierFor(entry.rankPoints).color }}>
+                          {entry.rankPoints} RP
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {entry.wins}W-{entry.losses}L
+                        </p>
+                      </div>
+                    </button>
                   </li>
                 ))}
               </ol>
@@ -435,6 +483,97 @@ export default function RankedLobby({
           </aside>
         </div>
       </div>
+      {selectedProfileId && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ranked-profile-title"
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") closeProfile();
+          }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeProfile();
+          }}
+        >
+          <section className="w-full max-w-xl border border-[#536783] border-t-4 border-t-amber-300 bg-[#0b1628] p-4 shadow-2xl sm:p-6">
+            <header className="flex items-start justify-between gap-4">
+              <div>
+                <p className="rk-eyebrow">RANKED CAPTAIN</p>
+                <h2 id="ranked-profile-title" className="font-pixel-display text-2xl text-white">PLAYER CARD</h2>
+              </div>
+              <button ref={profileCloseButton} type="button" className="rk-icon-btn" aria-label="Close player card" onClick={closeProfile}>
+                <X size={18} />
+              </button>
+            </header>
+
+            {profileLoading && <p role="status" className="py-10 text-center text-cyan-200">Loading player card…</p>}
+            {profileError && <p role="alert" className="rk-error mt-4">{profileError}</p>}
+            {viewedProfile && (() => {
+              const character = characterById(viewedProfile.characterId);
+              const rankColor = rankTierFor(viewedProfile.rankPoints).color;
+              return (
+                <div className="mt-4">
+                  <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+                    <CharacterPortrait characterId={viewedProfile.characterId} size={88} />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-pixel-display text-2xl text-white"><RankedUsername username={viewedProfile.username} /></h3>
+                      <p className="text-base text-amber-200">{viewedProfile.title}</p>
+                      <p className="text-base" style={{ color: character.color }}>{character.name} · {character.epithet}</p>
+                    </div>
+                    <span className="shrink-0 text-right font-pixel-display text-2xl font-bold" style={{ color: rankColor }}>
+                      #{leaderboard.find((entry) => entry.accountId === viewedProfile.accountId)?.rank ?? "—"}
+                    </span>
+                  </div>
+
+                  <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                      ["RANK", viewedProfile.rankName],
+                      ["RANK POINTS", `${viewedProfile.rankPoints} RP`],
+                      ["WINS", viewedProfile.wins],
+                      ["LOSSES", viewedProfile.losses],
+                      ["DRAWS", viewedProfile.draws],
+                      ["WIN STREAK", viewedProfile.winStreak],
+                      ["BEST STREAK", viewedProfile.bestStreak],
+                      ["BOUNTY", `${viewedProfile.bounty.toLocaleString()} berries`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="border border-white/10 bg-white/[.03] px-3 py-2">
+                        <dt className="text-xs tracking-wider text-slate-400">{label}</dt>
+                        <dd className="truncate font-pixel-display text-lg text-white" style={label === "RANK" ? { color: rankColor } : undefined}>
+                          {value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  <section className="mt-5" aria-labelledby="profile-achievements-title">
+                    <div className="mb-2 flex items-baseline justify-between gap-3">
+                      <h3 id="profile-achievements-title" className="font-pixel-display text-xl text-white">ACHIEVEMENTS</h3>
+                      <span className="text-sm text-slate-400">{viewedProfile.achievements.length} earned</span>
+                    </div>
+                    {viewedProfile.achievements.length ? (
+                      <ul className="grid max-h-64 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                        {viewedProfile.achievements.map((achievement) => (
+                          <li key={achievement.id} className="flex min-w-0 items-center gap-2 border border-amber-300/20 bg-amber-300/[.04] p-2">
+                            <PixelEmblem kind={achievement.emblem} size={38} className="shrink-0" />
+                            <div className="min-w-0">
+                              <p className="truncate font-pixel-display text-base text-amber-100">{achievement.title}</p>
+                              <p className="text-sm leading-tight text-slate-400">{achievement.description}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="border border-dashed border-white/15 p-4 text-center text-slate-400">No achievements earned yet.</p>
+                    )}
+                  </section>
+                </div>
+              );
+            })()}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

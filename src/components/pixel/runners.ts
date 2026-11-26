@@ -173,6 +173,18 @@ function drawRecruit(id: Exclude<CharacterId, "luffy">, pose: Pose): RunnerSprit
       p.r(9, 11, 2, 5, skin).r(7, 17, 6, 2, "#a779c2").r(13, 18, 3, 2, "#a779c2").r(15, 19, 2, 2, "#c79bdd");
       return p.finish(2, 1);
     }
+    case "gear-6": {
+      p = human(pose, white, "#d84c56", "#30263b", "#e0b955");
+      // Crowned flame hair, bright eyes, and gold Haki lightning distinguish this creator form from Gear 5.
+      p.r(4, 3, 2, 3, cream).r(5, 1, 3, 4, white).r(8, 0, 3, 5, white);
+      p.r(11, 1, 3, 4, white).r(14, 3, 2, 3, cream).r(7, 1, 1, 2, gold).r(12, 1, 1, 2, gold);
+      p.r(7, 7, 1, 1, "#d84c56").r(12, 7, 1, 1, "#d84c56");
+      p.r(6, 11, 2, 8, "#f2c56b").r(12, 11, 2, 8, "#f2c56b");
+      p.r(7, 12, 6, 2, "#30263b").r(9, 12, 2, 6, gold).r(7, 16, 6, 2, "#a93649");
+      p.r(2, 7, 2, 2, gold).r(1, 9, 2, 2, cream).r(16, 7, 2, 2, gold).r(17, 9, 2, 2, cream);
+      p.r(3, 2, 1, 2, "#e9b84e").r(16, 2, 1, 2, "#e9b84e");
+      return p.finish(2, 1);
+    }
     case "jinbe": {
       p = new Pixels(24, 27);
       feet(p, pose, 7, 22, "#37434f", "#645147", 6, 4);

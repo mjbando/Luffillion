@@ -4,7 +4,7 @@ import "./ranked.css";
 
 export const metadata: Metadata = {
   title: "Online Ranked Battle · Luffillion",
-  description: "Challenge online One Piece fans to 10-second niche knowledge duels, climb from Bronze to Legend, and build win streaks.",
+  description: "Queue for ranked One Piece trivia matchmaking or invite a friend to a no-rank-penalty battle.",
 };
 
 export default function RankedPage() {

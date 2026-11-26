@@ -1,8 +1,18 @@
+import type { Tier } from "@/data/tiers";
+
 export const RANKED_SECONDS = 10;
-export const RANKED_STARTING_LIVES = 2;
+export const RANKED_STARTING_LIVES = 3;
 export const RANKED_MAX_ROUNDS = 12;
-export const RANKED_INTRO_MS = 2800;
+export const RANKED_INTRO_MS = 5000;
 export const RANKED_REVEAL_MS = 3200;
+
+export const RANKED_TIER_BONUS_SECONDS: Record<Tier, number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 3,
+  epic: 4,
+  luffillion: 5,
+};
 
 export interface RankTierInfo {
   id: "bronze" | "silver" | "gold" | "platinum" | "diamond" | "champion" | "legend";

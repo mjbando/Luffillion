@@ -2,9 +2,20 @@ import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, checkpoints, runs } from "@/db/schema";
 import { evaluateAchievements, type AchievementReport, type RunLike } from "./achievements";
+import { characterReward } from "@/data/playable-characters";
+import { creditCoins } from "./currency-server";
 import { todayKey } from "./daily";
 
-type AchievementDB = Pick<typeof db, "select" | "insert">;
+type AchievementDB = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function coinsForAchievement(id: string): number {
+  const grade = characterReward(id)?.grade;
+  if (grade === "Crew") return 25;
+  if (grade === "Elite") return 50;
+  if (grade === "Legendary") return 100;
+  if (grade === "Mythic") return 250;
+  return 0;
+}
 
 /** Called with the captain row locked by the caller's transaction. */
 export async function evaluateAchievementsFor(tx: AchievementDB, accountId: string): Promise<AchievementReport> {
@@ -43,6 +54,8 @@ export async function evaluateAchievementsFor(tx: AchievementDB, accountId: stri
   const inserted = report.newlyUnlocked.length ? await tx.insert(achievementUnlocks)
     .values(report.newlyUnlocked.map(id => ({ accountId, achievementId: id })))
     .onConflictDoNothing().returning({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt }) : [];
+  const coinReward = inserted.reduce((sum, row) => sum + coinsForAchievement(row.id), 0);
+  await creditCoins(tx, accountId, coinReward);
   for (const row of inserted) existing.set(row.id, row.at);
   const result = evaluateAchievements(rows, existing, active.map(a => a.progress));
   return { ...result, newlyUnlocked: inserted.map(row => row.id) };

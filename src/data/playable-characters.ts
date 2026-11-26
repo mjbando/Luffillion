@@ -16,6 +16,7 @@ export const PLAYABLE_CHARACTERS = [
   { id: "kaido", name: "Kaido", shortName: "Kaido", epithet: "The Strongest Creature", achievementId: "unstoppable", grade: "Mythic", color: "#b694f6", detail: "Great horns, a purple sash, and a spiked kanabo. Thirty days of unstoppable resolve." },
   { id: "roger", name: "Gol D. Roger", shortName: "Roger", epithet: "King of the Pirates", achievementId: "pirate-king", grade: "Mythic", color: "#f6c45a", detail: "A red captain's coat, gold epaulettes, and the Pirate King's unmistakable moustache." },
   { id: "gear-5", name: "Luffy · Gear 5", shortName: "Gear 5 Luffy", epithet: "Warrior of Liberation", achievementId: "the-will-of-d", grade: "Mythic", color: "#e5c3ff", detail: "Cloud-white hair, a flowing smoke scarf, and a fearless grin. The ultimate 100-voyage reward." },
+  { id: "gear-6", name: "Monkey D. Luffy · Gear 6", shortName: "Gear 6 Luffy", epithet: "Dawn Emperor", achievementId: null, grade: "Creator", color: "#f2c56b", detail: "A one-of-a-kind form with flame-white hair, a crimson coat, and golden Haki lightning. Exclusive to the creator." },
 ] as const;
 
 export type CharacterId = (typeof PLAYABLE_CHARACTERS)[number]["id"];
