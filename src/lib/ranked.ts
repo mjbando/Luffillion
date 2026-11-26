@@ -1,6 +1,7 @@
 export const RANKED_SECONDS = 10;
-export const RANKED_STARTING_LIVES = 2;
-export const RANKED_MAX_ROUNDS = 12;
+export const RANKED_STARTING_LIVES = 3;
+// Best-of-3: each ranked match is exactly three questions.
+export const RANKED_MAX_ROUNDS = 3;
 export const RANKED_INTRO_MS = 2800;
 export const RANKED_REVEAL_MS = 3200;
 

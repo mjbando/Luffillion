@@ -269,6 +269,29 @@ async function finalizeMatch(
   return saved;
 }
 
+/**
+ * Best-of-3 resolution. Sums each player's points across all three questions;
+ * the lower overall total loses a life, then the winner is whoever has more
+ * lives remaining (ties are a draw).
+ */
+function applyOverallPointsOutcome(state: RankedMatchState): "p1" | "p2" | "draw" {
+  let p1Total = 0;
+  let p2Total = 0;
+  for (let i = 0; i < state.questionIds.length; i++) {
+    const round = state.rounds[i];
+    if (round) {
+      p1Total += round.p1?.points ?? 0;
+      p2Total += round.p2?.points ?? 0;
+    }
+  }
+  if (p1Total < p2Total) state.p1.lives = Math.max(0, state.p1.lives - 1);
+  else if (p2Total < p1Total) state.p2.lives = Math.max(0, state.p2.lives - 1);
+
+  if (state.p1.lives > state.p2.lives) return "p1";
+  if (state.p2.lives > state.p1.lives) return "p2";
+  return "draw";
+}
+
 async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
   if (match.status !== "active") return match;
 
@@ -295,28 +318,35 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
     // Resolve this round
     const p1Pts = r.p1?.points ?? 0;
     const p2Pts = r.p2?.points ?? 0;
+    // Round score loser (lower points) — shown in the reveal for context.
     let loser: "p1" | "p2" | null = null;
     if (p1Pts < p2Pts) {
       loser = "p1";
-      state.p1.lives = Math.max(0, state.p1.lives - 1);
     } else if (p2Pts < p1Pts) {
       loser = "p2";
-      state.p2.lives = Math.max(0, state.p2.lives - 1);
     }
+    // Getting a question wrong (no valid answer) costs a life.
+    const p1Wrong = !r.p1;
+    const p2Wrong = !r.p2;
+    if (p1Wrong) state.p1.lives = Math.max(0, state.p1.lives - 1);
+    if (p2Wrong) state.p2.lives = Math.max(0, state.p2.lives - 1);
     r.resolvedAt = Math.min(now, r.endsAt);
     r.loser = loser;
+    r.p1Wrong = p1Wrong;
+    r.p2Wrong = p2Wrong;
     changed = true;
 
-    const knockout = state.p1.lives === 0 || state.p2.lives === 0;
+    // Best of 3: all three questions are played, then the lower overall points
+    // costs a final life and the winner is decided by remaining lives.
     const lastRound = state.roundIndex + 1 >= state.questionIds.length;
-    if (knockout || lastRound) {
-      const outcome = state.p1.lives > state.p2.lives ? "p1" : state.p2.lives > state.p1.lives ? "p2" : "draw";
+    if (lastRound) {
+      const outcome = applyOverallPointsOutcome(state);
       const [updated] = await tx
         .update(rankedMatches)
         .set({ state, updatedAt: new Date(now) })
         .where(eq(rankedMatches.id, current.id))
         .returning();
-      return finalizeMatch(tx, updated ?? current, outcome, knockout ? "knockout" : "rounds");
+      return finalizeMatch(tx, updated ?? current, outcome, "rounds");
     }
 
     // Prepare next round after a brief reveal pause
@@ -358,12 +388,16 @@ function toReveal(
   const yourPick = youRole === "p1" ? r.p1 ?? null : r.p2 ?? null;
   const oppPick = youRole === "p1" ? r.p2 ?? null : r.p1 ?? null;
   const loser = !r.loser ? null : r.loser === youRole ? "you" : "opponent";
+  const youWrong = youRole === "p1" ? Boolean(r.p1Wrong) : Boolean(r.p2Wrong);
+  const oppWrong = youRole === "p1" ? Boolean(r.p2Wrong) : Boolean(r.p1Wrong);
   return {
     roundNumber: idx + 1,
     prompt: q?.prompt ?? "One Piece Question",
     yourPick,
     opponentPick: oppPick,
     loser,
+    youLostLife: youWrong,
+    opponentLostLife: oppWrong,
   };
 }
 
