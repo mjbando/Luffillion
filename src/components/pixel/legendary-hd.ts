@@ -40,7 +40,7 @@ const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
   fujitora: { ow: true },
   "edward-weevil": { ow: true, x: [] },
   "benn-beckman": { ow: true, hs: "slick", t: "#1e1e28", l: "#6a6a40", sh: "#4a3a2a", coat: "#2e3260", x: [] },
-  "lucky-roux": { ow: true, t: "#3a8a3a", l: "#e0d8c4", sh: "#a82a2a", hat: "bandana", hc: "#3a8a3a", coat: "#e8b04a", x: [] },
+  "lucky-roux": { ow: true, b: "giant", t: "#3a8a3a", l: "#e0d8c4", sh: "#a82a2a", hat: "bandana", hc: "#3a8a3a", coat: "#e8b04a", x: [] },
   yasopp: { ow: true },
   "rob-lucci-awakened": { ow: true, b: "big", sk: "#d9a274", h: "#1e1a22", hs: "long", t: "#f2f2f2", l: "#f2f2f2", sh: "#f2f2f2", hand: "#d9a274", hat: "top", hc: "#f4f4f4", coat: "#f8f8fa", x: [] },
   "law-awakened": { ow: true, x: ["goatee:#2a2d3a"] },
@@ -54,7 +54,7 @@ const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
 const MARGIN: Partial<Record<LegendaryArtId, number>> = {
   "kozuki-oden": 10, yamato: 8, marco: 6, jozu: 2, vista: 6, king: 8, queen: 6, jack: 8, katakuri: 6,
   aokiji: 4, kizaru: 6, akainu: 4, fujitora: 4, ryokugyu: 10, tsuru: 4, "edward-weevil": 6, "benn-beckman": 6,
-  "lucky-roux": 4, yasopp: 8, "rob-lucci-awakened": 4, "law-awakened": 6, "kid-awakened": 6, "sanji-ifrit-jambe": 2,
+  "lucky-roux": 6, yasopp: 8, "rob-lucci-awakened": 4, "law-awakened": 6, "kid-awakened": 6, "sanji-ifrit-jambe": 2,
   vergo: 4, "killer-onigashima": 8,
   law: 6, rayleigh: 4, whitebeard: 6, shanks: 4,
 };
@@ -242,11 +242,24 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
     for (const x of [d.L, d.R]) d.r(x - 1, d.ey - 1, 4, 3, "#c8a050").r(x, d.ey, 2, 1, "#c8202a").d(x, d.ey - 0, "#ff6a6a");
     d.r(d.L + 3, d.ey, d.R - d.L - 3, 1, "#c8a050");
     for (let i = 0; i < 3; i++) d.f(hx + hw - 5 + i, hy + 11 + (i % 2), 1, 1, shade(d.sk, -0.35)); // stubble dots
-    // Green-and-white striped shirt with a laced collar, teal sash, beige trousers.
+    // Green-and-white striped shirt with a laced collar.
     d.recolor("#3a8a3a", 0, ty, d.W, d.p.height - ty, (x) => Math.floor((x - tc + 40) / 3) % 3 === 0 ? "#f2f2f2" : null);
+    // A huge round belly pushing the striped shirt out past his sides; the stripes bend around it.
+    const belly = new Map<string, string>(), bcx = tc - 0.5, bcy = ty + th * 0.5, brx = tw / 2 + 6, bry = th / 2 + 1;
+    for (let y = Math.floor(bcy - bry); y <= bcy + bry; y++) for (let x = Math.floor(bcx - brx); x <= bcx + brx; x++) {
+      const u = (x - bcx) / brx, v = (y - bcy) / bry, q = u * u + v * v;
+      if (q > 1 || y < ty + 3) continue;
+      const bend = (x - bcx) / Math.sqrt(Math.max(0.15, 1 - v * v)), white = Math.floor((bend + 40.5) / 3.2) % 3 === 0;
+      const lit = u < -0.35 && v < 0.1, dark = q > 0.72 || v > 0.6;
+      belly.set(`${x},${y}`, white ? (dark ? "#c8ccc8" : lit ? "#ffffff" : "#eef2ee") : (dark ? "#24642a" : lit ? "#4aa84a" : "#3a8a3a"));
+    }
+    blob(d, belly, (x) => x >= tx && x < tx + tw);
+    d.r(Math.round(bcx) - 1, Math.round(bcy) + 2, 2, 1, "#1e4a22"); // belly button crease in the shirt
     d.r(tc - 1, ty + 1, 2, 7, "#2a6a2a");
     for (let i = 0; i < 3; i++) d.d(tc - 1 + (i % 2), ty + 2 + i * 2, "#ffffff");
-    d.r(tx, ty + th - 5, tw, 3, "#1a6a6a").r(tx, ty + th - 5, tw, 1, "#3a9a9a").r(tc + 5, ty + th - 2, 3, 6, "#1a6a6a");
+    // Teal sash tied under the belly, beige trousers.
+    const sy = Math.round(bcy + bry) - 4;
+    d.asBody(() => d.r(tx - 3, sy, tw + 6, 3, "#1a6a6a").r(tx - 3, sy, tw + 6, 1, "#3a9a9a").r(tc + 6, sy + 2, 3, 7, "#1a6a6a").d(tc + 6, sy + 8, "#3a9a9a"));
     d.folds("#e0d8c4", d.legY, 4);
     // A yellow cape flowing behind.
     d.recolor("#e8b04a", 0, ty, d.W, d.p.height - ty, (x, y) => (x + y) % 5 === 0 ? "#c88a2a" : null);
@@ -256,7 +269,7 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
       for (let j = -6; j <= 6; j++) for (let i = -6; i <= 6; i++) if (i * i + j * j * 1.3 <= 36) d.r(mx + i, my + j, 1, 1, i + j < -5 ? "#e8964a" : i + j > 5 ? "#7a3a1a" : (i * 3 + j) % 7 === 0 ? "#c86a3a" : "#a8542a");
       d.r(mx + 2, my - 5, 3, 3, "#f08a8a").d(mx + 3, my - 4, "#ffc0c0");
       d.r(mx - 1, my + 6, 3, 7, "#f4ecd8").r(mx - 2, my + 12, 2, 2, "#f4ecd8").r(mx + 1, my + 12, 2, 2, "#f4ecd8");
-      d.r(tc - 7, ty + th - 8, 6, 2, "#3a3a44").r(tc - 7, ty + th - 6, 2, 3, "#6a4a2a");
+      d.r(tc - 9, sy - 1, 6, 2, "#3a3a44").r(tc - 9, sy + 1, 2, 3, "#6a4a2a"); // pistol in the sash
     });
     for (let i = 0; i < 3; i++) d.u(d.rx + 4 + i * 3, d.rhy - 20 - (i % 2) * 2, 1, 2, "#e8e0d0"); // steam
   },
