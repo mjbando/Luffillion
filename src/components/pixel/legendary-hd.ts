@@ -910,9 +910,7 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
       d.r(bx, by + 2, 6, 6, "#ffffff").r(bx + 1, by + 3, 4, 4, "#f2f2f2").d(bx + 4, by + 3, ink).r(bx + 6, by + 4, 2, 1, "#f08a3a");
       d.r(bx + 1, by - 2, 4, 3, "#ffffff").r(bx, by + 1, 6, 1, "#ffffff").r(bx + 1, by, 4, 1, "#1e1e28").r(bx + 2, by + 6, 1, 3, "#c8ccd8");
     });
-    // Rokuogan: a shockwave rolling off his fist, and leopard claw marks in the air.
-    const fx = d.rx + d.aw + 1, fy = d.rhy;
-    for (let k = 0; k < 3; k++) { const r = 4 + k * 3; for (let a = -70; a <= 70; a += 8) { const ang = (a * Math.PI) / 180; d.u(Math.round(fx + Math.cos(ang) * r), Math.round(fy + Math.sin(ang) * r * 1.3), 1, 1, k === 0 ? "#ffffff" : k === 1 ? "#ffe8a0" : "#e8c26a"); } }
+    // Leopard claw marks in the air.
     for (let i = 0; i < 3; i++) d.line(d.lx - 10 + i * 3, d.lhy - 16, d.lx - 14 + i * 3, d.lhy - 4, i === 1 ? "#ffffff" : "#e8c26a");
   },
 };

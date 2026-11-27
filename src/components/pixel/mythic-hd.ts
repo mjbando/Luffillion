@@ -1064,7 +1064,7 @@ function joyBoy(d: Detail) {
 
 
 /** Sengoku, the golden Buddha: a giant of light. Blazing afro-halo, glowing white eyes, a braided beard,
- * a body of gold with deep cel shadows, the Marine coat turned to light, and a shockwave palm. */
+ * a body of gold with deep cel shadows, and the Marine coat turned to light. */
 const BUDDHA = "#ffd84a", BUDDHA_L = "#fff3a8", BUDDHA_W = "#fffbe6", BUDDHA_D = "#7a5a18", BUDDHA_DD = "#4a3410";
 function sengoku(d: Detail) {
   const { hx, hy, hw, hh, cx, tc, ty, tx, tw, th } = d;
@@ -1111,14 +1111,9 @@ function sengoku(d: Detail) {
   // Crossed robe bands at the waist.
   for (let k = 0; k < tw; k++) { const y1 = ty + th - 8 + Math.round((k / tw) * 6), y2 = ty + th - 2 - Math.round((k / tw) * 6); d.d(tx + k, y1, BUDDHA_W).d(tx + k, y1 + 1, BUDDHA_L).d(tx + k, y2, BUDDHA_W).d(tx + k, y2 + 1, BUDDHA_D); }
   d.recolor("#e8b83a", 0, d.legY, d.W, d.legH + 4, (x, y) => (x + y) % 5 === 0 ? BUDDHA_L : (x - y + 40) % 3 === 0 ? BUDDHA_DD : BUDDHA_D);
-  // Shockwave palm: an open golden hand with rings of force rolling off it.
+  // An open golden palm.
   const px = d.rx + d.aw + 2, py = d.rhy - 2;
   d.asBody(() => { d.r(px - 2, py - 4, 5, 7, BUDDHA_W).r(px - 1, py - 3, 3, 5, BUDDHA_L); for (let f = 0; f < 4; f++) d.r(px - 2 + f + (f > 1 ? 1 : 0), py - 7, 1, 3, BUDDHA_W); });
-  for (let k = 0; k < 3; k++) {
-    const r = 5 + k * 4;
-    for (let a = -60; a <= 60; a += 6) { const ang = (a * Math.PI) / 180; d.u(Math.round(px + 2 + Math.cos(ang) * r), Math.round(py + Math.sin(ang) * r * 1.2), 1, 1, k === 0 ? BUDDHA_W : k === 1 ? BUDDHA_L : `${BUDDHA}b0`); }
-  }
-  shatter(d, px + 16, py - 10, 4, BUDDHA_L, BUDDHA_W);
   // A glowing orb resting in the other palm.
   d.orb(d.lx + 1, d.lhy + 3, 3, BUDDHA_L).u(d.lx - 4, d.lhy - 4, 1, 1, BUDDHA_W).u(d.lx + 6, d.lhy - 6, 1, 1, BUDDHA_W);
 }
