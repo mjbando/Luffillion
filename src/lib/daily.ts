@@ -235,12 +235,28 @@ export function parseEntries(question: Question): ParsedEntry[] {
   return out;
 }
 
+function isFruitKey(key: string): boolean {
+  return / no mi\b/.test(key) || /(^| )model /.test(key) || key.endsWith(" fruit");
+}
+
+/** "ryu ryu no mi model pteranodon" -> { family: "ryu ryu no mi", model: "pteranodon" }. */
+function fruitParts(key: string): { family: string; model: string } {
+  const m = key.match(/^(.*?)(?:^| )model (.+)$/);
+  if (!m) return { family: "", model: "" };
+  return { family: m[1].trim(), model: m[2].trim() };
+}
+
+/** "ryu ryu no mi" / "dragon dragon fruit" -> "ryu ryu" / "dragon dragon". */
+function fruitFamilyShort(family: string): string {
+  return family.replace(/ (no mi|fruit)$/, "").trim();
+}
+
 function deriveVariants(questionId: string, entry: ParsedEntry): string[] {
   const variants = new Set<string>();
   const isLuffillion = entry.tier === "luffillion";
 
   for (const key of entry.keys) {
-    if (questionId === "devil-fruits") {
+    if (questionId === "devil-fruits" || isFruitKey(key)) {
       if (key.includes(" no mi")) {
         variants.add(key.replace(/ no mi\b/g, "").replace(/\s+/g, " ").trim());
         variants.add(key.replace(/ no mi\b/g, " fruit").replace(/\s+/g, " ").trim());
@@ -248,12 +264,21 @@ function deriveVariants(questionId: string, entry: ParsedEntry): string[] {
       if (key.endsWith(" fruit")) {
         variants.add(key.slice(0, -6).trim());
       }
-      if (!isLuffillion && key.includes(" model ")) {
-        const afterModel = key.split(" model ")[1]?.trim();
-        if (afterModel && afterModel.length >= 4) {
-          variants.add(afterModel);
-          variants.add(`model ${afterModel}`);
-          variants.add(`${afterModel} fruit`);
+      // Zoan models: "Ryu Ryu no Mi, Model: Pteranodon" also takes "Pteranodon", "Model Pteranodon",
+      // "Pteranodon Fruit", "Ryu Ryu Pteranodon", "Ryu Ryu Model Pteranodon"... (the bare family name
+      // is added separately in getIndex, since several models share it).
+      const { family, model } = fruitParts(key);
+      if (model && model.length >= 3) {
+        variants.add(model);
+        variants.add(`model ${model}`);
+        variants.add(`${model} fruit`);
+        variants.add(`${model} model`);
+        if (family) {
+          const short = fruitFamilyShort(family);
+          for (const f of [short, `${short} no mi`, `${short} fruit`]) {
+            variants.add(`${f} ${model}`);
+            variants.add(`${f} model ${model}`);
+          }
         }
       }
     } else if (questionId === "arcs") {
@@ -346,6 +371,19 @@ function getIndex(question: Question): Map<string, ParsedEntry> {
   for (const [variant, entry] of candidates) {
     if (entry && !map.has(variant)) {
       map.set(variant, entry);
+    }
+  }
+
+  // Pass 3: a bare Devil Fruit family name ("Ryu Ryu no Mi", "Dragon-Dragon Fruit") counts as the
+  // least niche model listed for it, when the family isn't an answer of its own.
+  for (const entry of entries) {
+    for (const key of entry.keys) {
+      const { family } = fruitParts(key);
+      if (!family || !/ (no mi|fruit)$/.test(family)) continue;
+      const short = fruitFamilyShort(family);
+      for (const f of [family, short, `${short} no mi`, `${short} fruit`]) {
+        if (f.length >= 4 && !map.has(f)) map.set(f, entry);
+      }
     }
   }
 

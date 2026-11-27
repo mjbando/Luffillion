@@ -18,6 +18,7 @@ import { CURATED_SAGA_CASTS } from "./bank/curated/sagas";
 import { CURATED_FACTIONS } from "./bank/curated/factions";
 import { CURATED_TRAITS } from "./bank/curated/traits";
 import { CURATED_MOVES_AND_LORE } from "./bank/curated/moves_and_lore";
+import { CURATED_SCHEDULE_SWAPS } from "./bank/curated/schedule-swaps";
 
 // Each entry is "Display Name|alias|alias". The display name is what gets revealed.
 // Matching ignores case, accents, punctuation and extra spaces, plus smart category aliases.
@@ -62,6 +63,7 @@ const CURATED_QUESTIONS: Question[] = [
   ...CURATED_FACTIONS,
   ...CURATED_TRAITS,
   ...CURATED_MOVES_AND_LORE,
+  ...CURATED_SCHEDULE_SWAPS,
 ];
 
 // Same rules as answer matching (lib/daily normalize), kept local to avoid an import cycle.
@@ -98,12 +100,56 @@ function applyAdditions(questions: Question[]) {
   }
 }
 
+/**
+ * Devil Fruit answers everywhere accept every spelling the main Devil Fruit lists know (Japanese name,
+ * English name, model name), and "Name a Devil Fruit that transforms" lists every Zoan.
+ * (Model-only / family-only guesses are handled when matching, in lib/daily.)
+ */
+function completeFruitAnswers(questions: Question[]) {
+  const byId = new Map(questions.map((q) => [q.id, q]));
+  const sources = ["devil-fruits", "zoan"].map((id) => byId.get(id)).filter((q): q is Question => !!q);
+  const spellings = new Map<string, string[]>(); // any spelling -> all spellings of that fruit
+  for (const src of sources) {
+    for (const raw of Object.values(src.tiers).flat()) {
+      const parts = raw.split("|");
+      const group = parts.map((p) => spellings.get(normalizeName(p))).find(Boolean) ?? [];
+      for (const p of parts) if (!group.some((g) => normalizeName(g) === normalizeName(p))) group.push(p);
+      for (const p of group) spellings.set(normalizeName(p), group);
+    }
+  }
+  const isFruitQuestion = (q: Question) => (q.matchAs ?? q.id) === "devil-fruits" || q.id === "zoan";
+  for (const q of questions) {
+    if (!isFruitQuestion(q)) continue;
+    const tiers = { ...q.tiers };
+    for (const tier of Object.keys(tiers) as Tier[]) {
+      tiers[tier] = tiers[tier].map((raw) => {
+        const parts = raw.split("|");
+        const group = spellings.get(normalizeName(parts[0]));
+        if (!group) return raw;
+        const have = new Set(parts.map(normalizeName));
+        return [...parts, ...group.filter((g) => !have.has(normalizeName(g)))].join("|");
+      });
+    }
+    q.tiers = tiers;
+  }
+  // Every Zoan transforms its user, so the transform question takes them all.
+  const transform = byId.get("q-transform-fruit"), zoan = byId.get("zoan");
+  if (transform && zoan) {
+    const taken = new Set(Object.values(transform.tiers).flat().flatMap((raw) => raw.split("|").map(normalizeName)));
+    const missing = Object.values(zoan.tiers).flat()
+      .filter((raw) => !raw.split("|").some((p) => taken.has(normalizeName(p))))
+      .map((raw) => spellings.get(normalizeName(raw.split("|")[0]))?.join("|") ?? raw);
+    transform.tiers = { ...transform.tiers, epic: [...transform.tiers.epic, ...missing] };
+  }
+}
+
 // All hand-crafted, non-duplicate, non-generated original One Piece questions.
 // Curated questions that repeat another one (same prompt in other words, same answers). They stay in
 // QUESTION_BANK so old matches, reveals and levels still resolve, but are never picked again, so a
 // question shows up at most once in the Daily Voyage and once in the Ranked pool.
 const RETIRED_CURATED_IDS = new Set([
   "q-warlords", // same Warlords question as q-warlords-former-current (the Nov 27 Daily Voyage version)
+  "q-former-warlord-bounty", // a narrower copy of the same Warlords question
 ]);
 
 export const ORIGINAL_QUESTIONS: Question[] = [
@@ -115,3 +161,4 @@ export const ORIGINAL_QUESTIONS: Question[] = [
 export const QUESTION_BANK: Question[] = [...BASE_QUESTIONS, ...CURATED_QUESTIONS, ...buildDerived(BASE_QUESTIONS)];
 // After the legacy derived questions are built, so their (already played) answer sets stay frozen.
 applyAdditions([...BASE_QUESTIONS, ...CURATED_QUESTIONS]);
+completeFruitAnswers([...BASE_QUESTIONS, ...CURATED_QUESTIONS]);

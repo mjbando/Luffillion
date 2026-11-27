@@ -651,7 +651,8 @@ export const D: Record<string, string> = {
 export function ranked(id: string, prompt: string, hint: string, list: string, matchAs?: string): Question {
   const seen = new Set<string>();
   const items = list
-    .split(",")
+    // "Ryu Ryu no Mi, Model: Pteranodon" is one answer: never split before "Model:".
+    .split(/,(?!\s*Model:)/)
     .map((s) => s.trim())
     .filter(Boolean)
     .map((k) => D[k] ?? k)

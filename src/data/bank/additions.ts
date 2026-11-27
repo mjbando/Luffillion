@@ -7,6 +7,17 @@ import type { Tier } from "../tiers";
 type Additions = Partial<Record<Exclude<Tier, "luffillion">, string[]>>;
 
 export const ANSWER_ADDITIONS: Record<string, Additions> = {
+  // Mythical Zoan forms whose fruit names were never given (the Five Elders), plus Bunbuku's Bake-danuki.
+  "q-mythical-zoan-fruit": {
+    epic: [
+      "Inu Inu no Mi, Model: Tanuki|Inu Inu no Mi, Model: Bake-danuki|Tanuki|Bake-danuki",
+      "Gyuki|Ushi-Oni|Saturn's fruit", "Itsumade|Mars's fruit|Mars' fruit", "Fengxi|Hoki|Warcury's fruit",
+      "Bakotsu|Nusjuro's fruit", "Sandworm|Ju Peter's fruit",
+    ],
+  },
+  "q-transform-fruit": {
+    epic: ["Gyuki|Ushi-Oni|Saturn's fruit", "Itsumade|Mars's fruit|Mars' fruit", "Fengxi|Hoki|Warcury's fruit", "Bakotsu|Nusjuro's fruit", "Sandworm|Ju Peter's fruit"],
+  },
   "q-arc-alabasta": {
     uncommon: ["Mr. 9|Mr 9", "Miss Monday|Ms. Monday", "Mr. 13|Mr 13", "Miss Friday|Ms. Friday", "Miss Catherina|Ms. Catherina"],
     rare: [
@@ -83,15 +94,5 @@ export const ANSWER_ALIASES: Record<string, Record<string, string[]>> = {
     "Hyaku Hachi Pound Ho": ["Hyakuhachi Pound Ho"],
     "Hiryu: Kaen": ["Hiryuu Kaen", "Hiryuu: Kaen", "Flying Dragon Blaze"],
     "Kyutoryu: Asura": ["Kiki Kyutoryu", "Kiki Kyutoryu: Asura"],
-  },
-  "q-ancient-zoan-fruit": {
-    "Model: Pteranodon": ["Ryu Ryu no Mi, Model: Pteranodon", "Pteranodon"],
-    "Model: Brachiosaurus": ["Ryu Ryu no Mi, Model: Brachiosaurus", "Brachiosaurus"],
-    "Model: Allosaurus": ["Ryu Ryu no Mi, Model: Allosaurus", "Allosaurus"],
-    "Model: Spinosaurus": ["Ryu Ryu no Mi, Model: Spinosaurus", "Spinosaurus"],
-    "Model: Triceratops": ["Ryu Ryu no Mi, Model: Triceratops", "Triceratops"],
-    "Model: Pachycephalosaurus": ["Ryu Ryu no Mi, Model: Pachycephalosaurus", "Pachycephalosaurus"],
-    "Model: Saber Tiger": ["Neko Neko no Mi, Model: Saber Tiger", "Saber Tiger", "Sabre Tiger"],
-    "Model: Rosamygale Grauvogeli": ["Kumo Kumo no Mi, Model: Rosamygale Grauvogeli", "Rosamygale Grauvogeli", "Rosamygale"],
   },
 };
