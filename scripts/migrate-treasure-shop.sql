@@ -106,4 +106,25 @@ CREATE TABLE IF NOT EXISTS archive_runs (
   PRIMARY KEY (account_id, day_key)
 );
 
+-- Reward codes typed into the Treasure Shop, and who redeemed them (once per captain).
+CREATE TABLE IF NOT EXISTS redeem_codes (
+  code varchar(24) PRIMARY KEY,
+  berries integer NOT NULL DEFAULT 0,
+  chest_rarity varchar(16),
+  chest_count integer NOT NULL DEFAULT 0,
+  character_id varchar(32),
+  max_uses integer,
+  uses integer NOT NULL DEFAULT 0,
+  expires_at timestamptz,
+  disabled_at timestamptz,
+  created_by uuid REFERENCES captain_accounts(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS code_redemptions (
+  account_id uuid NOT NULL REFERENCES captain_accounts(id) ON DELETE CASCADE,
+  code varchar(24) NOT NULL REFERENCES redeem_codes(code) ON DELETE CASCADE,
+  redeemed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_id, code)
+);
+
 COMMIT;

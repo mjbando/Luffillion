@@ -99,13 +99,23 @@ export function strengthGap(playerPoints: number, opponentPoints: number): numbe
  * strength gap g:
  *  - Win:  30 * 2^(0.6g)   upsets pay big (2 ranks up is about +70 to +100), easy wins pay little (min +8)
  *  - Loss: 20 * 2^(-0.75g) losing to a weaker captain hurts (up to -80), losing to a stronger one barely (min -4)
+ *          Same rank: stays near -20, nudged by the RP gap (see sameRankLoss).
  *  - Draw: 10 * 2^(0.5g)   holding a stronger captain to a draw is worth more
  */
 export function baseRankDelta(playerPoints: number, opponentPoints: number, outcome: "win" | "loss" | "draw"): number {
+  if (outcome === "loss" && rankIndexFor(playerPoints) === rankIndexFor(opponentPoints)) return -sameRankLoss(playerPoints, opponentPoints);
   const g = strengthGap(playerPoints, opponentPoints);
   if (outcome === "win") return Math.max(8, Math.min(100, Math.round(RP_EVEN_WIN * 2 ** (0.6 * g))));
   if (outcome === "loss") return -Math.max(4, Math.min(80, Math.round(RP_EVEN_LOSS * 2 ** (-0.75 * g))));
   return Math.max(3, Math.min(25, Math.round(RP_EVEN_DRAW * 2 ** (0.5 * g))));
+}
+
+/** Same-rank losses stay close to the even -20: 1 RP more or less per 50 RP of gap, between -12 and -28. */
+export const SAME_RANK_LOSS_MIN = 12;
+export const SAME_RANK_LOSS_MAX = 28;
+export function sameRankLoss(playerPoints: number, opponentPoints: number): number {
+  const gap = Math.max(0, playerPoints) - Math.max(0, opponentPoints); // > 0: lost to a lower-RP captain
+  return Math.max(SAME_RANK_LOSS_MIN, Math.min(SAME_RANK_LOSS_MAX, Math.round(RP_EVEN_LOSS + gap / 50)));
 }
 
 export function computeSingleDelta(

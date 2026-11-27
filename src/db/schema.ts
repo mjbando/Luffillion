@@ -222,3 +222,25 @@ export const sitePresence = pgTable("site_presence", {
   visitorKey: varchar("visitor_key", { length: 64 }).primaryKey(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("site_presence_seen_idx").on(t.lastSeenAt)]);
+
+// Reward codes players type into the Treasure Shop. Created by the game's creator from the Shop.
+export const redeemCodes = pgTable("redeem_codes", {
+  code: varchar("code", { length: 24 }).primaryKey(), // stored upper-case
+  berries: integer("berries").notNull().default(0),
+  chestRarity: varchar("chest_rarity", { length: 16 }),
+  chestCount: integer("chest_count").notNull().default(0),
+  characterId: varchar("character_id", { length: 32 }),
+  maxUses: integer("max_uses"), // null = unlimited
+  uses: integer("uses").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => accounts.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per captain per code, so a code can only ever be redeemed once by each captain.
+export const codeRedemptions = pgTable("code_redemptions", {
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  code: varchar("code", { length: 24 }).notNull().references(() => redeemCodes.code, { onDelete: "cascade" }),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.accountId, t.code] })]);

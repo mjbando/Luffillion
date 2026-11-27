@@ -315,13 +315,15 @@ export default function Game() {
         const mistakes = countMistakes(progress);
         if (daily.archive) {
           // Archive replays are saved apart from the daily runs: no leaderboard, stats or Top 50.
+          let berries = 0;
           if (!daily.finished) {
-            const data = await voyageRequest<{ finished: FinishedVoyage; newlyUnlocked?: string[] }>("/api/run", "POST", { accountId, day: progress.day, answers, mistakes, archive: true });
+            const data = await voyageRequest<{ finished: FinishedVoyage; newlyUnlocked?: string[]; berriesEarned?: number }>("/api/run", "POST", { accountId, day: progress.day, answers, mistakes, archive: true });
             if (!current()) return;
             queueUnlocks(data.newlyUnlocked ?? []);
             setAchievementRevision(n => n + 1);
+            berries = data.berriesEarned ?? 0;
           }
-          setSaveMessage("✓ Archive voyage saved. It counts toward achievements and bounty.");
+          setSaveMessage(`✓ Archive voyage saved. It counts toward achievements and bounty${berries ? ` · +${berries} berries` : ""}.`);
           return;
         }
         // Backfill old guest score-only recaps if the browser still has the answers.

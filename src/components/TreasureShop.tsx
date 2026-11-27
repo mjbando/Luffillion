@@ -8,6 +8,7 @@ import CharacterPortrait from "./CharacterPortrait";
 import ChestOpening, { type ChestReward } from "./ChestOpening";
 import PixelChest from "./PixelChest";
 import UnopenedChests, { type RewardOpenResult } from "./UnopenedChests";
+import RedeemCodes, { type RedeemResult } from "./RedeemCodes";
 import type { UnopenedChest } from "@/lib/ranked-achievements";
 import { characterById, type CharacterId } from "@/data/playable-characters";
 import { TREASURE_ROSTER } from "@/data/roster";
@@ -54,7 +55,7 @@ function oddsLabel(basisPoints: number) {
 }
 
 const EARN_RULES = [
-  { label: "Daily Voyage completed", coins: `+${COINS_PER_DAILY_VOYAGE}` },
+  { label: "Daily Voyage completed (or a missed day from the Archive)", coins: `+${COINS_PER_DAILY_VOYAGE}` },
   { label: "Adventure level beaten", coins: `+${COINS_PER_ADVENTURE_LEVEL}` },
   { label: "Ranked battle won", coins: `+${COINS_PER_RANKED_WIN}` },
   { label: "Bounty milestones (Ranked › Milestones)", coins: `+${BOUNTY_MILESTONES[0].berries} to +${BOUNTY_MILESTONES.at(-1)!.berries.toLocaleString()}` },
@@ -67,6 +68,7 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
   const [loading, setLoading] = useState(Boolean(captain));
   const [session, setSession] = useState<Session | null>(null);
   const sessionCounter = useRef(0);
+  const [chestListVersion, setChestListVersion] = useState(0);
   const captainId = captain?.id;
 
   useEffect(() => {
@@ -117,6 +119,18 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
     } : current);
   }
 
+  function codeRedeemed(response: RedeemResult) {
+    setData((current) => current ? {
+      ...current,
+      coins: response.coins,
+      unopenedChests: response.unopenedChests,
+      unlockedCharacterIds: response.characterNew && response.reward.characterId
+        ? [...new Set([...current.unlockedCharacterIds, response.reward.characterId as CharacterId])]
+        : current.unlockedCharacterIds,
+    } : current);
+    setChestListVersion((n) => n + 1); // remount so newly granted chests show up
+  }
+
   return (
     <div className="px-3 py-3">
       <header className="mb-4 flex items-center gap-3">
@@ -162,7 +176,9 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
           {error && <p role="alert" className="ts-error mb-3">{error}</p>}
           {!data && !error && <p role="status" className="py-4 text-center text-cyan-200">Counting your berries…</p>}
 
-          {data && <UnopenedChests chests={data.unopenedChests ?? []} coins={data.coins} onOpened={rewardOpened} />}
+          {data && <RedeemCodes onRedeemed={codeRedeemed} />}
+
+          {data && <UnopenedChests key={chestListVersion} chests={data.unopenedChests ?? []} coins={data.coins} onOpened={rewardOpened} />}
 
           {data && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

@@ -99,9 +99,16 @@ function applyAdditions(questions: Question[]) {
 }
 
 // All hand-crafted, non-duplicate, non-generated original One Piece questions.
+// Curated questions that repeat another one (same prompt in other words, same answers). They stay in
+// QUESTION_BANK so old matches, reveals and levels still resolve, but are never picked again, so a
+// question shows up at most once in the Daily Voyage and once in the Ranked pool.
+const RETIRED_CURATED_IDS = new Set([
+  "q-warlords", // same Warlords question as q-warlords-former-current (the Nov 27 Daily Voyage version)
+]);
+
 export const ORIGINAL_QUESTIONS: Question[] = [
   ...BASE_QUESTIONS.filter((q) => !DUPLICATE_EXTRA_IDS.has(q.id)),
-  ...CURATED_QUESTIONS,
+  ...CURATED_QUESTIONS.filter((q) => !RETIRED_CURATED_IDS.has(q.id)),
 ];
 
 // Full bank includes legacy derived questions so existing IDs/reveals still resolve cleanly.

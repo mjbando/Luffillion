@@ -512,7 +512,7 @@ export default function RankedLobby({
               </ol>
               <div className="mt-3 space-y-1 text-sm text-slate-400">
                 <p>• Win: +30 RP vs an even captain. Upsets pay big (up to +100); beating lower ranks pays less.</p>
-                <p>• Loss: -20 RP vs an even captain. Losing to lower ranks costs more (up to -80); losing to higher ranks costs little.</p>
+                <p>• Loss: -20 RP vs an even captain. Within your rank it stays between -12 and -28 depending on the RP gap; losing to lower ranks costs more (up to -80), losing to higher ranks costs little.</p>
                 <p>• Draw: +10 RP, more vs stronger captains.</p>
                 <p>• Rank gap and RP gap both count.</p>
                 <p>• Win streaks: +10 (3 wins), +20 (5 wins), +50 (10 wins)</p>

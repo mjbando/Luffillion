@@ -1,11 +1,21 @@
 import { ORIGINAL_QUESTIONS, QUESTION_BANK, type Question } from "@/data/questions";
 import { DAILY_SCHEDULE } from "@/data/dailySchedule";
+import LEGACY_NOV_23_QUESTIONS from "@/data/legacyNov23.json";
+import LEGACY_NOV_24_QUESTIONS from "@/data/legacyNov24.json";
 import LEGACY_NOV_25_QUESTIONS from "@/data/legacyNov25.json";
 import { DAILY_QUESTION_COUNT, TIER_CONFIG, TIER_ORDER, type Tier } from "@/data/tiers";
 
 const LEGACY_NOV_25_DAY = "2026-11-25";
 const legacyNov25Questions = LEGACY_NOV_25_QUESTIONS as unknown as Question[];
-const legacyNov25ById = new Map(legacyNov25Questions.map((question) => [question.id, question] as const));
+/**
+ * Voyages frozen exactly as players saw them: the launch days (Nov 23-24, rebuilt from the launch
+ * code) and Nov 25 (its answers were re-tiered that morning). Archive replays grade against these.
+ */
+const LEGACY_DAYS: Record<string, Question[]> = {
+  "2026-11-23": LEGACY_NOV_23_QUESTIONS as unknown as Question[],
+  "2026-11-24": LEGACY_NOV_24_QUESTIONS as unknown as Question[],
+  [LEGACY_NOV_25_DAY]: legacyNov25Questions,
+};
 
 export interface ParsedEntry {
   name: string;
@@ -57,7 +67,8 @@ function mulberry32(seed: number) {
 }
 
 export function getQuestionById(id: string, day?: string): Question | undefined {
-  if (day === LEGACY_NOV_25_DAY) return legacyNov25ById.get(id);
+  const legacy = day ? LEGACY_DAYS[day] : undefined;
+  if (legacy) return legacy.find((q) => q.id === id);
   return QUESTION_BANK.find((q) => q.id === id);
 }
 
@@ -129,8 +140,9 @@ export function getDailyRun(day: string): Question[] {
   const cached = dailyCache.get(day);
   if (cached) return cached;
 
-  if (day === LEGACY_NOV_25_DAY) {
-    const run = [...legacyNov25Questions];
+  const legacy = LEGACY_DAYS[day];
+  if (legacy) {
+    const run = [...legacy];
     dailyCache.set(day, run);
     return run;
   }
@@ -149,8 +161,8 @@ export function getDailyRun(day: string): Question[] {
   const exclude: string[] = [];
   for (let k = 1; k <= 30; k++) {
     const prev = shiftDay(day, -k);
-    if (prev === LEGACY_NOV_25_DAY) {
-      exclude.push(...legacyNov25Questions.map((question) => question.id));
+    if (LEGACY_DAYS[prev]) {
+      exclude.push(...LEGACY_DAYS[prev].map((question) => question.id));
     } else if (DAILY_SCHEDULE[prev]) {
       exclude.push(...DAILY_SCHEDULE[prev]);
     } else {

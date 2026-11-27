@@ -1,7 +1,7 @@
 // Archive replays: past daily voyages a captain can still play. Pure helpers, safe for the browser.
 
-/** The first daily voyage that can be replayed (the oldest set the game can rebuild exactly). */
-export const ARCHIVE_FIRST_DAY = "2026-11-25";
+/** The first daily voyage that can be replayed: launch day. */
+export const ARCHIVE_FIRST_DAY = "2026-11-23";
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Today's daily key (Eastern time, same as the server's todayKey). */

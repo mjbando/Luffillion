@@ -62,6 +62,7 @@ export function rewardChestLabel(source: string, ref: string): string {
     const def = RANKED_ACHIEVEMENTS.find((a) => a.id === ref);
     if (def) return `Ranked · ${def.title}`;
   }
+  if (source === "code") return `Code · ${ref.split(":")[0]}`;
   return "Reward";
 }
 

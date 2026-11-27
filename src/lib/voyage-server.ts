@@ -170,7 +170,8 @@ export async function claimGuestVoyages(accountId: string, guest: string, curren
 }
 
 // ---------- Archive replays (past days) ----------
-// They count toward achievements and bounty, never toward the daily leaderboard, Top 50 or daily berries.
+// They count toward achievements and bounty, never toward the daily leaderboard or Top 50. A day the
+// captain never sailed live pays the usual daily berries once (archive replays of a sailed day are refused).
 
 export const archiveFields = { day: archiveRuns.dayKey, score: archiveRuns.score, solved: archiveRuns.solved, legs: archiveRuns.legs, niche: archiveRuns.niche, mistakes: archiveRuns.mistakes };
 
@@ -196,9 +197,12 @@ export async function finishArchiveVoyage(accountId: string, day: string, answer
     const niche = legs.filter(leg => leg.tier === "rare" || leg.tier === "epic" || leg.tier === "luffillion").length;
     const mistakes = typeof opts.mistakes === "number" ? opts.mistakes : null;
     // First completion wins; replaying the same day again can't overwrite it.
-    await tx.insert(archiveRuns).values({ accountId, dayKey: day, score, solved, niche, mistakes, legs }).onConflictDoNothing();
+    const inserted = await tx.insert(archiveRuns).values({ accountId, dayKey: day, score, solved, niche, mistakes, legs }).onConflictDoNothing()
+      .returning({ day: archiveRuns.dayKey });
+    // Same ledger key as the live voyage, so one day can never pay twice.
+    const berriesEarned = inserted.length ? await creditCoins(tx, accountId, { source: "daily", ref: day, amount: COINS_PER_DAILY_VOYAGE }) : 0;
     const [saved] = await tx.select(archiveFields).from(archiveRuns).where(and(eq(archiveRuns.accountId, accountId), eq(archiveRuns.dayKey, day))).limit(1);
     const { newlyUnlocked } = await evaluateAchievementsFor(tx, accountId);
-    return { finished: { ...saved, beat: null, rank: null }, newlyUnlocked };
+    return { finished: { ...saved, beat: null, rank: null }, newlyUnlocked, berriesEarned };
   });
 }
