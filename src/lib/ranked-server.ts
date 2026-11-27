@@ -13,6 +13,7 @@ import { checkGuess, getQuestionById, parseEntries, suggestGuess } from "./daily
 import { RequestProblem } from "./account-server";
 import { COINS_PER_RANKED_WIN } from "./coins";
 import { creditCoins } from "./currency-server";
+import { equippedCharacterFor } from "./crew-server";
 import {
   RANKED_INTRO_MS,
   RANKED_MAX_ROUNDS,
@@ -40,6 +41,7 @@ import type {
   RankedMatchView,
   RankedPlayerCard,
   RankedRoundPick,
+  RankedMostWanted,
   RankedPublicProfile,
   RankedRoundReveal,
   RankedRoundState,
@@ -480,15 +482,26 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
 
     // Resolve this round. A life is only lost for not answering; in a
     // Showdown, when both answered, the less niche pull also loses a life.
+    // Showdown initiative: with the same rarity, whoever answered first wins
+    // and the slower player loses the life. (Regular rounds ignore speed.)
     const p1Answered = Boolean(r.p1);
     const p2Answered = Boolean(r.p2);
     let p1Hit = !p1Answered;
     let p2Hit = !p2Answered;
+    let decidedBy: RankedRoundState["decidedBy"] = null;
     if (r.showdown && r.p1 && r.p2) {
       const p1Pts = RANKED_TIER_BONUS_SECONDS[r.p1.tier];
       const p2Pts = RANKED_TIER_BONUS_SECONDS[r.p2.tier];
-      if (p1Pts < p2Pts) p1Hit = true;
-      else if (p2Pts < p1Pts) p2Hit = true;
+      if (p1Pts !== p2Pts) {
+        decidedBy = "tier";
+        if (p1Pts < p2Pts) p1Hit = true;
+        else p2Hit = true;
+      } else if (r.p1.answeredAt !== r.p2.answeredAt) {
+        // Both rounds open at the same instant, so the earlier answer is the faster one.
+        decidedBy = "speed";
+        if (r.p1.answeredAt > r.p2.answeredAt) p1Hit = true;
+        else p2Hit = true;
+      }
     }
     const loser: RankedRoundState["loser"] = p1Hit && p2Hit ? "both" : p1Hit ? "p1" : p2Hit ? "p2" : null;
     if (p1Hit) state.p1.lives = Math.max(0, state.p1.lives - 1);
@@ -504,6 +517,7 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
         : 0;
     r.resolvedAt = Math.min(now, r.endsAt);
     r.loser = loser;
+    r.decidedBy = decidedBy;
     changed = true;
 
     const knockout = state.p1.lives === 0 || state.p2.lives === 0;
@@ -579,6 +593,8 @@ function toReveal(
     opponentPick: oppPick,
     loser,
     showdown: Boolean(r.showdown),
+    decidedBy: r.decidedBy ?? null,
+    startedAt: r.startedAt,
   };
 }
 
@@ -767,33 +783,35 @@ export async function readRankedPublicProfile(accountId: string): Promise<Ranked
       advCompleted: adventureProgress.completed,
     })
     .from(accounts)
-    .innerJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
+    // Captains who never played Ranked still have a public card (Most Wanted can be anyone).
+    .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
     .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
     .where(eq(accounts.id, accountId))
     .limit(1);
 
   if (!row) throw new RequestProblem(404, "Captain profile not found.");
+  const points = row.points ?? 0;
 
   const unlockedRows = await db
     .select({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt })
     .from(achievementUnlocks)
     .where(eq(achievementUnlocks.accountId, accountId));
   const unlockedAt = new Map(unlockedRows.map((achievement) => [achievement.id, achievement.at]));
-  const tier = rankTierFor(row.points);
+  const tier = rankTierFor(points);
 
   return {
     accountId: row.accountId,
     username: row.username,
     title: adventureTitle(row.advCompleted ?? 0),
     bounty: row.bounty ?? 0,
-    rankPoints: row.points,
+    rankPoints: points,
     rankTier: tier.id,
     rankName: tier.name,
-    wins: row.wins,
-    losses: row.losses,
-    draws: row.draws,
-    winStreak: row.winStreak,
-    bestStreak: row.bestStreak,
+    wins: row.wins ?? 0,
+    losses: row.losses ?? 0,
+    draws: row.draws ?? 0,
+    winStreak: row.winStreak ?? 0,
+    bestStreak: row.bestStreak ?? 0,
     characterId: isCharacterId(row.equippedCharacter) ? row.equippedCharacter : DEFAULT_CHARACTER,
     achievements: ACHIEVEMENTS.flatMap((achievement) => {
       const unlocked = unlockedAt.get(achievement.id) ?? (achievement.legacyId ? unlockedAt.get(achievement.legacyId) : undefined);
@@ -808,6 +826,36 @@ export async function readRankedPublicProfile(accountId: string): Promise<Ranked
         : [];
     }),
   };
+}
+
+/**
+ * The captain with the highest achievement bounty, for the lobby's WANTED poster.
+ * Ties go to the higher-ranked captain, then the one who reached the bounty first.
+ */
+export async function readMostWanted(): Promise<RankedMostWanted | null> {
+  const bounty = achievementBountySql();
+  const [top] = await db
+    .select({ accountId: accounts.id, bounty })
+    .from(accounts)
+    .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
+    .where(and(
+      sql`${accounts.usernameKey} NOT LIKE '~%'`,
+      sql`EXISTS (SELECT 1 FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id})`,
+    ))
+    .orderBy(desc(bounty), sql`${rankedProfiles.points} DESC NULLS LAST`,
+      sql`(SELECT max(u.unlocked_at) FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id})`)
+    .limit(1);
+  if (!top || top.bounty <= 0) return null;
+
+  const [profile, characterId, [ladder]] = await Promise.all([
+    readRankedPublicProfile(top.accountId),
+    equippedCharacterFor(top.accountId),
+    db.select({ ahead: sql<number>`count(*)::int` }).from(rankedProfiles)
+      .where(sql`${rankedProfiles.points} > (SELECT points FROM ${rankedProfiles} p WHERE p.account_id = ${top.accountId})`),
+  ]);
+  const [hasRanked] = await db.select({ id: rankedProfiles.accountId }).from(rankedProfiles)
+    .where(eq(rankedProfiles.accountId, top.accountId)).limit(1);
+  return { ...profile, characterId, ladderPosition: hasRanked ? (ladder?.ahead ?? 0) + 1 : null };
 }
 
 async function buildLobbyData(

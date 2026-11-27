@@ -109,6 +109,11 @@ function PullCard({ who, pick, side, won }: { who: ReactNode; pick: RankedRoundP
   );
 }
 
+/** Seconds from the round opening to a correct answer, e.g. "3.4". */
+function answerSeconds(pick: RankedRoundPick, startedAt: number) {
+  return (Math.max(0, pick.answeredAt - startedAt) / 1000).toFixed(1);
+}
+
 /** Fills one flame per round where both players answer; full = Showdown. */
 function ShowdownMeter({ filled, live, suddenDeath, overtime }: { filled: number; live: boolean; suddenDeath: boolean; overtime: boolean }) {
   return (
@@ -332,10 +337,11 @@ export default function RankedBattle({
     else if (prepSec <= 1) callout = { text: `ROUND ${round.roundNumber}`, kind: "round" };
     else if (loser === "both") callout = { text: "DOUBLE HIT!", kind: "ouch" };
     else if (revealIsShowdown) {
+      const initiative = reveal?.decidedBy === "speed";
       callout = loser === "opponent"
-        ? { text: "SHOWDOWN WON!", kind: "hit" }
+        ? { text: initiative ? "FIRST STRIKE!" : "SHOWDOWN WON!", kind: "hit" }
         : loser === "you"
-          ? { text: "SHOWDOWN LOST!", kind: "ouch" }
+          ? { text: initiative ? "TOO SLOW!" : "SHOWDOWN LOST!", kind: "ouch" }
           : { text: "STANDOFF!", kind: "clash" };
     } else {
       callout = loser === "opponent" ? { text: "DIRECT HIT!", kind: "hit" } : loser === "you" ? { text: "OUCH!", kind: "ouch" } : { text: "CLASH!", kind: "clash" };
@@ -440,6 +446,7 @@ export default function RankedBattle({
                   {round.roundNumber === RANKED_MAX_ROUNDS + 1 ? "OVERTIME" : showdownTie ? "SUDDEN DEATH" : overtime ? "OVERTIME" : "SHOWDOWN"}
                 </div>
                 <div className="rk-showdown-sub">{overtime ? "Every round is a Showdown" : "Less niche pull loses a life"}</div>
+                <div className="rk-showdown-sub rk-showdown-sub2">Same rarity? First to answer wins</div>
               </div>
             )}
             {callout && <div key={`${callout.text}:${revealKey ?? ""}`} className={`rk-callout is-${callout.kind}`}>{callout.text}</div>}
@@ -531,7 +538,7 @@ export default function RankedBattle({
                           <span>
                             You:{" "}
                             {h.yourPick ? (
-                              <span className={TIER_CONFIG[h.yourPick.tier].text}>{h.yourPick.answer} (+{RANKED_TIER_BONUS_SECONDS[h.yourPick.tier]}s)</span>
+                              <span className={TIER_CONFIG[h.yourPick.tier].text}>{h.yourPick.answer} (+{RANKED_TIER_BONUS_SECONDS[h.yourPick.tier]}s){h.decidedBy === "speed" && <span className="text-slate-400"> · {answerSeconds(h.yourPick, h.startedAt)}s</span>}</span>
                             ) : (
                               <span className="text-rose-300">No answer</span>
                             )}
@@ -539,7 +546,7 @@ export default function RankedBattle({
                           <span>
                             <RankedUsername username={match.opponent.username} />:{" "}
                             {h.opponentPick ? (
-                              <span className={TIER_CONFIG[h.opponentPick.tier].text}>{h.opponentPick.answer} (+{RANKED_TIER_BONUS_SECONDS[h.opponentPick.tier]}s)</span>
+                              <span className={TIER_CONFIG[h.opponentPick.tier].text}>{h.opponentPick.answer} (+{RANKED_TIER_BONUS_SECONDS[h.opponentPick.tier]}s){h.decidedBy === "speed" && <span className="text-slate-400"> · {answerSeconds(h.opponentPick, h.startedAt)}s</span>}</span>
                             ) : (
                               <span className="text-rose-300">No answer</span>
                             )}
@@ -559,7 +566,7 @@ export default function RankedBattle({
                 {RANKED_SECONDS} seconds per question. Rarer answers add bonus time to your next round. Only a missed question costs a life.
               </p>
               <p className="rk-intro-sd">
-                ⚡ Both answer {RANKED_SHOWDOWN_STREAK} in a row → <strong>SHOWDOWN</strong>: the less niche pull loses a life.
+                ⚡ Both answer {RANKED_SHOWDOWN_STREAK} in a row → <strong>SHOWDOWN</strong>: the less niche pull loses a life. Same rarity? The faster answer wins.
                 {" "}Last captain standing wins. After round {RANKED_MAX_ROUNDS}, it&apos;s <strong>OVERTIME</strong>: every round is a Showdown.
               </p>
             </div>
@@ -571,10 +578,13 @@ export default function RankedBattle({
                   ? "Nobody answered. Double hit!"
                   : reveal.showdown
                     ? loser === "opponent"
-                      ? reveal.opponentPick ? "Showdown won! Your pull was rarer." : <><RankedUsername username={match.opponent.username} /> froze in the Showdown!</>
+                      ? !reveal.opponentPick ? <><RankedUsername username={match.opponent.username} /> froze in the Showdown!</>
+                        : reveal.decidedBy === "speed" ? "Showdown won! Same rarity, but you answered first." : "Showdown won! Your pull was rarer."
                       : loser === "you"
-                        ? reveal.yourPick ? <>Showdown lost! <RankedUsername username={match.opponent.username} />&apos;s pull was rarer.</> : "You froze in the Showdown!"
-                        : "Standoff! Same rarity."
+                        ? !reveal.yourPick ? "You froze in the Showdown!"
+                          : reveal.decidedBy === "speed" ? <>Showdown lost! Same rarity, but <RankedUsername username={match.opponent.username} /> answered first.</>
+                          : <>Showdown lost! <RankedUsername username={match.opponent.username} />&apos;s pull was rarer.</>
+                        : "Standoff! Same rarity, same instant."
                     : loser === "opponent"
                       ? <><RankedUsername username={match.opponent.username} /> didn&apos;t answer. Takes a hit!</>
                       : loser === "you"
@@ -586,8 +596,13 @@ export default function RankedBattle({
                 <span className="rk-pulls-vs">VS</span>
                 <PullCard who={<><RankedUsername username={match.opponent.username.toUpperCase()} />&apos;S ATTACK</>} pick={reveal.opponentPick} side="right" won={loser === "you" ? true : loser === "opponent" ? false : null} />
               </div>
+              {reveal.decidedBy === "speed" && reveal.yourPick && reveal.opponentPick && (
+                <p className="rk-initiative">
+                  ⚡ INITIATIVE · You {answerSeconds(reveal.yourPick, reveal.startedAt)}s vs {answerSeconds(reveal.opponentPick, reveal.startedAt)}s
+                </p>
+              )}
               {round?.showdown ? (
-                <p className="rk-sd-next">⚡ {showdownTie ? "SUDDEN DEATH SHOWDOWN" : overtime ? "OVERTIME SHOWDOWN" : "SHOWDOWN"} NEXT · LESS NICHE PULL LOSES A LIFE ⚡</p>
+                <p className="rk-sd-next">⚡ {showdownTie ? "SUDDEN DEATH SHOWDOWN" : overtime ? "OVERTIME SHOWDOWN" : "SHOWDOWN"} NEXT · LESS NICHE PULL LOSES A LIFE · SAME RARITY: FASTEST WINS ⚡</p>
               ) : !loser && !reveal.showdown ? (
                 <p className="mt-3 text-base text-amber-200">Showdown meter {match.showdownMeter}/{RANKED_SHOWDOWN_STREAK}</p>
               ) : null}
@@ -595,7 +610,7 @@ export default function RankedBattle({
             </div>
           ) : round ? (
             <div className={round.showdown ? "rk-sd-panel" : undefined}>
-              {round.showdown && <p className="rk-sd-rule">⚡ {overtime ? "OVERTIME" : "SHOWDOWN"} · Rarest pull wins. Less niche pull loses a life.</p>}
+              {round.showdown && <p className="rk-sd-rule">⚡ {overtime ? "OVERTIME" : "SHOWDOWN"} · Rarest pull wins. Less niche pull loses a life. Same rarity: first to answer wins.</p>}
               <div className="flex items-center justify-between gap-4">
                 <span className="rk-eyebrow">ROUND {round.roundNumber} · {RANKED_SECONDS}{round.bonusSeconds ? ` + ${round.bonusSeconds}` : ""}S {round.showdown ? "SHOWDOWN" : "BLITZ"}</span>
                 {round.opponentLocked && !round.yourPick && <span className="rk-pressure">⚡ OPPONENT LOCKED IN</span>}

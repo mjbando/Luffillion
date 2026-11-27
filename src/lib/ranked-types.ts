@@ -42,6 +42,8 @@ export interface RankedRoundState {
   loser?: "p1" | "p2" | "both" | null;
   /** Showdown round: when both answer, the less niche pull loses a life. */
   showdown?: boolean;
+  /** Showdown only: "tier" = rarer pull won, "speed" = same rarity, the faster answer won (initiative). */
+  decidedBy?: "tier" | "speed" | null;
   /** Bot battles only: the bot's planned answer (applied at answeredAt), or null if it will miss. Never sent to clients. */
   botPick?: RankedRoundPick | null;
 }
@@ -89,6 +91,10 @@ export interface RankedRoundReveal {
   opponentPick: RankedRoundPick | null;
   loser: "you" | "opponent" | "both" | null;
   showdown: boolean;
+  /** Showdown only: how a decided Showdown was won ("speed" = same rarity, first answer took initiative). */
+  decidedBy: "tier" | "speed" | null;
+  /** When the round opened (ms), so answer times can be shown. */
+  startedAt: number;
 }
 
 export interface RankedMatchView {
@@ -179,6 +185,12 @@ export interface RankedPublicProfile {
   bestStreak: number;
   characterId: CharacterId;
   achievements: RankedPublicAchievement[];
+}
+
+/** The highest-bounty captain, shown on the lobby's WANTED poster. */
+export interface RankedMostWanted extends RankedPublicProfile {
+  /** Position on the RP ladder (1 = top), or null if they've never played Ranked. */
+  ladderPosition: number | null;
 }
 
 export interface RankedLobbyResponse {

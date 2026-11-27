@@ -455,6 +455,12 @@
   color: #fecdd3; background: #be123c; padding: 3px 14px; box-shadow: 3px 3px 0 #050a14;
   animation: rk-plate-r .35s ease-out both .35s;
 }
+.rk-showdown-sub2 { margin-top: 6px; font-size: clamp(12px, 1.8vw, 16px); letter-spacing: 3px; background: #7c2d12; color: #fed7aa; animation-delay: .5s; }
+/* Same-rarity Showdown decided by who answered first */
+.rk-initiative {
+  display: inline-block; margin-top: 10px; padding: 1px 10px; font-family: "VT323", monospace; font-size: 20px; letter-spacing: 1.5px;
+  color: #fde047; background: rgba(124, 45, 18, .55); border: 1px solid rgba(253, 224, 71, .45); box-shadow: 2px 2px 0 #050a14;
+}
 @keyframes rk-sd-in { from { opacity: 0; } }
 @keyframes rk-sd-slam { from { opacity: 0; transform: scale(3) rotate(-8deg); } to { opacity: 1; transform: rotate(-2deg); } }
 @keyframes rk-sd-shiver { 50% { margin-left: 2px; } }
@@ -771,3 +777,59 @@
 @keyframes rk-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rk-bot-pop { from { transform: scale(.9) translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .rk-bot-offer, .rk-bot-offer-backdrop { animation: none; } }
+
+/* Lobby CHALLENGER poster opens the Most Wanted poster */
+button.rk-wanted { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+button.rk-wanted:hover, button.rk-wanted:focus-visible { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #050a14, 0 0 0 2px #fde047; outline: none; }
+
+/* Most Wanted: a full parchment WANTED poster */
+.rk-poster {
+  position: relative; width: min(100%, 400px); padding: 18px 22px 14px; text-align: center; color: #3b2412;
+  font-family: "Pixelify Sans", monospace; rotate: -1deg;
+  background:
+    radial-gradient(circle at 12% 8%, #f6e7c1 0 18%, transparent 40%),
+    radial-gradient(circle at 90% 92%, #c9ad74 0 10%, transparent 34%),
+    linear-gradient(#ecdcae, #dfc58f);
+  border: 4px solid #8a5a2b; box-shadow: 0 0 0 3px #3b2412, 8px 8px 0 #050a14;
+  animation: rk-poster-in .28s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.rk-poster::before, .rk-poster::after { content: ""; position: absolute; top: 8px; width: 10px; height: 10px; background: #6b4520; box-shadow: 0 0 0 2px #3b2412; }
+.rk-poster::before { left: 8px; }
+.rk-poster::after { right: 8px; }
+@keyframes rk-poster-in { from { opacity: 0; transform: scale(.85) rotate(4deg); } }
+.rk-poster-close { position: absolute; top: 6px; right: 26px; display: grid; place-items: center; width: 30px; height: 30px; color: #3b2412; background: #cdb683; border: 2px solid #8a5a2b; }
+.rk-poster-close:hover, .rk-poster-close:focus-visible { background: #fde047; outline: none; }
+.rk-poster-head { font-size: 58px; font-weight: 700; line-height: 1; letter-spacing: 6px; color: #3b2412; text-shadow: 3px 3px 0 #b08950; }
+.rk-poster-sub { margin-top: 2px; font-size: 13px; letter-spacing: 4px; color: #6b4520; }
+.rk-poster-photo {
+  position: relative; display: grid; place-items: center; height: 184px; margin: 10px 4px 6px; overflow: hidden;
+  background: linear-gradient(#d9c08a, #c7a96c); border: 4px solid #3b2412; box-shadow: inset 0 0 0 3px #8a5a2b;
+}
+.rk-poster-photo svg { filter: drop-shadow(3px 3px 0 rgba(59, 36, 18, .45)); }
+.rk-poster-unknown { font-size: 110px; font-weight: 700; color: #6b4520; }
+.rk-poster-stamp {
+  position: absolute; right: 8px; bottom: 10px; padding: 2px 8px; font-size: 16px; font-weight: 700; letter-spacing: 2px;
+  color: #b91c1c; border: 3px solid #b91c1c; rotate: -12deg; background: rgba(236, 220, 174, .7);
+}
+.rk-poster-doa { font-size: 20px; font-weight: 700; letter-spacing: 5px; }
+.rk-poster-name { margin-top: 4px; font-size: 30px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; color: #2a180b; }
+.rk-poster-epithet { margin-top: 2px; font-family: "VT323", monospace; font-size: 17px; color: #6b4520; }
+.rk-poster-bounty { margin: 2px 0 6px; font-family: "VT323", monospace; font-size: 46px; line-height: 1; letter-spacing: 1px; color: #2a180b; text-shadow: 2px 2px 0 #b08950; }
+.rk-poster-bounty span { margin-left: 2px; }
+.rk-poster-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding-top: 8px; border-top: 3px double #8a5a2b; }
+.rk-poster-stats > div { padding: 3px 2px; background: rgba(138, 90, 43, .14); border: 1px solid rgba(138, 90, 43, .45); }
+.rk-poster-stats > div.is-wide { grid-column: span 3; }
+.rk-poster-stats dt { font-size: 10px; letter-spacing: 1.5px; color: #6b4520; }
+.rk-poster-stats dd { font-family: "VT323", monospace; font-size: 19px; line-height: 1.1; color: #2a180b; }
+.rk-poster-rank { display: inline-block; padding: 0 6px; color: #1c1209; border: 1px solid #3b2412; }
+.rk-poster-note { margin: 10px 0; font-family: "VT323", monospace; font-size: 19px; color: #3b2412; }
+.rk-poster-foot { margin-top: 8px; font-size: 14px; font-weight: 700; letter-spacing: 10px; color: #6b4520; }
+@media (max-width: 640px) {
+  .rk-poster { padding: 14px 14px 10px; }
+  .rk-poster-head { font-size: 44px; }
+  .rk-poster-photo { height: 150px; }
+  .rk-poster-name { font-size: 24px; }
+  .rk-poster-bounty { font-size: 38px; }
+}
+/* Pixelify's 5 reads like an 8: berry amounts use VT323 instead */
+.rk-stat-val.is-berries { font-family: "VT323", monospace; font-size: 26px; line-height: 1; }

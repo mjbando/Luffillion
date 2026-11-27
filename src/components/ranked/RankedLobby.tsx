@@ -6,6 +6,7 @@ import { ArrowLeft, Compass, Flame, Search, Shield, Swords, Trophy, Volume2, Vol
 import CharacterPortrait from "../CharacterPortrait";
 import PixelEmblem from "../pixel-emblems";
 import RankedUsername from "./RankedUsername";
+import WantedPoster from "./WantedPoster";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { BOT_RP_FACTOR, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
 
@@ -140,6 +141,8 @@ export default function RankedLobby({
 }) {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [viewedProfile, setViewedProfile] = useState<RankedPublicProfile | null>(null);
+  const [wantedOpen, setWantedOpen] = useState(false);
+  const wantedTrigger = useRef<HTMLButtonElement>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
   const profileRequest = useRef(0);
@@ -291,11 +294,12 @@ export default function RankedLobby({
                   <div className="rk-port-plate is-unknown">??? <small>SCANNING…</small></div>
                 </>
               ) : (
-                <div className="rk-wanted">
+                <button ref={wantedTrigger} type="button" className="rk-wanted" onClick={() => { playClick(); setWantedOpen(true); }}
+                  aria-label="Open the Most Wanted poster" title="Most Wanted: the captain with the highest bounty">
                   <small>WANTED</small>
                   <span>?</span>
                   <small>CHALLENGER</small>
-                </div>
+                </button>
               )}
             </div>
           </div>
@@ -414,7 +418,7 @@ export default function RankedLobby({
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rk-stat-box">
                       <span className="rk-stat-label">BOUNTY</span>
-                      <span className="rk-stat-val text-amber-300">฿ {profile.bounty.toLocaleString()}</span>
+                      <span className="rk-stat-val is-berries text-amber-300">฿{profile.bounty.toLocaleString()}</span>
                     </div>
                     <div className="rk-stat-box">
                       <span className="rk-stat-label">RANK</span>
@@ -515,7 +519,7 @@ export default function RankedLobby({
               <ul>
                 <li><b>♥</b><span>Miss a question and you lose a life.</span></li>
                 <li><b className="text-cyan-300">+</b><span>Rarer answers add bonus seconds to your next round.</span></li>
-                <li><b className="text-rose-300">⚡</b><span>Both answer 5 in a row: <strong>SHOWDOWN</strong>. The less niche pull loses a life.</span></li>
+                <li><b className="text-rose-300">⚡</b><span>Both answer 5 in a row: <strong>SHOWDOWN</strong>. The less niche pull loses a life; same rarity, the slower answer does.</span></li>
                 <li><b className="text-amber-300">∞</b><span>After round 12 it&apos;s <strong>OVERTIME</strong>: every round is a Showdown until a K.O.</span></li>
               </ul>
             </div>
@@ -750,6 +754,7 @@ export default function RankedLobby({
           </div>
         </div>
       )}
+      {wantedOpen && <WantedPoster viewerId={captain?.id ?? null} onClose={() => { setWantedOpen(false); wantedTrigger.current?.focus(); }} />}
       {selectedProfileId && (
         <div
           className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 p-4"
