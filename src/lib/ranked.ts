@@ -138,3 +138,27 @@ export function computeSingleDelta(
     newTier: rankTierFor(newPoints).id,
   };
 }
+
+/** Bot battles (offered when matchmaking is slow) pay this share of the normal RP. */
+export const BOT_RP_FACTOR = 0.5;
+
+/**
+ * Bot battle RP: half of an even-match result (win +15, loss -10, draw +5).
+ * No streak bonus, and the win streak is left untouched, so bots can't farm streak chests.
+ */
+export function computeBotDelta(playerPoints: number, streak: number, outcome: "win" | "loss" | "draw"): PlayerDeltaBreakdown {
+  const oldRp = Math.max(0, playerPoints);
+  const baseDelta = Math.round(baseRankDelta(oldRp, oldRp, outcome) * BOT_RP_FACTOR);
+  const newPoints = Math.max(0, oldRp + baseDelta);
+  return {
+    oldPoints: oldRp,
+    newPoints,
+    delta: newPoints - oldRp,
+    baseDelta,
+    streakBonus: 0,
+    oldStreak: streak,
+    newStreak: streak,
+    oldTier: rankTierFor(oldRp).id,
+    newTier: rankTierFor(newPoints).id,
+  };
+}

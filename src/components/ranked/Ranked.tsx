@@ -192,6 +192,8 @@ export default function Ranked() {
           onForfeit={() => {
             const prompt = currentMatch.mode === "friendly"
               ? "Forfeit this friendly battle?"
+              : currentMatch.mode === "bot"
+              ? "Forfeit this bot battle? You will lose a little RP."
               : "Forfeit this ranked match? You will lose rank points.";
             if (window.confirm(prompt)) {
               void act({ action: "forfeit", matchId: currentMatch.id });
@@ -235,6 +237,11 @@ export default function Ranked() {
           onAddFriend={(target) => {
             playClick();
             void act({ action: "addFriend", ...target }).then((ok) => { if (ok) setSearch(""); });
+          }}
+          onPlayBot={() => {
+            playClick();
+            lastFeedbackRef.current = undefined;
+            void act({ action: "playBot" });
           }}
           onRemoveFriend={(targetId) => {
             playClick();

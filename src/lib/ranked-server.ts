@@ -2,11 +2,13 @@ import { and, desc, eq, gt, gte, ilike, inArray, isNotNull, lt, ne, or, sql } fr
 import { db } from "@/db";
 import { accounts, achievementUnlocks, adventureProgress, bounties, rankedChallenges, rankedFriends, rankedMatches, rankedProfiles } from "@/db/schema";
 import { adventureTitle } from "@/data/adventure/levels";
-import { isCharacterId, DEFAULT_CHARACTER } from "@/data/playable-characters";
+import { isCharacterId, DEFAULT_CHARACTER, type CharacterId } from "@/data/playable-characters";
+import type { Tier } from "@/data/tiers";
 import { ORIGINAL_QUESTIONS, type Question } from "@/data/questions";
 import { ACHIEVEMENTS } from "./achievements";
 import { grantRankedStreakChests } from "./treasure-server";
-import { checkGuess, getQuestionById, suggestGuess } from "./daily";
+import { onlineCaptains, touchPresence } from "./presence-server";
+import { checkGuess, getQuestionById, parseEntries, suggestGuess } from "./daily";
 import { RequestProblem } from "./account-server";
 import { COINS_PER_RANKED_WIN } from "./coins";
 import { creditCoins } from "./currency-server";
@@ -22,6 +24,7 @@ import {
   RANKED_TIER_BONUS_SECONDS,
   RANK_TIERS,
   RANKED_MAX_TIER_GAP,
+  computeBotDelta,
   computeSingleDelta,
   rankIndexFor,
   rankTierFor,
@@ -35,6 +38,7 @@ import type {
   RankedMatchState,
   RankedMatchView,
   RankedPlayerCard,
+  RankedRoundPick,
   RankedPublicProfile,
   RankedRoundReveal,
   RankedRoundState,
@@ -46,6 +50,119 @@ type MatchRow = typeof rankedMatches.$inferSelect;
 const ONLINE_MS = 45_000;
 const CHALLENGE_TTL_MS = 60_000;
 const MATCH_STALE_ABORT_MS = 3 * 60_000;
+
+// ---------- Practice bot (offered when matchmaking takes a while) ----------
+const BOT_USERNAME_KEY = "~marine-bot";
+const BOT_CREWMATES: readonly [string, CharacterId][] = [
+  ["Koby", "koby" as CharacterId],
+  ["Helmeppo", "helmeppo" as CharacterId],
+  ["Smoker", "smoker" as CharacterId],
+  ["Fullbody", "fullbody" as CharacterId],
+];
+const BOT_TIER_WEIGHTS: Record<Tier, number> = { common: 45, uncommon: 28, rare: 16, epic: 9, luffillion: 2 };
+
+/** The bot is a real (unloginable) account so match foreign keys hold; it never gets a ranked profile. */
+async function ensureBotAccount(tx: Tx): Promise<string> {
+  const [found] = await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.usernameKey, BOT_USERNAME_KEY)).limit(1);
+  if (found) return found.id;
+  await tx.insert(accounts).values({
+    username: "Marine Bot",
+    usernameKey: BOT_USERNAME_KEY,
+    // A well-formed hash that no password derives to, so nobody can sign in as the bot.
+    passwordHash: `s1:${"00".repeat(16)}:${"00".repeat(64)}`,
+  }).onConflictDoNothing();
+  const [made] = await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.usernameKey, BOT_USERNAME_KEY)).limit(1);
+  return made.id;
+}
+
+/** Decide the bot's answer for a round: usually right, sometimes misses (which costs it a life). */
+function planBotPick(questionId: string, startedAt: number, endsAt: number, showdown: boolean): RankedRoundPick | null {
+  const chance = showdown ? 0.7 : 0.78;
+  if (Math.random() >= chance) return null;
+  const question = getQuestionById(questionId);
+  if (!question) return null;
+  const entries = parseEntries(question);
+  if (!entries.length) return null;
+  const tiers = [...new Set(entries.map((e) => e.tier))];
+  const total = tiers.reduce((sum, t) => sum + BOT_TIER_WEIGHTS[t], 0);
+  let roll = Math.random() * total;
+  let tier = tiers[0];
+  for (const t of tiers) {
+    roll -= BOT_TIER_WEIGHTS[t];
+    if (roll < 0) { tier = t; break; }
+  }
+  const options = entries.filter((e) => e.tier === tier);
+  const pick = options[Math.floor(Math.random() * options.length)];
+  const latest = Math.max(startedAt + 2500, endsAt - 1200);
+  const answeredAt = Math.round(startedAt + 2500 + Math.random() * (latest - startedAt - 2500));
+  return { answer: pick.name, tier: pick.tier, answeredAt };
+}
+
+async function createBotMatch(tx: Tx, humanId: string): Promise<MatchRow> {
+  await lockAccounts(tx, [humanId]);
+  const [existing] = await tx
+    .select({ id: rankedMatches.id })
+    .from(rankedMatches)
+    .where(and(eq(rankedMatches.status, "active"), or(eq(rankedMatches.player1Id, humanId), eq(rankedMatches.player2Id, humanId))))
+    .limit(1);
+  if (existing) throw new RequestProblem(409, "You're already in an active match.");
+  const botId = await ensureBotAccount(tx);
+  const human = await buildPlayerCard(tx, humanId, RANKED_STARTING_LIVES);
+  const [name, characterId] = BOT_CREWMATES[Math.floor(Math.random() * BOT_CREWMATES.length)];
+  const bot: RankedPlayerCard = {
+    accountId: botId,
+    username: `Bot · ${name}`,
+    title: "Marine Training Bot",
+    bounty: 0,
+    rankPoints: human.rankPoints,
+    rankTier: human.rankTier,
+    rankName: human.rankName,
+    winStreak: 0,
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    characterId: isCharacterId(characterId) ? characterId : DEFAULT_CHARACTER,
+    lives: RANKED_STARTING_LIVES,
+  };
+
+  const now = Date.now();
+  const roundStartAt = now + RANKED_INTRO_MS;
+  const roundEndAt = roundStartAt + RANKED_SECONDS * 1000;
+  const questions = pickMatchQuestions();
+  const state: RankedMatchState = {
+    mode: "bot",
+    p1: human,
+    p2: bot,
+    questionIds: questions.map((q) => q.id),
+    roundIndex: 0,
+    roundStartAt,
+    roundEndAt,
+    rounds: {
+      0: {
+        questionId: questions[0].id,
+        startedAt: roundStartAt,
+        endsAt: roundEndAt,
+        p1EndsAt: roundEndAt,
+        p2EndsAt: roundEndAt,
+        p1BonusSeconds: 0,
+        p2BonusSeconds: 0,
+        p1: null,
+        p2: null,
+        p1Attempts: 0,
+        p2Attempts: 0,
+        botPick: planBotPick(questions[0].id, roundStartAt, roundEndAt, false),
+      },
+    },
+  };
+
+  await tx.update(rankedProfiles).set({ queuedAt: null, updatedAt: new Date(now) }).where(eq(rankedProfiles.accountId, humanId));
+  await tx
+    .update(rankedChallenges)
+    .set({ status: "cancelled" })
+    .where(and(eq(rankedChallenges.status, "pending"), or(eq(rankedChallenges.fromAccountId, humanId), eq(rankedChallenges.toAccountId, humanId))));
+  const [created] = await tx.insert(rankedMatches).values({ player1Id: humanId, player2Id: botId, status: "active", state }).returning();
+  return created;
+}
 
 const isUuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
 
@@ -219,13 +336,17 @@ async function finalizeMatch(
   const [fresh] = await tx.select().from(rankedMatches).where(eq(rankedMatches.id, match.id)).for("update");
   if (!fresh || fresh.status !== "active") return fresh ?? match;
 
-  await Promise.all([ensureRankedProfile(tx, fresh.player1Id), ensureRankedProfile(tx, fresh.player2Id)]);
-  const [rp1] = await tx.select().from(rankedProfiles).where(eq(rankedProfiles.accountId, fresh.player1Id)).limit(1);
-  const [rp2] = await tx.select().from(rankedProfiles).where(eq(rankedProfiles.accountId, fresh.player2Id)).limit(1);
-
   const p1Outcome = outcome === "draw" ? "draw" : outcome === "p1" ? "win" : "loss";
   const p2Outcome = outcome === "draw" ? "draw" : outcome === "p2" ? "win" : "loss";
   const friendly = fresh.state.mode === "friendly";
+  const vsBot = fresh.state.mode === "bot";
+
+  await ensureRankedProfile(tx, fresh.player1Id);
+  if (!vsBot) await ensureRankedProfile(tx, fresh.player2Id);
+  const [rp1] = await tx.select().from(rankedProfiles).where(eq(rankedProfiles.accountId, fresh.player1Id)).limit(1);
+  const [rp2Row] = vsBot ? [] : await tx.select().from(rankedProfiles).where(eq(rankedProfiles.accountId, fresh.player2Id)).limit(1);
+  // The bot has no ranked profile; it mirrors the human's RP for the match.
+  const rp2 = rp2Row ?? { ...rp1, accountId: fresh.player2Id, winStreak: 0, bestStreak: 0 };
   const noRankChange = (points: number, streak: number) => {
     const tier = rankTierFor(points);
     return {
@@ -241,13 +362,20 @@ async function finalizeMatch(
     };
   };
 
-  const p1Delta = friendly ? noRankChange(rp1.points, rp1.winStreak) : computeSingleDelta(rp1.points, rp2.points, rp1.winStreak, p1Outcome);
-  const p2Delta = friendly ? noRankChange(rp2.points, rp2.winStreak) : computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
+  const p1Delta = friendly
+    ? noRankChange(rp1.points, rp1.winStreak)
+    : vsBot
+      ? computeBotDelta(rp1.points, rp1.winStreak, p1Outcome)
+      : computeSingleDelta(rp1.points, rp2.points, rp1.winStreak, p1Outcome);
+  const p2Delta = friendly || vsBot ? noRankChange(rp2.points, rp2.winStreak) : computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
 
   const nowDate = new Date();
   let p1Rewards: string[] = [];
   let p2Rewards: string[] = [];
-  if (!friendly) {
+  if (vsBot) {
+    // Half RP only: W/L record, streaks, coins and achievements are for real opponents.
+    await tx.update(rankedProfiles).set({ points: p1Delta.newPoints, updatedAt: nowDate }).where(eq(rankedProfiles.accountId, fresh.player1Id));
+  } else if (!friendly) {
     await tx
       .update(rankedProfiles)
       .set({
@@ -342,6 +470,10 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
   while (state.roundIndex < RANKED_ROUND_CAP) {
     const r = state.rounds[state.roundIndex];
     if (!r) break;
+    if (state.mode === "bot" && r.botPick && !r.p2 && now >= r.botPick.answeredAt) {
+      r.p2 = r.botPick;
+      changed = true;
+    }
     const p1Done = Boolean(r.p1) || now >= (r.p1EndsAt ?? r.endsAt);
     const p2Done = Boolean(r.p2) || now >= (r.p2EndsAt ?? r.endsAt);
     if (!p1Done || !p2Done) break;
@@ -415,6 +547,7 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
       p1Attempts: 0,
       p2Attempts: 0,
       showdown: nextShowdown,
+      ...(state.mode === "bot" ? { botPick: planBotPick(state.questionIds[nextIdx], nextStart, p2EndsAt, nextShowdown) } : {}),
     };
     break;
   }
@@ -777,7 +910,7 @@ async function buildLobbyData(
         .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
         .leftJoin(bounties, eq(bounties.accountId, accounts.id))
         .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
-        .where(and(eq(accounts.usernameKey, key), ne(accounts.id, accountId)))
+        .where(and(eq(accounts.usernameKey, key), ne(accounts.id, accountId), ne(accounts.usernameKey, BOT_USERNAME_KEY)))
         .limit(1);
       if (hit) searchResult = toFriend(hit);
     }
@@ -859,10 +992,7 @@ async function buildLobbyData(
     recentMatches = recentRows.map((m) => serializeMatch(m, accountId, nowDate.getTime()));
   }
 
-  const [{ onlineCount }] = await tx
-    .select({ onlineCount: sql<number>`count(*)::int` })
-    .from(rankedProfiles)
-    .where(gt(rankedProfiles.lastSeenAt, cutoff));
+  const onlineCount = await onlineCaptains(tx);
 
   const leaderboard = await fetchLeaderboard(tx, accountId);
   const activeMatch = activeMatchRow && accountId ? serializeMatch(activeMatchRow, accountId, nowDate.getTime()) : null;
@@ -895,6 +1025,7 @@ export async function readRankedLobby(
         .update(rankedProfiles)
         .set({ lastSeenAt: nowDate })
         .where(eq(rankedProfiles.accountId, accountId));
+      await touchPresence(tx, `a:${accountId}`);
 
       if (isUuid(matchId)) {
         const [found] = await tx
@@ -989,6 +1120,13 @@ export async function rankedAction(
       return { ...(await buildLobbyData(tx, accountId, searchQuery, matched)) };
     }
 
+    if (action === "playBot") {
+      const current = await getLiveMatch();
+      if (current) return { ...(await buildLobbyData(tx, accountId, searchQuery, current)) };
+      const match = await createBotMatch(tx, accountId);
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
+    }
+
     if (action === "unqueue") {
       await tx
         .update(rankedProfiles)
@@ -1006,7 +1144,7 @@ export async function rankedAction(
           .from(accounts)
           .where(eq(accounts.usernameKey, body.targetUsername.trim().toLowerCase()))
           .limit(1);
-        if (!target) throw new RequestProblem(404, "No captain with that username was found.");
+        if (!target || body.targetUsername.trim().toLowerCase() === BOT_USERNAME_KEY) throw new RequestProblem(404, "No captain with that username was found.");
         targetId = target.id;
       }
       if (!targetId) throw new RequestProblem(400, "Search for a captain's exact username to add them.");

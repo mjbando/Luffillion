@@ -202,3 +202,9 @@ export const rankedFriends = pgTable("ranked_friends", {
   friendId: uuid("friend_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.accountId, t.friendId] }), index("ranked_friends_friend_idx").on(t.friendId)]);
+
+// Who is on the website right now (signed-in account id or guest cookie id), for the online counter.
+export const sitePresence = pgTable("site_presence", {
+  visitorKey: varchar("visitor_key", { length: 64 }).primaryKey(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("site_presence_seen_idx").on(t.lastSeenAt)]);

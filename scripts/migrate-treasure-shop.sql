@@ -61,6 +61,13 @@ CREATE TABLE IF NOT EXISTS ranked_friends (
 );
 CREATE INDEX IF NOT EXISTS ranked_friends_friend_idx ON ranked_friends(friend_id);
 
+-- Site-wide presence for the "captains online" counter.
+CREATE TABLE IF NOT EXISTS site_presence (
+  visitor_key varchar(64) PRIMARY KEY,
+  last_seen_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS site_presence_seen_idx ON site_presence(last_seen_at);
+
 CREATE TABLE IF NOT EXISTS coin_ledger (
   account_id uuid NOT NULL REFERENCES captain_accounts(id) ON DELETE CASCADE,
   source varchar(16) NOT NULL,

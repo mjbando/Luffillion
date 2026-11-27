@@ -7,7 +7,13 @@ import CharacterPortrait from "../CharacterPortrait";
 import PixelEmblem from "../pixel-emblems";
 import RankedUsername from "./RankedUsername";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
-import { RANK_TIERS, RANKED_MAX_TIER_GAP, rankTierFor } from "@/lib/ranked";
+import { BOT_RP_FACTOR, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
+
+/** After this long in the queue, offer a half-RP bot battle. */
+const BOT_OFFER_SECONDS = 10;
+const BOT_WIN_RP = Math.round(RP_EVEN_WIN * BOT_RP_FACTOR);
+const BOT_LOSS_RP = -Math.round(RP_EVEN_LOSS * BOT_RP_FACTOR);
+const BOT_DRAW_RP = Math.round(RP_EVEN_DRAW * BOT_RP_FACTOR);
 import type { FriendSummary, RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick, playQueueHorn, playSonar } from "@/lib/sound";
@@ -106,6 +112,7 @@ export default function RankedLobby({
   onUnqueue,
   onInviteFriend,
   onAddFriend,
+  onPlayBot,
   onRemoveFriend,
   onAcceptInvite,
   onDeclineInvite,
@@ -124,6 +131,7 @@ export default function RankedLobby({
   onUnqueue: () => void;
   onInviteFriend: (target: { targetId?: string; targetUsername?: string }) => void;
   onAddFriend: (target: { targetId?: string; targetUsername?: string }) => void;
+  onPlayBot: () => void;
   onRemoveFriend: (targetId: string) => void;
   onAcceptInvite: (id: string) => void;
   onDeclineInvite: (id: string) => void;
@@ -142,6 +150,7 @@ export default function RankedLobby({
   }, [selectedProfileId]);
   const [elapsed, setElapsed] = useState(0);
   const [spin, setSpin] = useState(0);
+  const [botOfferDismissed, setBotOfferDismissed] = useState(false);
   const { captain, profile, inQueue, onlineCount, friends, searchResult, friendlyInvites, leaderboard, recentMatches, serverNow } = data;
   const friendsOnline = friends.filter((f) => f.online).length;
   const tier = rankTierFor(profile?.rankPoints ?? 0);
@@ -153,7 +162,7 @@ export default function RankedLobby({
   useEffect(() => {
     if (!inQueue) return;
     const started = performance.now();
-    const frame = requestAnimationFrame(() => setElapsed(0));
+    const frame = requestAnimationFrame(() => { setElapsed(0); setBotOfferDismissed(false); });
     const tick = setInterval(() => {
       setElapsed(Math.floor((performance.now() - started) / 1000));
       setSpin((n) => n + 1);
@@ -307,6 +316,11 @@ export default function RankedLobby({
                   <button type="button" disabled={busy} onClick={onUnqueue} className="rk-btn-muted h-10 px-5">
                     <X size={16} className="mr-1 inline" /> CANCEL SEARCH
                   </button>
+                  {botOfferDismissed && elapsed >= BOT_OFFER_SECONDS && (
+                    <button type="button" disabled={busy} onClick={onPlayBot} className="rk-bot-link">
+                      Play a bot instead (half RP) ▸
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
@@ -609,7 +623,7 @@ export default function RankedLobby({
                         <CharacterPortrait characterId={m.opponent.characterId} size={30} />
                         <span className="min-w-0 flex-1 truncate text-base">
                           vs <strong className="font-normal text-white"><RankedUsername username={m.opponent.username} /></strong>{" "}
-                          <span className="text-slate-400">({m.opponent.rankName}{m.mode === "friendly" ? " · friendly" : ""})</span>
+                          <span className="text-slate-400">({m.opponent.rankName}{m.mode === "friendly" ? " · friendly" : m.mode === "bot" ? " · bot" : ""})</span>
                         </span>
                         <span className="shrink-0 text-base text-cyan-200">
                           {m.result && m.mode !== "friendly" ? `${m.result.you.delta >= 0 ? "+" : ""}${m.result.you.delta} RP` : ""} ▸
@@ -709,6 +723,33 @@ export default function RankedLobby({
           </aside>
         </div>
       </div>
+      {captain && inQueue && elapsed >= BOT_OFFER_SECONDS && !botOfferDismissed && (
+        <div className="rk-bot-offer-backdrop" role="presentation">
+          <div className="rk-bot-offer" role="dialog" aria-modal="true" aria-labelledby="rk-bot-offer-title">
+            <p className="rk-eyebrow">STRUGGLING TO FIND A MATCH?</p>
+            <h2 id="rk-bot-offer-title" className="font-pixel-display text-2xl text-white">No captains in range yet</h2>
+            <p className="mt-2 text-base leading-snug text-slate-300">
+              We&apos;ve been searching for {elapsed}s for a captain within {RANKED_MAX_TIER_GAP} ranks of you. Want to battle a practice bot instead?
+            </p>
+            <ul className="rk-bot-offer-rules">
+              <li><b>½</b><span>Half RP: win <strong className="text-emerald-300">+{BOT_WIN_RP}</strong> · loss <strong className="text-rose-300">{BOT_LOSS_RP}</strong> · draw <strong>+{BOT_DRAW_RP}</strong></span></li>
+              <li><b>🔥</b><span>Doesn&apos;t change your win streak, record or coins.</span></li>
+            </ul>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <button type="button" autoFocus disabled={busy} onClick={onPlayBot} className="rk-btn-gold h-11 px-5">
+                🤖 PLAY A BOT ▸
+              </button>
+              <button
+                type="button"
+                onClick={() => { playClick(); setBotOfferDismissed(true); }}
+                className="rk-btn-muted h-11 px-5"
+              >
+                KEEP SEARCHING
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedProfileId && (
         <div
           className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 p-4"

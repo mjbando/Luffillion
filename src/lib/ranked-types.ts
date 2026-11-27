@@ -42,6 +42,8 @@ export interface RankedRoundState {
   loser?: "p1" | "p2" | "both" | null;
   /** Showdown round: when both answer, the less niche pull loses a life. */
   showdown?: boolean;
+  /** Bot battles only: the bot's planned answer (applied at answeredAt), or null if it will miss. Never sent to clients. */
+  botPick?: RankedRoundPick | null;
 }
 
 export interface RankedMatchResult {
@@ -54,7 +56,7 @@ export interface RankedMatchResult {
 }
 
 export interface RankedMatchState {
-  mode?: "ranked" | "friendly";
+  mode?: "ranked" | "friendly" | "bot";
   p1: RankedPlayerCard;
   p2: RankedPlayerCard;
   questionIds: string[];
@@ -92,7 +94,7 @@ export interface RankedRoundReveal {
 export interface RankedMatchView {
   id: string;
   status: "active" | "finished";
-  mode: "ranked" | "friendly";
+  mode: "ranked" | "friendly" | "bot";
   youRole: "p1" | "p2";
   you: RankedPlayerCard;
   opponent: RankedPlayerCard;

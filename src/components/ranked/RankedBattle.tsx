@@ -362,7 +362,7 @@ export default function RankedBattle({
         <div className="rk-brand">
           <Swords size={20} />
           <span>
-            {match.mode === "friendly" ? "FRIENDLY BATTLE" : "RANKED DUEL"} <small>{round ? `ROUND ${round.roundNumber}` : "FINISHED"}</small>
+            {match.mode === "friendly" ? "FRIENDLY BATTLE" : match.mode === "bot" ? "BOT BATTLE" : "RANKED DUEL"} <small>{round ? `ROUND ${round.roundNumber}` : "FINISHED"}</small>
           </span>
         </div>
         <button type="button" onClick={onMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"} className="rk-icon-btn">
@@ -460,6 +460,8 @@ export default function RankedBattle({
               <p className="rk-eyebrow">
                 {match.mode === "friendly"
                   ? "FRIENDLY BATTLE · NO RANK POINTS"
+                  : match.mode === "bot"
+                  ? "BOT BATTLE · HALF RP"
                   : result.reason === "forfeit"
                     ? "MATCH FORFEITED"
                     : result.reason === "knockout"
@@ -468,9 +470,9 @@ export default function RankedBattle({
               </p>
               <h1 className={`rk-final-title is-${result.outcome}`}>{finishedTitle}</h1>
 
-              {match.mode === "ranked" && (
+              {match.mode !== "friendly" && (
                 <div className="mx-auto mt-4 max-w-md border border-white/15 bg-white/[.04] p-4">
-                  <p className="text-sm tracking-[0.25em] text-slate-400">RANKED POINTS</p>
+                  <p className="text-sm tracking-[0.25em] text-slate-400">{match.mode === "bot" ? "RANKED POINTS · HALF (BOT)" : "RANKED POINTS"}</p>
                   <p className={`rk-rp-delta font-pixel-display text-4xl font-bold ${result.you.delta > 0 ? "text-emerald-300" : result.you.delta < 0 ? "text-rose-300" : "text-slate-200"}`}>
                     {result.you.delta >= 0 ? `+${result.you.delta}` : result.you.delta} RP
                   </p>
@@ -551,7 +553,7 @@ export default function RankedBattle({
             </div>
           ) : phase === "intro" ? (
             <div className="py-2 text-center">
-              <p className="rk-eyebrow">PLAYER VS PLAYER · {match.mode === "friendly" ? "FRIENDLY" : "RANKED"}</p>
+              <p className="rk-eyebrow">{match.mode === "bot" ? "PLAYER VS BOT · HALF RP" : `PLAYER VS PLAYER · ${match.mode === "friendly" ? "FRIENDLY" : "RANKED"}`}</p>
               <p className="mt-2 font-pixel-display text-2xl text-white">Get ready to battle!</p>
               <p className="mt-2 text-base text-slate-300">
                 {RANKED_SECONDS} seconds per question. Rarer answers add bonus time to your next round. Only a missed question costs a life.
