@@ -1,10 +1,11 @@
 import { and, desc, eq, gt, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, achievementUnlocks, adventureProgress, bounties, rankedChallenges, rankedMatches, rankedProfiles } from "@/db/schema";
+import { accounts, achievementUnlocks, adventureProgress, bounties, rankedChallenges, rankedFriends, rankedMatches, rankedProfiles } from "@/db/schema";
 import { adventureTitle } from "@/data/adventure/levels";
 import { isCharacterId, DEFAULT_CHARACTER } from "@/data/playable-characters";
 import { ORIGINAL_QUESTIONS, type Question } from "@/data/questions";
 import { ACHIEVEMENTS } from "./achievements";
+import { grantRankedStreakChests } from "./treasure-server";
 import { checkGuess, getQuestionById, suggestGuess } from "./daily";
 import { RequestProblem } from "./account-server";
 import { COINS_PER_RANKED_WIN } from "./coins";
@@ -27,6 +28,7 @@ import {
 } from "./ranked";
 import type {
   OnlinePlayerSummary,
+  FriendSummary,
   RankedFriendlyInviteView,
   RankedLeaderboardEntry,
   RankedLobbyResponse,
@@ -243,6 +245,8 @@ async function finalizeMatch(
   const p2Delta = friendly ? noRankChange(rp2.points, rp2.winStreak) : computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
 
   const nowDate = new Date();
+  let p1Rewards: string[] = [];
+  let p2Rewards: string[] = [];
   if (!friendly) {
     await tx
       .update(rankedProfiles)
@@ -273,6 +277,9 @@ async function finalizeMatch(
     if (outcome !== "draw") {
       await creditCoins(tx, outcome === "p1" ? fresh.player1Id : fresh.player2Id, { source: "ranked", ref: fresh.id, amount: COINS_PER_RANKED_WIN });
     }
+    // Ranked win-streak achievements drop a reward chest into the winner's unopened chests.
+    if (p1Outcome === "win") p1Rewards = await grantRankedStreakChests(tx, fresh.player1Id, p1Delta.newStreak);
+    if (p2Outcome === "win") p2Rewards = await grantRankedStreakChests(tx, fresh.player2Id, p2Delta.newStreak);
   }
 
   const nextState: RankedMatchState = {
@@ -296,6 +303,7 @@ async function finalizeMatch(
       reason,
       p1: p1Delta,
       p2: p2Delta,
+      rewards: { p1: p1Rewards, p2: p2Rewards },
     },
   };
 
@@ -485,6 +493,7 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
       reason: raw.reason,
       you: youRole === "p1" ? raw.p1 : raw.p2,
       opponent: youRole === "p1" ? raw.p2 : raw.p1,
+      rewards: (youRole === "p1" ? raw.rewards?.p1 : raw.rewards?.p2) ?? [],
     };
   }
 
@@ -696,50 +705,83 @@ async function buildLobbyData(
     busyIds.add(m.p2);
   }
 
-  const trimmed = searchQuery.trim();
-  const onlineRows = await tx
-    .select({
-      accountId: accounts.id,
-      username: accounts.username,
-      equippedCharacter: accounts.equippedCharacter,
-      points: rankedProfiles.points,
-      winStreak: rankedProfiles.winStreak,
-      queuedAt: rankedProfiles.queuedAt,
-      bounty: bounties.total,
-      advCompleted: adventureProgress.completed,
-    })
-    .from(rankedProfiles)
-    .innerJoin(accounts, eq(accounts.id, rankedProfiles.accountId))
-    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
-    .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
-    .where(
-      and(
-        gt(rankedProfiles.lastSeenAt, cutoff),
-        accountId ? ne(rankedProfiles.accountId, accountId) : undefined,
-        trimmed ? ilike(accounts.username, `%${trimmed}%`) : undefined,
-      ),
-    )
-    .orderBy(desc(rankedProfiles.lastSeenAt))
-    .limit(30);
+  const summaryColumns = {
+    accountId: accounts.id,
+    username: accounts.username,
+    equippedCharacter: accounts.equippedCharacter,
+    points: rankedProfiles.points,
+    winStreak: rankedProfiles.winStreak,
+    queuedAt: rankedProfiles.queuedAt,
+    lastSeenAt: rankedProfiles.lastSeenAt,
+    bounty: bounties.total,
+    advCompleted: adventureProgress.completed,
+  };
+  type SummaryRow = {
+    accountId: string;
+    username: string;
+    equippedCharacter: string;
+    points: number | null;
+    winStreak: number | null;
+    queuedAt: Date | null;
+    lastSeenAt?: Date | null;
+    bounty: number | null;
+    advCompleted: number | null;
+  };
 
-  const toOnlineSummary = (row: (typeof onlineRows)[number]): OnlinePlayerSummary => {
-    const tier = rankTierFor(row.points);
+  const toOnlineSummary = (row: SummaryRow): OnlinePlayerSummary => {
+    const points = row.points ?? 0;
+    const tier = rankTierFor(points);
     return {
       accountId: row.accountId,
       username: row.username,
       title: adventureTitle(row.advCompleted ?? 0),
       bounty: row.bounty ?? 0,
-      rankPoints: row.points,
+      rankPoints: points,
       rankTier: tier.id,
       rankName: tier.name,
-      winStreak: row.winStreak,
+      winStreak: row.winStreak ?? 0,
       characterId: isCharacterId(row.equippedCharacter) ? row.equippedCharacter : DEFAULT_CHARACTER,
       inMatch: busyIds.has(row.accountId),
       inQueue: Boolean(row.queuedAt && row.queuedAt > cutoff),
     };
   };
 
-  const onlinePlayers = onlineRows.map(toOnlineSummary);
+  // Friends only: nobody else is listed. Other captains appear only via an exact username search.
+  let friendIds = new Set<string>();
+  let friends: FriendSummary[] = [];
+  let searchResult: FriendSummary | null = null;
+  const toFriend = (row: SummaryRow): FriendSummary => ({
+    ...toOnlineSummary(row),
+    online: Boolean(row.lastSeenAt && row.lastSeenAt > cutoff),
+    isFriend: friendIds.has(row.accountId),
+  });
+  if (accountId) {
+    const friendRows = await tx
+      .select(summaryColumns)
+      .from(rankedFriends)
+      .innerJoin(accounts, eq(accounts.id, rankedFriends.friendId))
+      .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
+      .leftJoin(bounties, eq(bounties.accountId, accounts.id))
+      .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+      .where(eq(rankedFriends.accountId, accountId))
+      .orderBy(accounts.usernameKey)
+      .limit(100);
+    friendIds = new Set(friendRows.map((r) => r.accountId));
+    friends = friendRows.map(toFriend).sort((x, y) => Number(y.online) - Number(x.online));
+
+    const key = searchQuery.trim().toLowerCase();
+    if (key && key.length <= 24) {
+      const [hit] = await tx
+        .select(summaryColumns)
+        .from(accounts)
+        .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
+        .leftJoin(bounties, eq(bounties.accountId, accounts.id))
+        .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+        .where(and(eq(accounts.usernameKey, key), ne(accounts.id, accountId)))
+        .limit(1);
+      if (hit) searchResult = toFriend(hit);
+    }
+  }
 
   let profile: RankedPlayerCard | null = null;
   let inQueue = false;
@@ -829,7 +871,8 @@ async function buildLobbyData(
     profile,
     inQueue,
     onlineCount,
-    onlinePlayers,
+    friends,
+    searchResult,
     friendlyInvites,
     activeMatch,
     recentMatches,
@@ -955,6 +998,38 @@ export async function rankedAction(
       return { ...(await buildLobbyData(tx, accountId, searchQuery, current)) };
     }
 
+    if (action === "addFriend") {
+      let targetId = isUuid(body.targetId) ? body.targetId : null;
+      if (!targetId && typeof body.targetUsername === "string" && body.targetUsername.trim()) {
+        const [target] = await tx
+          .select({ id: accounts.id })
+          .from(accounts)
+          .where(eq(accounts.usernameKey, body.targetUsername.trim().toLowerCase()))
+          .limit(1);
+        if (!target) throw new RequestProblem(404, "No captain with that username was found.");
+        targetId = target.id;
+      }
+      if (!targetId) throw new RequestProblem(400, "Search for a captain's exact username to add them.");
+      if (targetId === accountId) throw new RequestProblem(400, "You can't add yourself as a friend.");
+      const [exists] = await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, targetId)).limit(1);
+      if (!exists) throw new RequestProblem(404, "No captain with that username was found.");
+      const [{ count }] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(rankedFriends)
+        .where(eq(rankedFriends.accountId, accountId));
+      if (count >= 100) throw new RequestProblem(409, "Your friends list is full (100 captains).");
+      await tx.insert(rankedFriends).values({ accountId, friendId: targetId }).onConflictDoNothing();
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, await getLiveMatch())) };
+    }
+
+    if (action === "removeFriend") {
+      if (!isUuid(body.targetId)) throw new RequestProblem(400, "Choose a friend to remove.");
+      await tx
+        .delete(rankedFriends)
+        .where(and(eq(rankedFriends.accountId, accountId), eq(rankedFriends.friendId, body.targetId)));
+      return { ...(await buildLobbyData(tx, accountId, searchQuery, await getLiveMatch())) };
+    }
+
     if (action === "friendlyInvite") {
       const current = await getLiveMatch();
       if (current) throw new RequestProblem(409, "Finish your current battle before sending a friendly invite.");
@@ -972,6 +1047,12 @@ export async function rankedAction(
       }
       if (!targetId) throw new RequestProblem(400, "Choose an online captain to invite.");
       if (targetId === accountId) throw new RequestProblem(400, "You cannot invite yourself.");
+      const [friendship] = await tx
+        .select({ id: rankedFriends.friendId })
+        .from(rankedFriends)
+        .where(and(eq(rankedFriends.accountId, accountId), eq(rankedFriends.friendId, targetId)))
+        .limit(1);
+      if (!friendship) throw new RequestProblem(403, "Add this captain as a friend before challenging them.");
 
       await ensureRankedProfile(tx, targetId);
       const [targetStatus] = await tx

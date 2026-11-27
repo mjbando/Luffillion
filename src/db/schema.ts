@@ -98,6 +98,21 @@ export const treasureChestOpenings = pgTable("treasure_chest_openings", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("treasure_chest_openings_account_created_idx").on(t.accountId, t.createdAt)]);
 
+// Chests earned as rewards (e.g. ranked win-streak achievements). Each (account, source, ref)
+// is granted once; the chest waits here until the player opens it.
+export const rewardChests = pgTable("reward_chests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  chestRarity: varchar("chest_rarity", { length: 16 }).notNull(),
+  source: varchar("source", { length: 16 }).notNull(),
+  ref: varchar("ref", { length: 48 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  openedAt: timestamp("opened_at", { withTimezone: true }),
+}, (t) => [
+  uniqueIndex("reward_chests_account_source_ref_idx").on(t.accountId, t.source, t.ref),
+  index("reward_chests_account_opened_idx").on(t.accountId, t.openedAt),
+]);
+
 // One row per coin payout. The primary key guarantees a daily voyage, adventure
 // level, ranked win or achievement is never paid twice — live or via backfill.
 export const coinLedger = pgTable("coin_ledger", {
@@ -180,3 +195,10 @@ export const rankedMatches = pgTable("ranked_matches", {
   index("ranked_matches_p1_idx").on(t.player1Id, t.status),
   index("ranked_matches_p2_idx").on(t.player2Id, t.status),
 ]);
+
+// Friends list for friendly battles. One row per direction: (account adds friend).
+export const rankedFriends = pgTable("ranked_friends", {
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  friendId: uuid("friend_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.accountId, t.friendId] }), index("ranked_friends_friend_idx").on(t.friendId)]);

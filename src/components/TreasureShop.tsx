@@ -6,6 +6,8 @@ import "./treasure.css";
 import CharacterPortrait from "./CharacterPortrait";
 import ChestOpening, { type ChestReward } from "./ChestOpening";
 import PixelChest from "./PixelChest";
+import UnopenedChests, { type RewardOpenResult } from "./UnopenedChests";
+import type { UnopenedChest } from "@/lib/ranked-achievements";
 import { characterById, type CharacterId } from "@/data/playable-characters";
 import { CHEST_CHARACTERS } from "@/data/chest-characters";
 import { ACHIEVEMENT_GRADE_COINS, COINS_PER_ADVENTURE_LEVEL, COINS_PER_DAILY_VOYAGE, COINS_PER_RANKED_WIN } from "@/lib/coins";
@@ -27,6 +29,7 @@ interface ShopData {
   coins: number;
   unlockedCharacterIds: CharacterId[];
   recentOpenings: ChestOpeningRecord[];
+  unopenedChests: UnopenedChest[];
 }
 
 interface OpenResult {
@@ -102,6 +105,18 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
 
   const owned = new Set(data?.unlockedCharacterIds ?? []);
 
+  function rewardOpened(response: RewardOpenResult) {
+    setData((current) => current ? {
+      ...current,
+      coins: response.coins,
+      unopenedChests: response.unopenedChests,
+      unlockedCharacterIds: response.result.duplicateCoins
+        ? current.unlockedCharacterIds
+        : [...new Set([...current.unlockedCharacterIds, response.result.characterId])],
+      recentOpenings: [{ ...response.result, createdAt: new Date().toISOString() }, ...current.recentOpenings].slice(0, 8),
+    } : current);
+  }
+
   return (
     <div className="px-3 py-3">
       <header className="mb-4 flex items-center gap-3">
@@ -146,6 +161,8 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
 
           {error && <p role="alert" className="ts-error mb-3">{error}</p>}
           {!data && !error && <p role="status" className="py-4 text-center text-cyan-200">Counting your coins…</p>}
+
+          {data && <UnopenedChests chests={data.unopenedChests ?? []} coins={data.coins} onOpened={rewardOpened} />}
 
           {data && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

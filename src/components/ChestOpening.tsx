@@ -66,13 +66,16 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
-export default function ChestOpening({ chest, reward, coins, onAgain, onClose }: {
+export default function ChestOpening({ chest, reward, coins, onAgain, onClose, free = false }: {
   chest: ChestRarity;
   /** Null while the server is still rolling the chest. */
   reward: ChestReward | null;
   coins: number;
-  onAgain: () => void;
+  /** Omit to hide the second button (e.g. the last unopened reward chest). */
+  onAgain?: () => void;
   onClose: () => void;
+  /** Reward chest: no price; the second button reads OPEN NEXT. */
+  free?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [introDone, setIntroDone] = useState(false);
@@ -274,7 +277,7 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose }:
               <p className="tc-epithet">{character.epithet}</p>
               <p className={reward.duplicateCoins ? "tc-dupe" : "tc-new"}>
                 {reward.duplicateCoins
-                  ? <>Already in your crew · <Coins size={14} aria-hidden="true" /> +{reward.duplicateCoins} refunded</>
+                  ? <>Already in your crew · <Coins size={14} aria-hidden="true" /> +{reward.duplicateCoins} {free ? "coins" : "refunded"}</>
                   : "NEW RECRUIT · now playable"}
               </p>
             </div>
@@ -308,9 +311,13 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose }:
             <button type="button" className="ts-btn ts-btn-muted" ref={closeRef} onClick={() => { playClick(); onClose(); }}>
               COLLECT
             </button>
-            <button type="button" className="ts-btn ts-btn-gold" disabled={!canAfford} onClick={onAgain}>
-              {canAfford ? <>OPEN ANOTHER · <Coins size={14} aria-hidden="true" /> {CHEST_PRICES[chest]}</> : `NEED ${CHEST_PRICES[chest] - coins} MORE`}
-            </button>
+            {onAgain && (free ? (
+              <button type="button" className="ts-btn ts-btn-gold" onClick={onAgain}>OPEN NEXT CHEST ▸</button>
+            ) : (
+              <button type="button" className="ts-btn ts-btn-gold" disabled={!canAfford} onClick={onAgain}>
+                {canAfford ? <>OPEN ANOTHER · <Coins size={14} aria-hidden="true" /> {CHEST_PRICES[chest]}</> : `NEED ${CHEST_PRICES[chest] - coins} MORE`}
+              </button>
+            ))}
           </div>
         )}
       </div>

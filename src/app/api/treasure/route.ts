@@ -1,12 +1,12 @@
-import { randomInt } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { PLAYABLE_CHARACTERS } from "@/data/playable-characters";
-import { chestCharacterById, isChestCharacterId } from "@/data/chest-characters";
+import { isChestCharacterId } from "@/data/chest-characters";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, characterUnlocks, treasureChestOpenings } from "@/db/schema";
 import { currentCaptain, failure, privateJson, readMutation, RequestProblem } from "@/lib/account-server";
-import { CHARACTER_POOLS, CHEST_PRICES, TREASURE_CHESTS, rollRarity, type ChestRarity } from "@/lib/treasure";
+import { CHEST_PRICES, TREASURE_CHESTS, type ChestRarity } from "@/lib/treasure";
+import { listUnopenedChests, openRewardChest, rollChestFor } from "@/lib/treasure-server";
 
 import { UPDATE_LIVE } from "@/lib/release";
 export const dynamic = "force-dynamic";
@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
       ...[...chestIds].filter(isChestCharacterId),
     ];
 
-    return privateJson({ coins: account.coins, unlockedCharacterIds, recentOpenings });
+    const unopenedChests = await listUnopenedChests(db, captain.id);
+    return privateJson({ coins: account.coins, unlockedCharacterIds, recentOpenings, unopenedChests });
   } catch (error) {
     return failure(error);
   }
@@ -55,6 +56,20 @@ export async function POST(req: NextRequest) {
     const captain = await currentCaptain(req);
     if (!captain) throw new RequestProblem(401, "Sign in to open treasure chests.");
     const body = await readMutation(req, 2048);
+
+    // Free reward chest (e.g. ranked achievement) waiting in the player's unopened chests.
+    if (body.rewardChestId !== undefined) {
+      const id = body.rewardChestId;
+      if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) throw new RequestProblem(400, "Choose an unopened chest.");
+      const opened = await db.transaction(async (tx) => {
+        const out = await openRewardChest(tx, captain.id, id);
+        if (!out) throw new RequestProblem(404, "Captain account not found.");
+        if (!out.chest) throw new RequestProblem(409, "That chest has already been opened.");
+        return { coins: out.account.coins, result: out.chest, unopenedChests: await listUnopenedChests(tx, captain.id) };
+      });
+      return privateJson(opened);
+    }
+
     if (typeof body.chest !== "string" || !TREASURE_CHESTS.includes(body.chest as ChestRarity)) {
       throw new RequestProblem(400, "Choose a treasure chest.");
     }
@@ -62,41 +77,13 @@ export async function POST(req: NextRequest) {
     const cost = CHEST_PRICES[chest];
 
     const result = await db.transaction(async (tx) => {
-      const [account] = await tx.select({ coins: accounts.coins, usernameKey: accounts.usernameKey })
-        .from(accounts).where(eq(accounts.id, captain.id)).for("update");
+      const [account] = await tx.select({ coins: accounts.coins }).from(accounts).where(eq(accounts.id, captain.id)).for("update");
       if (!account) throw new RequestProblem(404, "Captain account not found.");
       if (account.coins < cost) throw new RequestProblem(409, `You need ${cost} coins to open this chest.`);
-
-      const rewardRarity = rollRarity(chest, randomInt(10_000));
-
-      const pool = CHARACTER_POOLS[rewardRarity];
-      const characterId = pool[randomInt(pool.length)];
-      const character = chestCharacterById(characterId)!;
-      const [earnedFromChest] = await tx.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
-        .where(and(eq(characterUnlocks.accountId, captain.id), eq(characterUnlocks.characterId, character.id))).limit(1);
-      const duplicate = Boolean(earnedFromChest);
-      const duplicateCoins = duplicate ? Math.floor(cost / 2) : 0;
-
-      if (!duplicate) {
-        await tx.insert(characterUnlocks).values({ accountId: captain.id, characterId: character.id, source: "chest" })
-          .onConflictDoNothing();
-      }
-
-      const coins = account.coins - cost + duplicateCoins;
+      const rolled = await rollChestFor(tx, captain.id, chest, cost);
+      const coins = account.coins - cost + rolled.duplicateCoins;
       await tx.update(accounts).set({ coins }).where(eq(accounts.id, captain.id));
-      await tx.insert(treasureChestOpenings).values({
-        accountId: captain.id,
-        chestRarity: chest,
-        rewardRarity,
-        characterId: character.id,
-        duplicateCoins,
-        cost,
-      });
-
-      return {
-        coins,
-        result: { chestRarity: chest, rewardRarity, characterId: character.id, characterName: character.name, duplicateCoins, cost },
-      };
+      return { coins, result: rolled };
     });
 
     return privateJson(result);

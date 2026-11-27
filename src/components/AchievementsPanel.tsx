@@ -11,9 +11,17 @@ import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
 import { UPDATE_LIVE } from "@/lib/release";
+import type { RankedAchievementStatus, UnopenedChest } from "@/lib/ranked-achievements";
+import PixelChest from "./PixelChest";
+import UnopenedChests, { type RewardOpenResult } from "./UnopenedChests";
 
 const dateLabel = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-type Collection = AchievementReport & { equippedCharacter: CharacterId; chestUnlockedCharacterIds: string[] };
+type Collection = AchievementReport & {
+  equippedCharacter: CharacterId;
+  chestUnlockedCharacterIds: string[];
+  ranked?: RankedAchievementStatus[];
+  unopenedChests?: UnopenedChest[];
+};
 
 export default function AchievementsPanel({ captain, refreshKey, onUnlock, equippedCharacter, onEquip }: {
   captain: Captain;
@@ -27,7 +35,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
   const [notice, setNotice] = useState("");
   const [retry, setRetry] = useState(0);
   const [filter, setFilter] = useState<"all" | "earned" | "locked">("all");
-  const [view, setView] = useState<"badges" | "crew">("badges");
+  const [view, setView] = useState<"badges" | "crew" | "ranked">("badges");
   const [chestTier, setChestTier] = useState<ChestCharacterRarity | "all">("all");
   const [equipping, setEquipping] = useState<CharacterId | null>(null);
   const [showRequirement, setShowRequirement] = useState<string | null>(null);
@@ -86,6 +94,18 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
   const recruitCount = achievementRecruits + chestRecruits;
   const totalCharacters = crewCharacters.length + (UPDATE_LIVE ? CHEST_CHARACTERS.length : 0);
   const tiers = [...CHEST_RARITIES].reverse().filter(tier => chestTier === "all" || chestTier === tier);
+  const ranked = report?.ranked ?? [];
+  const rankedEarned = ranked.filter(a => a.unlocked).length;
+  const unopened = report?.unopenedChests ?? [];
+  function rewardOpened(data: RewardOpenResult) {
+    const waiting = new Set(data.unopenedChests.map(c => c.id));
+    setReport(r => r ? {
+      ...r,
+      unopenedChests: data.unopenedChests,
+      ranked: r.ranked?.map(a => a.unopenedChestId && !waiting.has(a.unopenedChestId) ? { ...a, unopenedChestId: null } : a),
+      chestUnlockedCharacterIds: data.result.duplicateCoins ? r.chestUnlockedCharacterIds : [...new Set([...r.chestUnlockedCharacterIds, data.result.characterId])],
+    } : r);
+  }
   return <section ref={section} className="p-4" aria-labelledby="achievement-title">
     <header className="flex items-center gap-3">
       <div className="grid h-14 w-14 shrink-0 place-items-center border border-amber-300/25 bg-amber-300/[.06]"><PixelEmblem kind="seal" size={40}/></div>
@@ -99,15 +119,42 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
       <div className="min-w-0 flex-1"><p className="text-xs tracking-[.2em] text-slate-400">SAILING AS</p><p className="font-pixel-display text-base text-white">{current.name}</p><p className="text-sm" style={{ color: current.color }}>{current.epithet}</p></div>
       <span className="self-start text-sm text-emerald-300">✓ Equipped</span>
     </div>
-    <div className="mb-3 mt-3 grid grid-cols-2 border border-[#34445e] bg-[#0b1628] p-1" aria-label="Collection view">
+    <div className={`mb-3 mt-3 grid ${UPDATE_LIVE ? "grid-cols-3" : "grid-cols-2"} border border-[#34445e] bg-[#0b1628] p-1`} aria-label="Collection view">
       <button type="button" aria-pressed={view === "badges"} onClick={() => { playClick(); setView("badges"); }} className={`h-9 text-lg ${view === "badges" ? "bg-[#24364e] text-amber-200" : "text-slate-400 hover:text-white"}`}>Badges · {earned}/{total}</button>
       <button type="button" aria-pressed={view === "crew"} onClick={() => { playClick(); setView("crew"); }} className={`h-9 text-lg ${view === "crew" ? "bg-[#24364e] text-amber-200" : "text-slate-400 hover:text-white"}`}>Characters · {recruitCount}/{totalCharacters}</button>
+      {UPDATE_LIVE && <button type="button" aria-pressed={view === "ranked"} onClick={() => { playClick(); setView("ranked"); }} className={`relative h-9 text-lg ${view === "ranked" ? "bg-[#24364e] text-amber-200" : "text-slate-400 hover:text-white"}`}>
+        Ranked · {rankedEarned}/{ranked.length || 3}
+        {unopened.length > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center bg-rose-500 px-1 text-xs text-white" aria-label={`${unopened.length} unopened chests`}>{unopened.length}</span>}
+      </button>}
     </div>
     {error && <p role="alert" className="mb-3 border-l-2 border-rose-400 px-2 py-1 text-base text-rose-200">{error} <button type="button" onClick={() => { playClick(); setRetry(n => n + 1); }} className="underline">Retry</button></p>}
     {notice && <p role="status" className="mb-3 border-l-2 border-emerald-400 px-2 py-1 text-base text-emerald-200">{notice}</p>}
     {!report && !error && <p role="status" className="py-6 text-center text-cyan-200">Reading your achievements and crew…</p>}
 
-    {view === "crew" ? <>
+    {view === "ranked" && UPDATE_LIVE ? <>
+      <p className="mb-3 text-base leading-tight text-slate-400">Win ranked battles in a row to earn Treasure Chests. Rewards wait in your unopened chests until you open them.</p>
+      {report && <UnopenedChests chests={unopened} coins={0} onOpened={rewardOpened} compact />}
+      {report && <div className="space-y-2" aria-label="Ranked achievements">
+        {ranked.map(a => {
+          const color = TREASURE_RARITY_COLORS[a.chest];
+          return <article key={a.id} data-ranked-achievement={a.id} className={`achievement-card flex gap-3 p-3 ${a.unlocked ? "achievement-earned" : ""}`}>
+            <div className={`grid h-14 w-14 shrink-0 place-items-center border border-white/10 bg-[#081326] ${a.unlocked ? "" : "grayscale opacity-60"}`}><PixelChest chest={a.chest} size={44}/></div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2"><h3 className={`font-pixel-display text-base leading-snug ${a.unlocked ? "text-amber-100" : "text-slate-200"}`}>{a.title}</h3><span className={`shrink-0 text-sm ${a.unlocked ? "text-amber-300" : "text-slate-500"}`}>{a.unlocked ? "✓" : "◇"}</span></div>
+              <p className="mt-0.5 text-base leading-tight text-slate-400">{a.description}</p>
+              <p className="mt-1 text-base leading-tight">Reward: <span className="capitalize" style={{ color }}>{a.chest} Chest</span></p>
+              {a.unlocked ? <p className="mt-1 text-sm text-emerald-300">Earned{a.unlockedAt ? ` · ${dateLabel(a.unlockedAt)}` : ""}{a.unopenedChestId ? <span className="text-amber-200"> · chest waiting to be opened</span> : <span className="text-slate-400"> · chest opened</span>}</p> : <>
+                <p className="mt-1 text-sm leading-tight text-cyan-200/70">Current streak: {a.progress}/{a.streak} wins</p>
+                <div role="progressbar" aria-label={`${a.title} progress`} aria-valuemin={0} aria-valuemax={a.streak} aria-valuenow={a.progress} className="mt-1 h-1 bg-[#24334a]">
+                  <div className="h-full bg-cyan-400/80 transition-[width]" style={{ width: `${Math.min(100, a.progress / a.streak * 100)}%` }}/>
+                </div>
+              </>}
+              <p className="mt-1.5 text-xs leading-snug text-slate-500">{a.detail}</p>
+            </div>
+          </article>;
+        })}
+      </div>}
+    </> : view === "crew" ? <>
       {UPDATE_LIVE && <h3 className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Achievement Recruits <small className="text-sm text-slate-400">{achievementRecruits}/{crewCharacters.length}</small></h3>}
       <p className="mb-3 text-base leading-tight text-slate-400">One unique recruit per achievement. The toughest challenges unlock Emperors, the Pirate King, and Gear 5.</p>
       <div className="grid grid-cols-2 gap-2" aria-label="Unlockable characters">

@@ -732,3 +732,25 @@
 .rk-board-row.is-open { border-style: dashed; background: transparent; min-height: 44px; }
 .rk-board-row.is-open:hover { border-color: #ffffff0d; background: transparent; }
 .rk-board-ghost { width: 30px; height: 30px; flex-shrink: 0; border: 1px dashed #ffffff1f; }
+
+/* Result screen: ranked achievement reward chests */
+.rk-reward-list { display: flex; flex-direction: column; gap: 8px; }
+.rk-reward {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--rk-reward) 60%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--rk-reward) 18%, transparent), #ffffff05);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--rk-reward) 25%, transparent);
+  animation: rk-reward-in .5s steps(5) both;
+}
+@keyframes rk-reward-in { from { transform: translateY(8px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rk-reward { animation: none; } }
+
+/* Friends list (friendly battles) */
+.rk-off-dot { display: inline-block; width: 8px; height: 8px; background: #64748b; }
+.rk-crew-row.is-offline { opacity: .72; }
+.rk-crew-status.is-offline { background: #64748b; box-shadow: none; }
+.rk-offline-tag, .rk-friend-tag { padding: 4px 8px; font-size: 13px; letter-spacing: .08em; border: 1px solid #ffffff1f; color: #94a3b8; }
+.rk-friend-tag { border-color: #34d39966; color: #6ee7b7; }
+.rk-friend-remove { width: 28px; height: 28px; display: grid; place-items: center; color: #64748b; border: 1px solid transparent; font-size: 14px; }
+.rk-friend-remove:hover { color: #fda4af; border-color: #fda4af55; }
+.rk-friend-search { padding: 6px; border: 1px dashed #67e8f955; background: #67e8f908; }

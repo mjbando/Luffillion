@@ -118,10 +118,10 @@ export default function Ranked() {
     }
   }
 
-  async function act(body: Record<string, unknown>) {
+  async function act(body: Record<string, unknown>): Promise<boolean> {
     if (!data?.captain) {
       void openAccount();
-      return;
+      return false;
     }
     setBusy(true);
     setError("");
@@ -132,12 +132,14 @@ export default function Ranked() {
         q: search,
         ...body,
       });
-      if (version !== scope.current) return;
+      if (version !== scope.current) return false;
       lastFeedbackRef.current = res.feedback;
       setData(res);
       if (res.activeMatch) setInspectingMatchId(res.activeMatch.id);
+      return true;
     } catch (e) {
       if (version === scope.current) setError(e instanceof Error ? e.message : "Action failed. Try again.");
+      return false;
     } finally {
       if (version === scope.current) setBusy(false);
     }
@@ -229,6 +231,14 @@ export default function Ranked() {
           onInviteFriend={(target) => {
             playClick();
             void act({ action: "friendlyInvite", ...target });
+          }}
+          onAddFriend={(target) => {
+            playClick();
+            void act({ action: "addFriend", ...target }).then((ok) => { if (ok) setSearch(""); });
+          }}
+          onRemoveFriend={(targetId) => {
+            playClick();
+            void act({ action: "removeFriend", targetId });
           }}
           onAcceptInvite={(challengeId) => {
             playClick();

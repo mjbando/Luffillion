@@ -8,7 +8,7 @@ import PixelEmblem from "../pixel-emblems";
 import RankedUsername from "./RankedUsername";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { RANK_TIERS, RANKED_MAX_TIER_GAP, rankTierFor } from "@/lib/ranked";
-import type { RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
+import type { FriendSummary, RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick, playQueueHorn, playSonar } from "@/lib/sound";
 
@@ -36,6 +36,63 @@ function RankEmblem({ points, size = 48 }: { points: number; size?: number }) {
   );
 }
 
+function FriendRow({
+  p,
+  busy,
+  signedIn,
+  onAccount,
+  onChallenge,
+  onAdd,
+  onRemove,
+}: {
+  p: FriendSummary;
+  busy: boolean;
+  signedIn: boolean;
+  onAccount: () => void;
+  onChallenge: () => void;
+  onAdd?: () => void;
+  onRemove?: () => void;
+}) {
+  const state = p.inMatch ? "is-busy" : p.online ? "" : "is-offline";
+  return (
+    <div className={`rk-crew-row ${state}`} style={{ "--tier": rankTierFor(p.rankPoints).color } as CSSProperties}>
+      <div className="rk-crew-portrait">
+        <CharacterPortrait characterId={p.characterId} size={46} className={p.online ? "" : "grayscale opacity-70"} />
+        <span className={`rk-crew-status ${state}`} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <RankedUsername username={p.username} className="font-pixel-display text-lg text-white" />
+          <RankBadge points={p.rankPoints} />
+        </div>
+        <p className="text-sm text-slate-400">
+          {p.inMatch ? "In battle" : p.online ? "Online" : "Offline"} · {p.title}
+          {p.winStreak >= 3 ? ` · 🔥 ${p.winStreak} streak` : ""}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {!signedIn ? (
+          <button type="button" onClick={onAccount} className="rk-btn-muted h-9 px-3 text-sm">Sign in</button>
+        ) : !p.isFriend ? (
+          <button type="button" disabled={busy || !onAdd} onClick={onAdd} className="rk-btn-cyan h-9 px-3 text-base">+ ADD FRIEND</button>
+        ) : p.inMatch ? (
+          <span className="rk-busy-tag"><Swords size={14} /> IN BATTLE</span>
+        ) : p.online ? (
+          <button type="button" disabled={busy} onClick={onChallenge} className="rk-btn-cyan h-9 px-3 text-base">⚔ CHALLENGE</button>
+        ) : (
+          <span className="rk-offline-tag">OFFLINE</span>
+        )}
+        {p.isFriend && !onRemove && <span className="rk-friend-tag" title="Already your friend">✓ FRIEND</span>}
+        {onRemove && (
+          <button type="button" disabled={busy} onClick={onRemove} className="rk-friend-remove" aria-label={`Remove ${p.username} from friends`} title="Remove friend">
+            ✕
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function RankedLobby({
   data,
   search,
@@ -48,6 +105,8 @@ export default function RankedLobby({
   onQueue,
   onUnqueue,
   onInviteFriend,
+  onAddFriend,
+  onRemoveFriend,
   onAcceptInvite,
   onDeclineInvite,
   onCancelInvite,
@@ -64,6 +123,8 @@ export default function RankedLobby({
   onQueue: () => void;
   onUnqueue: () => void;
   onInviteFriend: (target: { targetId?: string; targetUsername?: string }) => void;
+  onAddFriend: (target: { targetId?: string; targetUsername?: string }) => void;
+  onRemoveFriend: (targetId: string) => void;
   onAcceptInvite: (id: string) => void;
   onDeclineInvite: (id: string) => void;
   onCancelInvite: (id: string) => void;
@@ -81,7 +142,8 @@ export default function RankedLobby({
   }, [selectedProfileId]);
   const [elapsed, setElapsed] = useState(0);
   const [spin, setSpin] = useState(0);
-  const { captain, profile, inQueue, onlineCount, onlinePlayers, friendlyInvites, leaderboard, recentMatches, serverNow } = data;
+  const { captain, profile, inQueue, onlineCount, friends, searchResult, friendlyInvites, leaderboard, recentMatches, serverNow } = data;
+  const friendsOnline = friends.filter((f) => f.online).length;
   const tier = rankTierFor(profile?.rankPoints ?? 0);
   const pctToNext = tier.nextMin && profile
     ? Math.min(100, Math.round(((profile.rankPoints - tier.min) / (tier.nextMin - tier.min)) * 100))
@@ -138,7 +200,7 @@ export default function RankedLobby({
   const form = recentMatches.slice(0, 5).map((m) => m.result?.outcome ?? "draw");
   const tierIndex = RANK_TIERS.findIndex((t) => t.id === tier.id);
   const roulette = [...new Set<CharacterId>([
-    ...onlinePlayers.map((p) => p.characterId),
+    ...friends.map((p) => p.characterId),
     ...leaderboard.map((e) => e.characterId),
     ...PLAYABLE_CHARACTERS.map((c) => c.id),
   ])];
@@ -451,76 +513,77 @@ export default function RankedLobby({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="rk-eyebrow">FRIENDLY BATTLE · NO RANK POINTS</p>
-                  <h2 className="font-pixel-display text-xl text-white">Captains in Port</h2>
+                  <h2 className="font-pixel-display text-xl text-white">Friends</h2>
                 </div>
-                <span className="rk-online is-small"><span className="rk-live-dot" /> {onlinePlayers.length} nearby</span>
+                {captain && (
+                  <span className="rk-online is-small"><span className={friendsOnline ? "rk-live-dot" : "rk-off-dot"} /> {friendsOnline} of {friends.length} online</span>
+                )}
               </div>
 
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (search.trim() && captain) onInviteFriend({ targetUsername: search.trim() });
+                  if (!captain) return onAccount();
+                  if (searchResult && !searchResult.isFriend) onAddFriend({ targetId: searchResult.accountId });
                 }}
-                className="mt-3 flex gap-2"
+                className="mt-3"
               >
-                <div className="relative flex-1">
+                <div className="relative">
                   <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     value={search}
                     onChange={(e) => onSearch(e.target.value)}
-                    placeholder="Search online username…"
-                    aria-label="Search online players"
+                    placeholder="Add a friend by exact username…"
+                    aria-label="Find a captain by exact username"
+                    maxLength={24}
+                    autoComplete="off"
+                    spellCheck={false}
                     className="h-10 w-full border border-[#3c5472] bg-[#091325] pl-9 pr-3 text-lg text-white placeholder:text-slate-500 outline-none focus:border-cyan-300"
                   />
                 </div>
-                {captain && search.trim() && (
-                  <button type="submit" disabled={busy} className="rk-btn-cyan h-10 px-4">
-                    INVITE ▸
-                  </button>
-                )}
               </form>
 
+              {search.trim() && (
+                <div className="rk-friend-search mt-2" aria-live="polite">
+                  {searchResult ? (
+                    <FriendRow
+                      p={searchResult}
+                      busy={busy}
+                      signedIn={Boolean(captain)}
+                      onAccount={onAccount}
+                      onChallenge={() => onInviteFriend({ targetId: searchResult.accountId })}
+                      onAdd={() => onAddFriend({ targetId: searchResult.accountId })}
+                    />
+                  ) : (
+                    <p className="py-2 text-center text-sm text-slate-400">
+                      No captain named &ldquo;{search.trim()}&rdquo;. Usernames must match exactly.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="mt-3 space-y-2">
-                {onlinePlayers.length === 0 ? (
+                {!captain ? (
                   <p className="border border-dashed border-white/15 py-5 text-center text-base text-slate-400">
-                    {search.trim()
-                      ? `No online players matching "${search.trim()}".`
-                      : "No other captains are in port right now."}
+                    <button type="button" onClick={onAccount} className="text-cyan-200 underline">Sign in</button> to add friends and challenge them.
+                  </p>
+                ) : friends.length === 0 ? (
+                  <p className="border border-dashed border-white/15 px-3 py-5 text-center text-base text-slate-400">
+                    No friends yet. Search a captain&apos;s exact username above and tap <span className="text-cyan-200">+ ADD FRIEND</span>.
                   </p>
                 ) : (
-                  onlinePlayers.map((p) => (
-                    <div key={p.accountId} className={`rk-crew-row ${p.inMatch ? "is-busy" : ""}`} style={{ "--tier": rankTierFor(p.rankPoints).color } as CSSProperties}>
-                      <div className="rk-crew-portrait">
-                        <CharacterPortrait characterId={p.characterId} size={46} />
-                        <span className={`rk-crew-status ${p.inMatch ? "is-busy" : ""}`} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <RankedUsername username={p.username} className="font-pixel-display text-lg text-white" />
-                          <RankBadge points={p.rankPoints} />
-                        </div>
-                        <p className="text-sm text-slate-400">
-                          {p.title} · {p.bounty.toLocaleString()} berries
-                          {p.winStreak >= 3 ? ` · 🔥 ${p.winStreak} streak` : ""}
-                        </p>
-                      </div>
-                      {p.inMatch ? (
-                        <span className="rk-busy-tag"><Swords size={14} /> IN BATTLE</span>
-                      ) : captain ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => onInviteFriend({ targetId: p.accountId })}
-                          className="rk-btn-cyan h-9 px-3 text-base"
-                        >
-                          ⚔ CHALLENGE
-                        </button>
-                      ) : (
-                        <button type="button" onClick={onAccount} className="rk-btn-muted h-9 px-3 text-sm">
-                          Sign in
-                        </button>
-                      )}
-                    </div>
+                  friends.map((p) => (
+                    <FriendRow
+                      key={p.accountId}
+                      p={p}
+                      busy={busy}
+                      signedIn
+                      onAccount={onAccount}
+                      onChallenge={() => onInviteFriend({ targetId: p.accountId })}
+                      onRemove={() => {
+                        if (window.confirm(`Remove ${p.username} from your friends?`)) onRemoveFriend(p.accountId);
+                      }}
+                    />
                   ))
                 )}
               </div>

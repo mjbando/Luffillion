@@ -39,6 +39,28 @@ CREATE TABLE IF NOT EXISTS treasure_chest_openings (
 CREATE INDEX IF NOT EXISTS treasure_chest_openings_account_created_idx
   ON treasure_chest_openings(account_id, created_at);
 
+-- Reward chests (ranked win-streak achievements) wait here until opened.
+CREATE TABLE IF NOT EXISTS reward_chests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES captain_accounts(id) ON DELETE CASCADE,
+  chest_rarity varchar(16) NOT NULL,
+  source varchar(16) NOT NULL,
+  ref varchar(48) NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  opened_at timestamptz
+);
+CREATE UNIQUE INDEX IF NOT EXISTS reward_chests_account_source_ref_idx ON reward_chests(account_id, source, ref);
+CREATE INDEX IF NOT EXISTS reward_chests_account_opened_idx ON reward_chests(account_id, opened_at);
+
+-- Friends list for friendly battles.
+CREATE TABLE IF NOT EXISTS ranked_friends (
+  account_id uuid NOT NULL REFERENCES captain_accounts(id) ON DELETE CASCADE,
+  friend_id uuid NOT NULL REFERENCES captain_accounts(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_id, friend_id)
+);
+CREATE INDEX IF NOT EXISTS ranked_friends_friend_idx ON ranked_friends(friend_id);
+
 CREATE TABLE IF NOT EXISTS coin_ledger (
   account_id uuid NOT NULL REFERENCES captain_accounts(id) ON DELETE CASCADE,
   source varchar(16) NOT NULL,

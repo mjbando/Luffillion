@@ -49,6 +49,8 @@ export interface RankedMatchResult {
   reason: "knockout" | "rounds" | "forfeit";
   p1: PlayerDeltaBreakdown;
   p2: PlayerDeltaBreakdown;
+  /** Ranked achievement ids newly earned in this match (each drops a reward chest). */
+  rewards?: { p1: string[]; p2: string[] };
 }
 
 export interface RankedMatchState {
@@ -104,6 +106,7 @@ export interface RankedMatchView {
     reason: "knockout" | "rounds" | "forfeit";
     you: PlayerDeltaBreakdown;
     opponent: PlayerDeltaBreakdown;
+    rewards: string[];
   } | null;
 }
 
@@ -119,6 +122,12 @@ export interface OnlinePlayerSummary {
   characterId: CharacterId;
   inMatch: boolean;
   inQueue: boolean;
+}
+
+/** A friend (or an exact-username search hit) for friendly battles. */
+export interface FriendSummary extends OnlinePlayerSummary {
+  online: boolean;
+  isFriend: boolean;
 }
 
 export interface RankedFriendlyInviteView {
@@ -175,7 +184,10 @@ export interface RankedLobbyResponse {
   profile: RankedPlayerCard | null;
   inQueue: boolean;
   onlineCount: number;
-  onlinePlayers: OnlinePlayerSummary[];
+  /** Your friends list (online first). Nobody else is listed. */
+  friends: FriendSummary[];
+  /** Exact username match for the search box, or null. */
+  searchResult: FriendSummary | null;
   friendlyInvites: RankedFriendlyInviteView[];
   activeMatch: RankedMatchView | null;
   recentMatches: RankedMatchView[];

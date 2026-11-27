@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import { Flag, Swords, Volume2, VolumeX } from "lucide-react";
 import CharacterPortrait from "../CharacterPortrait";
 import RankedUsername from "./RankedUsername";
+import PixelChest from "../PixelChest";
+import { RANKED_ACHIEVEMENTS } from "@/lib/ranked-achievements";
+import { TREASURE_RARITY_COLORS } from "@/lib/treasure";
 import { TIER_CONFIG, type Tier } from "@/data/tiers";
 import {
   RANKED_MAX_ROUNDS, RANKED_SECONDS, RANKED_SHOWDOWN_STREAK, RANKED_STARTING_LIVES, RANKED_TIER_BONUS_SECONDS, rankTierFor,
@@ -484,6 +487,27 @@ export default function RankedBattle({
                       <span className="text-cyan-200">Bronze 0 RP floor protected</span>
                     )}
                   </div>
+                </div>
+              )}
+
+              {match.mode === "ranked" && result.rewards.length > 0 && (
+                <div className="rk-reward-list mx-auto mt-3 max-w-md">
+                  {result.rewards.map((id) => {
+                    const def = RANKED_ACHIEVEMENTS.find((a) => a.id === id);
+                    if (!def) return null;
+                    return (
+                      <div key={id} className="rk-reward" style={{ "--rk-reward": TREASURE_RARITY_COLORS[def.chest] } as CSSProperties}>
+                        <PixelChest chest={def.chest} size={48} className="shrink-0" />
+                        <div className="min-w-0 flex-1 text-left">
+                          <p className="rk-eyebrow">ACHIEVEMENT UNLOCKED · {def.title.toUpperCase()}</p>
+                          <p className="text-base text-white">
+                            <span style={{ color: TREASURE_RARITY_COLORS[def.chest] }} className="capitalize">{def.chest} Chest</span> added to your unopened chests.
+                          </p>
+                          <p className="text-sm text-slate-400">Open it from the Shop or Achievements › Ranked.</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 

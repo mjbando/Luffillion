@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { currentCaptain, failure, privateJson, RequestProblem } from "@/lib/account-server";
 import { loadAchievements } from "@/lib/achievements-server";
 import { chestUnlockedCharactersFor, equippedCharacterFor } from "@/lib/crew-server";
+import { db } from "@/db";
+import { UPDATE_LIVE } from "@/lib/release";
+import { listUnopenedChests, loadRankedAchievements } from "@/lib/treasure-server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +17,10 @@ export async function GET(req: NextRequest) {
       ...report,
       equippedCharacter: await equippedCharacterFor(captain.id),
       chestUnlockedCharacterIds: await chestUnlockedCharactersFor(captain.id),
+      ...(UPDATE_LIVE ? {
+        ranked: await loadRankedAchievements(db, captain.id),
+        unopenedChests: await listUnopenedChests(db, captain.id),
+      } : {}),
     });
   } catch (err) { return failure(err); }
 }
