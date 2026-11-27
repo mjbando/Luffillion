@@ -172,7 +172,6 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   akainu: { b: "big", h: "#2a2d3a", hs: "short", t: "#e2442c", l: "#3a3f52", hat: "cap", hc: "#2a2d3a", coat: "#f2f4f7", hand: "#ff6a2a", x: ["fire:#ff5a1a"] },
   fujitora: { b: "big", h: "#2a2d3a", hs: "short", t: "#a479d9", l: "#3a3f52", coat: "#f2f4f7", x: ["xscar:#a05a5a"], w: "cane", wc: "#c0a060" },
   ryokugyu: { b: "big", h: "#4fbf62", hs: "wild", t: "#2a5a3a", l: "#2a5a3a", coat: "#f2f4f7", x: ["^horns:#4fbf62"] },
-  sengoku: { b: "big", h: "#2a2d3a", hs: "afro", t: "#2a2d3a", l: "#2a2d3a", hat: "goat", hc: "#f2f2f2", coat: "#f2f4f7", x: ["braid:#2a2d3a", "glasses:#c8d8e8"], hand: "#e7c84c" },
   tsuru: { h: "#c4cde0", hs: "bun", t: "#3a5aa8", l: "#3a5aa8", coat: "#f2f4f7" },
   "edward-weevil": { b: "giant", h: "#e8dcc0", hs: "short", t: "#f2f2f2", l: "#3a3f52", x: ["crescent:#f2f2f2"], w: "bisento" },
   "benn-beckman": { h: "#b9c4d4", hs: "pony", t: "#3a3f52", l: "#2a2d3a", x: ["cigar"], w: "gun", wc: "#8a6a3a" },
@@ -207,4 +206,5 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "whitebeard-quake": { b: "giant", sk: "#e8b88a", h: "#f2f2f2", hs: "bald", t: "#e8b88a", l: "#2a3048", sh: "#1a1a20", coat: "#f4f4f8", hat: "bandana", hc: "#1a1a24", fx: "#e8f6ff", x: ["crescent:#f2f2f2", "sash:#3a5aa8", "spark:#c8f0ff"], w: "bisento", wc: "#6a4a2a", ow: true },
   "dragon-full": { b: "big", h: "#1a1a24", hs: "wild", t: "#2a5a2a", l: "#2a5a2a", sh: "#1a1a20", coat: "#2a5a2a", fx: "#5cff9d", x: ["tattoo:#d03030", "smoke:#a8ffd0", "spark:#5cff9d"] },
   "mihawk-strongest": { h: "#1e1e28", hs: "short", t: "#1a1a24", sl: "#7a1a2a", l: "#c8b8e0", sh: "#1a1a20", hat: "plume", hc: "#1a1a24", coat: "#6a1424", fx: "#ffd24a", x: ["goatee:#1e1e28", "spark:#ffd24a"], w: "greatsword", wc: "#0e0e18", ow: true },
+  sengoku: { b: "giant", sk: "#d9a43a", h: "#ffd23a", hs: "afro", t: "#ffd84a", l: "#e8b83a", sh: "#b8862a", hand: "#ffe070", coat: "#f0b830", fx: "#ffd84a", x: ["braid:#7a5414", "halo:#fff6c0", "spark:#fff6c0"] },
 };

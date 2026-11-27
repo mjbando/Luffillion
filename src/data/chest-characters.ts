@@ -160,18 +160,17 @@ const LEGENDARY = [
   ["akainu", "Sakazuki · Akainu", "Akainu", "Red Dog", "#e2442c", "A cap, a red suit, and a magma fist."],
   ["fujitora", "Issho · Fujitora", "Fujitora", "Purple Tiger", "#a479d9", "A blind admiral with a gravity blade and a gambler's luck."],
   ["ryokugyu", "Aramaki · Ryokugyu", "Ryokugyu", "Green Bull", "#4fbf62", "A forest of green hair and the Woods-Woods Fruit."],
-  ["sengoku", "Sengoku", "Sengoku", "The Buddha", "#e7c84c", "A goat on his hat, a braided beard, and a golden Buddha form."],
   ["tsuru", "Tsuru", "Tsuru", "Great Staff Officer", "#c4cde0", "A veteran vice admiral. Her Wash-Wash Fruit can wash anyone clean."],
   ["edward-weevil", "Edward Weevil", "Weevil", "Whitebeard Junior", "#e8dcc0", "He has Whitebeard's moustache and bisento, and the strength to back them up."],
   ["benn-beckman", "Benn Beckman", "Beckman", "Red Hair First Mate", "#b9c4d4", "A grey ponytail, a cigarette, and a musket."],
   ["lucky-roux", "Lucky Roux", "Lucky Roux", "Meat Lover", "#f0a35a", "Shanks's cook. Always holding a drumstick, never without his pistol."],
   ["yasopp", "Yasopp", "Yasopp", "Chaser", "#d8b45c", "Usopp's father. Dreadlocks, a bandana, and a sniper's aim."],
-  ["rob-lucci-awakened", "Rob Lucci · Awakened", "Awakened Lucci", "Leopard of Egghead", "#e8c26a", "Lucci in his awakened white leopard form."],
+  ["rob-lucci-awakened", "Rob Lucci · Awakened", "Awakened Lucci", "Leopard of Egghead", "#e8c26a", "Lucci in white: top hat, purple rose, Hattori on his shoulder and a Rokuogan ready to fire."],
   ["law-awakened", "Trafalgar Law · Awakened", "Awakened Law", "Surgeon of Death", "#5ccfd8", "Law's awakened power: Room glowing and Kikoku drawn."],
   ["kid-awakened", "Eustass Kid · Awakened", "Awakened Kid", "Magnetic Emperor", "#ff5a3c", "A giant magnetic arm and the Damned Punk."],
   ["sanji-ifrit-jambe", "Sanji · Ifrit Jambe", "Ifrit Sanji", "Blue Flame Kicker", "#5ab0ff", "Sanji's legs burning with blue Ifrit flames."],
   ["vergo", "Vergo", "Vergo", "Demon Bamboo", "#b07ae8", "Armament Haki over his whole body, and a bamboo stick harder than steel."],
-  ["killer-onigashima", "Killer · Onigashima", "Onigashima Killer", "Kamazo", "#7fc0f0", "Killer at Onigashima, unmasked as Kamazo and laughing."],
+  ["killer-onigashima", "Killer · Onigashima", "Onigashima Killer", "Kamazo", "#7fc0f0", "Killer at Onigashima: the striped mask, a wild blond mane and the Punisher's scythes."],
 ] as const satisfies readonly Row[];
 
 const MYTHIC = [
@@ -196,6 +195,7 @@ const MYTHIC = [
   ["whitebeard-quake", "Whitebeard", "Whitebeard", "World's Strongest Man", "#e8f6ff", "A bisento and a fist that splits the air."],
   ["dragon-full", "Monkey D. Dragon", "Dragon", "World's Worst Criminal", "#5cff9d", "The leader of the Revolutionary Army, with storms at his command."],
   ["mihawk-strongest", "Mihawk", "Mihawk", "Greatest Swordsman", "#ffd24a", "One swing of Yoru splits glaciers. No one stands above him."],
+  ["sengoku", "Sengoku", "Sengoku", "The Buddha", "#ffd84a", "The golden Buddha: a giant of light with a blazing halo and a shockwave palm."],
 ] as const satisfies readonly Row[];
 
 export const CHEST_RARITIES: readonly ChestCharacterRarity[] = ["common", "uncommon", "rare", "epic", "legendary", "mythic"];

@@ -295,6 +295,7 @@ export type Painter = (d: Detail) => void;
 const MARGIN: Partial<Record<ChestCharacterId, number>> = {
   "prime-rayleigh": 4, "blackbeard-full": 4, "kaido-hybrid": 8, "big-mom-full": 8, "luffy-gear-5-bajrang": 6,
   "zoro-conqueror": 10, "whitebeard-quake": 8, "dragon-full": 6, "mihawk-strongest": 8, "shanks-divine": 6,
+  sengoku: 10,
 };
 
 /** Characters drawn as flat silhouettes (no light/shadow shading). */
@@ -1062,6 +1063,66 @@ function joyBoy(d: Detail) {
 
 
 
+/** Sengoku, the golden Buddha: a giant of light. Blazing afro-halo, glowing white eyes, a braided beard,
+ * a body of gold with deep cel shadows, the Marine coat turned to light, and a shockwave palm. */
+const BUDDHA = "#ffd84a", BUDDHA_L = "#fff3a8", BUDDHA_W = "#fffbe6", BUDDHA_D = "#7a5a18", BUDDHA_DD = "#4a3410";
+function sengoku(d: Detail) {
+  const { hx, hy, hw, hh, cx, tc, ty, tx, tw, th } = d;
+  // Sunburst rays fanning out behind him.
+  for (let a = 0; a < 16; a++) {
+    const ang = (a / 16) * Math.PI * 2, r0 = hw / 2 + 9, r1 = r0 + (a % 2 ? 7 : 12);
+    for (let k = r0; k <= r1; k++) d.u(Math.round(cx + Math.cos(ang) * k), Math.round(hy + 6 + Math.sin(ang) * k * 0.9), 1, 1, k > r1 - 2 ? `${BUDDHA_L}90` : `${BUDDHA}c0`);
+  }
+  // The afro as a blazing halo: a disc of curls with a bright rim, a thin ring of light outside it.
+  d.clear(hx - 4, hy - 10, hw + 8, 10);
+  const halo = new Map<string, string>(), R = hw / 2 + 9, hcy = hy + 2;
+  for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
+    const q = i * i + j * j;
+    if (q > R * R || (j > 4 && Math.abs(i) < hw / 2 + 1)) continue;
+    const rim = q > (R - 2) * (R - 2), band = q > (R - 4) * (R - 4), curl = ((i * 3 + j * 5 + 40) % 7 === 0) || ((i - j * 2 + 40) % 9 === 0);
+    halo.set(`${cx + i},${hcy + j}`, rim ? BUDDHA_W : band ? "#c8861a" : curl ? "#b8781a" : (i + j) % 3 === 0 ? "#ffcf3a" : "#e8a828");
+  }
+  blob(d, halo, () => false);
+  for (let a = 0; a < 90; a++) { const ang = (a / 90) * Math.PI * 2; d.u(Math.round(cx + Math.cos(ang) * (R + 3)), Math.round(hcy + Math.sin(ang) * (R + 3)), 1, 1, a % 3 ? BUDDHA_L : BUDDHA_W); }
+  d.recolor("#ffd23a", hx - 4, hy - 8, hw + 8, 12, (x, y) => (x * 3 + y * 5) % 7 === 0 ? "#e8a820" : (x + y) % 4 === 0 ? BUDDHA_W : null); // tight curls
+  // Face: dark gold with a heavy brow, glowing blank white eyes, a moustache over a set mouth.
+  d.eyes("none").mouth("none");
+  d.f(hx + 1, hy + 1, hw - 2, 3, "#b8862a");
+  for (const x of [d.L, d.R]) d.f(x - 1, d.ey - 3, 5, 1, BUDDHA_DD).r(x, d.ey, 3, 2, BUDDHA_W).d(x + 1, d.ey, "#ffffff").u(x - 1, d.ey, 1, 2, BUDDHA_L).u(x + 3, d.ey, 1, 2, BUDDHA_L);
+  d.f(cx - 1, hy + 10, 1, 1, BUDDHA_L).f(cx, hy + 11, 1, 1, BUDDHA_DD);
+  d.f(cx - 5, hy + 12, 10, 2, BUDDHA_DD).f(cx - 6, hy + 13, 1, 2, BUDDHA_DD).f(cx + 5, hy + 13, 1, 2, BUDDHA_DD).f(cx - 2, hy + 14, 4, 1, "#2a1a08");
+  d.f(hx + 1, hy + 8, 2, hh - 8, BUDDHA_D).f(hx + hw - 3, hy + 8, 2, hh - 8, BUDDHA_D);
+  // The long braided beard with gold rings.
+  d.asBody(() => {
+    for (let k = 0; k < 16; k++) { const y = hy + hh - 2 + k, w = k < 3 ? 6 : 4; d.r(cx - w / 2, y, w, 1, (k % 3 === 0) ? BUDDHA_DD : "#5a3e12").d(cx - w / 2 + (k % 2), y, "#8a6420"); }
+    d.r(cx - 3, hy + hh + 6, 6, 2, BUDDHA_W).r(cx - 3, hy + hh + 12, 6, 2, BUDDHA_W).r(cx - 1, hy + hh + 14, 2, 3, BUDDHA_DD);
+  });
+  // A body of light: gold with deep cel-shaded hollows and bright rim lines, like the anime's glow.
+  d.recolor(BUDDHA, 0, ty, d.W, d.p.height - ty, (x, y) => (x + y * 2) % 13 === 0 ? BUDDHA_L : null);
+  const half = Math.min(10, tw / 2 - 1);
+  for (let i = 0; i <= half; i++) { const y = ty + 8 - Math.round(3 * Math.sin((i / half) * Math.PI)); d.r(tc - 1 - i, y, 1, 2, BUDDHA_D).r(tc + i, y, 1, 2, BUDDHA_D).d(tc - 1 - i, y - 1, BUDDHA_W).d(tc + i, y - 1, BUDDHA_W); }
+  d.recolor(BUDDHA, tx + 2, ty + 10, tw - 4, th - 10, (x) => x === tx + 2 || x === tx + tw - 3 ? BUDDHA_L : BUDDHA_D); // deep shadowed belly
+  d.r(tc - 6, ty + 11, 12, th - 14, BUDDHA_DD).r(tc - 5, ty + 12, 10, th - 16, "#6a4a14");
+  for (let r = 0; r < 3; r++) d.r(tc - 4, ty + 13 + r * 3, 3, 1, BUDDHA_DD).r(tc + 1, ty + 13 + r * 3, 3, 1, BUDDHA_DD);
+  d.line(tc - 6, ty + 11, tc - 6, ty + th - 3, BUDDHA_W).line(tc + 5, ty + 11, tc + 5, ty + th - 3, BUDDHA_L);
+  // The Marine coat, made of light: bright lapels, epaulettes with fringe, flowing sides.
+  d.trim("#f0b830", BUDDHA_W, ty).folds("#f0b830", ty + 6, 3).recolor("#f0b830", 0, ty, d.W, d.p.height - ty, (x, y) => (x * 2 + y) % 11 === 0 ? BUDDHA_L : null);
+  d.asBody(() => { for (const x of [tx - 5, tx + tw - 3]) { d.r(x, ty - 1, 8, 3, BUDDHA_W).r(x, ty + 1, 8, 1, BUDDHA); fringe(d, x, ty + 2, 8, BUDDHA_L); } });
+  // Crossed robe bands at the waist.
+  for (let k = 0; k < tw; k++) { const y1 = ty + th - 8 + Math.round((k / tw) * 6), y2 = ty + th - 2 - Math.round((k / tw) * 6); d.d(tx + k, y1, BUDDHA_W).d(tx + k, y1 + 1, BUDDHA_L).d(tx + k, y2, BUDDHA_W).d(tx + k, y2 + 1, BUDDHA_D); }
+  d.recolor("#e8b83a", 0, d.legY, d.W, d.legH + 4, (x, y) => (x + y) % 5 === 0 ? BUDDHA_L : (x - y + 40) % 3 === 0 ? BUDDHA_DD : BUDDHA_D);
+  // Shockwave palm: an open golden hand with rings of force rolling off it.
+  const px = d.rx + d.aw + 2, py = d.rhy - 2;
+  d.asBody(() => { d.r(px - 2, py - 4, 5, 7, BUDDHA_W).r(px - 1, py - 3, 3, 5, BUDDHA_L); for (let f = 0; f < 4; f++) d.r(px - 2 + f + (f > 1 ? 1 : 0), py - 7, 1, 3, BUDDHA_W); });
+  for (let k = 0; k < 3; k++) {
+    const r = 5 + k * 4;
+    for (let a = -60; a <= 60; a += 6) { const ang = (a * Math.PI) / 180; d.u(Math.round(px + 2 + Math.cos(ang) * r), Math.round(py + Math.sin(ang) * r * 1.2), 1, 1, k === 0 ? BUDDHA_W : k === 1 ? BUDDHA_L : `${BUDDHA}b0`); }
+  }
+  shatter(d, px + 16, py - 10, 4, BUDDHA_L, BUDDHA_W);
+  // A glowing orb resting in the other palm.
+  d.orb(d.lx + 1, d.lhy + 3, 3, BUDDHA_L).u(d.lx - 4, d.lhy - 4, 1, 1, BUDDHA_W).u(d.lx + 6, d.lhy - 6, 1, 1, BUDDHA_W);
+}
+
 const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
   "prime-garp": garp,
   "prime-rayleigh": rayleigh,
@@ -1099,6 +1160,7 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
   "whitebeard-quake": whitebeard,
   "dragon-full": dragon,
   "mihawk-strongest": mihawk,
+  sengoku,
 };
 
 /**
@@ -1130,7 +1192,7 @@ export function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: n
   let edge: Px[] = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
     if (outside[y][x] && N4.some(([dx, dy]) => isBody(x + dx, y + dy))) { ring[y][x] = 1; edge.push([x, y]); }
-  for (let r = 2; r <= (legendary ? 3 : 4); r++) {
+  for (let r = 2; r <= 4; r++) {
     const next: Px[] = [];
     for (const [x, y] of edge) for (const [dx, dy] of N8) {
       const nx = x + dx, ny = y + dy;
@@ -1139,13 +1201,24 @@ export function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: n
     edge = next;
   }
   if (legendary) {
-    // Legendary glow: a bright core line, a soft ring and a faint dotted haze. No flames.
-    const lCore = p.key(shade(accent, 0.42)), lMid = p.key(`${shade(accent, 0.12)}9a`), lHaze = p.key(`${accent}44`);
+    // Legendary glow: a bright core line, a soft ring, a dotted haze and drifting motes, plus a few
+    // twinkling star glints. Still no flames: those stay a Mythic signature.
+    const lCore = p.key(shade(accent, 0.45)), lMid = p.key(`${shade(accent, 0.15)}b0`), lHaze = p.key(`${accent}58`), lMote = p.key(`${shade(accent, 0.3)}80`);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const r = ring[y][x];
       if (r === 1) p.cells[y][x] = lCore;
       else if (r === 2) p.cells[y][x] = lMid;
       else if (r === 3 && (x + y) % 2 === 0) p.cells[y][x] = lHaze;
+      else if (r === 4 && (x * 5 + y * 3 + frame * 2) % 9 === 0) p.cells[y][x] = lMote;
+    }
+    // Star glints: small four-point sparkles in the haze, moving between frames.
+    const star = p.key(shade(accent, 0.75)), arm = p.key(`${shade(accent, 0.45)}c0`);
+    const spots: Px[] = [];
+    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++)
+      if (ring[y][x] === 3 && ((((x * 73856093) ^ (y * 19349663) ^ ((frame + 3) * 83492791)) >>> 0) % 97) === 0) spots.push([x, y]);
+    for (const [x, y] of spots.filter(([sx, sy], i) => spots.slice(0, i).every(([ox, oy]) => Math.abs(ox - sx) + Math.abs(oy - sy) > 10)).slice(0, 6)) {
+      p.cells[y][x] = star;
+      for (const [dx, dy] of N4) if (outside[y + dy]?.[x + dx] && !isBody(x + dx, y + dy)) p.cells[y + dy][x + dx] = arm;
     }
     return pad;
   }
