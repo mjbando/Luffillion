@@ -14,6 +14,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        {/* Google AdSense. Ad formats and placement are set in the AdSense dashboard (Ads → By site). */}
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3460671766515899" crossOrigin="anonymous"></script>
+      </head>
       <body className="bg-[#05070f] font-pixel text-slate-100 antialiased">{children}<UpdateAnnouncement /></body>
     </html>
   );
