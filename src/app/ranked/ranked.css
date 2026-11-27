@@ -544,12 +544,12 @@
 
 /* Empty challenger spot: a wanted poster nailed to a post */
 .rk-wanted {
-  display: flex; flex-direction: column; align-items: center; width: 112px; padding: 8px 6px 10px; margin-bottom: 14px;
+  display: flex; flex-direction: column; align-items: center; width: 96px; padding: 8px 6px 10px; margin-bottom: 14px;
   background: #e9d6a6; color: #3b2412; border: 3px solid #8a5a2b; box-shadow: 4px 4px 0 #050a14; rotate: 3deg;
   font-family: "Pixelify Sans", monospace; animation: rk-sway 3s ease-in-out infinite;
 }
 .rk-wanted small { font-size: 11px; letter-spacing: 2px; font-weight: 700; white-space: nowrap; }
-.rk-wanted small:last-child { font-size: 10px; letter-spacing: 1px; }
+.rk-wanted small:last-child { font-size: 9px; letter-spacing: 0; }
 .rk-wanted span { display: grid; place-items: center; width: 64px; height: 64px; margin: 4px 0; background: #cdb683; border: 2px solid #8a5a2b; font-size: 44px; font-weight: 700; color: #6b4520; }
 @keyframes rk-sway { 50% { rotate: -2deg; } }
 
@@ -700,9 +700,8 @@
   .rk-port-plate { font-size: 13px; }
   .rk-find-btn { font-size: 20px; padding: 10px 22px; }
   .rk-port-note { display: none; }
-  .rk-wanted { width: 88px; padding: 6px 4px 8px; }
-  .rk-wanted small { font-size: 10px; letter-spacing: 1px; }
-  .rk-wanted small:last-child { font-size: 8px; letter-spacing: 0; }
+  .rk-wanted { width: 76px; }
+  .rk-wanted small:last-child { font-size: 7px; letter-spacing: 0; }
   .rk-wanted span { width: 48px; height: 48px; font-size: 32px; }
   .rk-radar { width: 150px; height: 150px; margin-left: -75px; }
   .rk-search-clock { font-size: 30px; }
