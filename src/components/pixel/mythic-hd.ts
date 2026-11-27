@@ -667,8 +667,11 @@ function blackbeard(d: Detail) {
   d.recolor(hairC, hx - 6, hy + 2, hw + 12, 22, (x, y) => (x * 3 + y) % 5 === 0 ? "#3a3a4a" : null);
   // Tricorn with a green band and upturned points.
   d.recolor("#f7f8fb", hx - 4, hy - 10, hw + 8, 10, () => hairC);
-  d.recolor(hairC, hx + 2, hy - 4, hw - 4, 2, () => "#3aa88a");
-  d.asBody(() => d.r(hx - 4, hy - 5, 3, 4, hairC).r(hx + hw + 1, hy - 5, 3, 4, hairC).d(hx - 4, hy - 6, hairC).d(hx + hw + 3, hy - 6, hairC));
+  // The brim sits low on his brow, with curls poking out underneath: a short forehead.
+  d.recolor(hairC, hx + 1, hy - 2, hw - 2, 2, () => "#3aa88a");
+  d.r(hx - 4, hy, hw + 8, 3, hairC).r(hx - 4, hy, hw + 8, 1, "#3a3a4a");
+  d.asBody(() => d.r(hx - 6, hy - 3, 3, 5, hairC).r(hx + hw + 3, hy - 3, 3, 5, hairC).d(hx - 6, hy - 4, hairC).d(hx + hw + 5, hy - 4, hairC));
+  for (let x = hx; x < hx + hw; x++) d.f(x, hy + 3, 1, x % 3 === 0 ? 2 : 1, x % 3 === 1 ? "#3a3a4a" : hairC);
   // Red shirt hanging open over a hairy belly, beaded necklaces.
   for (let i = 0; i < th - 8; i++) { const half = Math.min(7, 3 + Math.floor(i / 2)); d.r(tc - half, ty + 1 + i, half * 2, 1, d.sk); }
   for (let y = ty + 6; y < ty + th - 8; y += 2) for (let x = tc - 5; x < tc + 5; x += 3) d.d(x + (y % 4 ? 1 : 0), y, shade(d.sk, -0.3));
@@ -780,7 +783,7 @@ function bigMom(d: Detail) {
   // Zeus, the grinning thundercloud, and Prometheus, the laughing sun.
   const zx = d.rx + d.aw + 3, zy = hy + 8;
   for (const [ox, oy, r] of [[0, 0, 4], [5, -1, 4], [9, 1, 3], [3, 3, 3]] as [number, number, number][]) for (let j = -r; j <= r; j++) for (let k = -r; k <= r; k++) if (k * k + j * j <= r * r) d.u(zx + ox + k, zy + oy + j, 1, 1, j > r / 2 ? "#c8d4f0" : "#f4f8ff");
-  d.u(zx + 3, zy, 1, 2, ink).u(zx + 7, zy, 1, 2, ink).u(zx + 4, zy + 3, 3, 1, "#e85a8a").sparkle(zx + 12, zy - 4, "#ffe84a");
+  d.u(zx + 3, zy, 1, 2, ink).u(zx + 7, zy, 1, 2, ink).u(zx + 4, zy + 3, 3, 1, "#e85a8a");
   const px = d.lx - 7, py = d.lhy - 14;
   for (let j = -6; j <= 6; j++) for (let k = -6; k <= 6; k++) { const r2 = k * k + j * j; if (r2 <= 16) d.u(px + k, py + j, 1, 1, r2 <= 9 ? "#ffd040" : "#ff9a2a"); else if (r2 <= 36 && (Math.atan2(j, k) * 4 / Math.PI + 8) % 1 < 0.35) d.u(px + k, py + j, 1, 1, "#ff6a2a"); }
   d.u(px - 2, py - 1, 1, 2, ink).u(px + 1, py - 1, 1, 2, ink).u(px - 2, py + 2, 4, 1, "#c8402a");
@@ -1066,7 +1069,7 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
     d.trim("#c8282c", gold, d.ty).folds("#c8282c", d.legY);
     d.asBody(() => d.epaulettes(gold).r(d.hx - 2, d.hy - 3, d.hw + 4, 1, gold)); // epaulettes + hat braid
     d.suit(SHIRT, undefined, "#d8dce6").buttons(gold, 2, d.ty + 11).belt("#3a2a1a", gold);
-    d.bolt(d.rx + d.aw + 3, d.rhy - 16, 1, 9).sparkle(d.rx + d.aw + 5, d.rhy - 20, "#ffe680");
+    d.bolt(d.rx + d.aw + 3, d.rhy - 16, 1, 9);
   },
   "whitebeard-quake": whitebeard,
   "dragon-full": dragon,
@@ -1077,7 +1080,7 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
  * A layered glow that hugs the character's own silhouette (floating effects and the crown
  * don't distort it, and enclosed gaps stay clear):
  * a bright core ring, a saturated ring, a soft haze, flickering flame licks rising off
- * the shoulders and head, and a few twinkling sparkles. `frame` animates the flames.
+ * the shoulders and head. `frame` animates the flames.
  */
 function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, pad = 5) {
   const w = p.width + pad * 2, h = p.height + pad * 2;
@@ -1133,15 +1136,6 @@ function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, 
       if (yy < 0 || isBody(xx, yy) || !outside[yy]?.[xx]) break;
       p.cells[yy][xx] = i === len ? tip : i > len - 3 ? lickSoft : lick;
     }
-  }
-  // Sparkles: a few four-point stars twinkling in the haze, at least 8 px apart.
-  const stars: Px[] = [];
-  const spark = p.key(`${shimmer}d0`), star = p.key("#ffffff");
-  for (let y = 2; y < h - 2 && stars.length < 4; y++) for (let x = 2; x < w - 2 && stars.length < 4; x++) {
-    if (ring[y][x] !== 4 || hash(x, y) % 23 !== 0 || stars.some(([sx, sy]) => Math.abs(sx - x) + Math.abs(sy - y) < 16)) continue;
-    stars.push([x, y]);
-    p.cells[y][x] = star;
-    for (const [dx, dy] of N4) if (!isBody(x + dx, y + dy) && outside[y + dy]?.[x + dx]) p.cells[y + dy][x + dx] = spark;
   }
   return pad;
 }
