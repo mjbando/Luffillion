@@ -5,6 +5,10 @@ export const RANKED_STARTING_LIVES = 3;
 export const RANKED_MAX_ROUNDS = 12;
 export const RANKED_INTRO_MS = 5000;
 export const RANKED_REVEAL_MS = 3200;
+/** Rounds in a row where both players answer before the next round becomes a Showdown. */
+export const RANKED_SHOWDOWN_STREAK = 5;
+/** Showdown reveals linger a little longer so the face-off can play out. */
+export const RANKED_SHOWDOWN_REVEAL_MS = 4200;
 
 export const RANKED_TIER_BONUS_SECONDS: Record<Tier, number> = {
   common: 1,

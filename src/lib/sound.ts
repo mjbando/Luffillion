@@ -629,3 +629,26 @@ export function playKO(): void {
   playNoise(a.ctx, a.out, t, 0, 0.4, 0.2, "lowpass", 3000, 200);
   playTone(a.ctx, a.out, t, { freq: 1400, slideTo: 300, start: 0.25, dur: 0.7, type: "sine", vol: 0.06 });
 }
+
+/** Showdown announced: thunder crack, war drums, ominous minor stab. */
+export function playShowdown(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playNoise(a.ctx, a.out, t, 0, 0.9, 0.16, "lowpass", 5000, 120);
+  [0, 0.22, 0.44, 0.58].forEach((s, i) =>
+    playTone(a.ctx, a.out, t, { freq: i === 3 ? 82 : 65, slideTo: 38, start: s, dur: 0.28, type: "sine", vol: 0.42, attack: 0.002 }));
+  [220, 261.63, 311.13, 440].forEach((f) =>
+    playTone(a.ctx, a.out, t, { freq: f, start: 0.62, dur: 0.9, type: "sawtooth", vol: 0.06, filterHz: 1600 }));
+}
+
+/** Showdown decided: rising power beam, then a blast. */
+export function playBeam(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playTone(a.ctx, a.out, t, { freq: 180, slideTo: 1200, dur: 0.38, type: "sawtooth", vol: 0.08, filterHz: 2600 });
+  playNoise(a.ctx, a.out, t, 0, 0.42, 0.08, "bandpass", 600, 4200);
+  playTone(a.ctx, a.out, t, { freq: 140, slideTo: 32, start: 0.36, dur: 0.5, type: "sine", vol: 0.46, attack: 0.002 });
+  playNoise(a.ctx, a.out, t, 0.36, 0.35, 0.18, "lowpass", 3000, 200);
+}

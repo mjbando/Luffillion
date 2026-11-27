@@ -5,10 +5,13 @@ import { Flag, Swords, Volume2, VolumeX } from "lucide-react";
 import CharacterPortrait from "../CharacterPortrait";
 import RankedUsername from "./RankedUsername";
 import { TIER_CONFIG, type Tier } from "@/data/tiers";
-import { RANKED_MAX_ROUNDS, RANKED_SECONDS, RANKED_STARTING_LIVES, RANKED_TIER_BONUS_SECONDS, rankTierFor } from "@/lib/ranked";
+import {
+  RANKED_MAX_ROUNDS, RANKED_SECONDS, RANKED_SHOWDOWN_STREAK, RANKED_STARTING_LIVES, RANKED_TIER_BONUS_SECONDS, rankTierFor,
+} from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPlayerCard, RankedRoundPick } from "@/lib/ranked-types";
 import {
-  playAchievement, playClash, playClick, playFight, playHit, playKO, playPull, playSetSail, playSuggest, playTick, playWrong,
+  playAchievement, playBeam, playClash, playClick, playFight, playHit, playKO, playPull, playSetSail, playShowdown, playSuggest,
+  playTick, playWrong,
 } from "@/lib/sound";
 
 const RANKED_TIER_COLORS: Record<Tier, string> = {
@@ -53,7 +56,7 @@ function HudSide({ player, side, breakingKey }: { player: RankedPlayerCard; side
 }
 
 function Fighter({
-  player, side, pose, poseKey, aura, bubble, shout, damage,
+  player, side, pose, poseKey, aura, bubble, shout, damage, burning,
 }: {
   player: RankedPlayerCard;
   side: "left" | "right";
@@ -63,6 +66,7 @@ function Fighter({
   bubble?: "thinking" | "locked" | null;
   shout?: { text: string; color: string; key: string } | null;
   damage?: string | null;
+  burning?: boolean;
 }) {
   return (
     <div className={`rk-fighter-slot is-${side}`} style={{ "--aura": aura ?? "#e2e8f0" } as CSSProperties}>
@@ -75,7 +79,7 @@ function Fighter({
       {damage && <div key={damage} className="rk-damage" aria-hidden="true">-1 ♥</div>}
       <div className="rk-flip">
         <div key={poseKey} className={`rk-body pose-${pose}`}>
-          {pose === "charged" && <span className="rk-aura" aria-hidden="true" />}
+          {(pose === "charged" || burning) && <span className={`rk-aura ${burning ? "is-burning" : ""}`} aria-hidden="true" />}
           <CharacterPortrait characterId={player.characterId} size={150} />
         </div>
         <div className="rk-shadow" />
@@ -98,6 +102,21 @@ function PullCard({ who, pick, side, won }: { who: ReactNode; pick: RankedRoundP
       ) : (
         <p className="rk-pull-answer text-rose-300">No answer</p>
       )}
+    </div>
+  );
+}
+
+/** Fills one flame per round where both players answer; full = Showdown. */
+function ShowdownMeter({ filled, live, suddenDeath }: { filled: number; live: boolean; suddenDeath: boolean }) {
+  return (
+    <div className={`rk-meter ${live ? "is-live" : ""} ${filled >= RANKED_SHOWDOWN_STREAK - 1 && !live ? "is-close" : ""}`}
+      aria-label={live ? "Showdown round" : `Showdown meter ${filled} of ${RANKED_SHOWDOWN_STREAK}`}>
+      <span className="rk-meter-label">{live ? (suddenDeath ? "⚡ SUDDEN DEATH ⚡" : "⚡ SHOWDOWN ⚡") : "SHOWDOWN"}</span>
+      <span className="rk-meter-cells">
+        {Array.from({ length: RANKED_SHOWDOWN_STREAK }, (_, i) => (
+          <i key={i} className={live || i < filled ? "is-on" : ""} />
+        ))}
+      </span>
     </div>
   );
 }
@@ -136,6 +155,7 @@ export default function RankedBattle({
   const lastTickRef = useRef("");
   const lastRevealRef = useRef(-1);
   const finishedSoundRef = useRef("");
+  const showdownSoundRef = useRef(-1);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -208,14 +228,25 @@ export default function RankedBattle({
     const reveal = match.lastReveal;
     if (!reveal || lastRevealRef.current === reveal.roundNumber) return;
     lastRevealRef.current = reveal.roundNumber;
-    const knockedOut = reveal.loser === "you" ? match.you.lives === 0 : reveal.loser === "opponent" ? match.opponent.lives === 0 : false;
+    const youDown = (reveal.loser === "you" || reveal.loser === "both") && match.you.lives === 0;
+    const oppDown = (reveal.loser === "opponent" || reveal.loser === "both") && match.opponent.lives === 0;
+    const beam = reveal.showdown && (reveal.loser === "you" || reveal.loser === "opponent");
+    if (beam) playBeam();
     const id = setTimeout(() => {
       if (!reveal.loser) playClash();
-      else if (knockedOut) playKO();
-      else playHit(reveal.loser === "opponent");
-    }, 320);
+      else if (youDown || oppDown) playKO();
+      else if (!beam) playHit(reveal.loser !== "you");
+    }, beam ? 380 : 320);
     return () => clearTimeout(id);
   }, [match.lastReveal, match.you.lives, match.opponent.lives]);
+
+  // Showdown announcement: thunder and war drums before the round opens.
+  const announcingShowdown = Boolean(round?.showdown) && phase === "reveal" && prepSec <= 2;
+  useEffect(() => {
+    if (!announcingShowdown || !round || showdownSoundRef.current === round.roundNumber) return;
+    showdownSoundRef.current = round.roundNumber;
+    playShowdown();
+  }, [announcingShowdown, round]);
 
   // Victory fanfare after the dust settles.
   useEffect(() => {
@@ -243,6 +274,14 @@ export default function RankedBattle({
   const loser = showReveal ? reveal.loser : undefined;
   const result = match.status === "finished" ? match.result : null;
   const finalBlow = result?.reason === "knockout";
+  const youHurt = loser === "you" || loser === "both";
+  const oppHurt = loser === "opponent" || loser === "both";
+  const revealIsShowdown = Boolean(showReveal && reveal.showdown);
+  const showdownTie = revealIsShowdown && loser === null;
+  const showdownLive = Boolean(round?.showdown) && (phase === "answering" || announcingShowdown);
+  const stormy = showdownLive || (phase === "reveal" && revealIsShowdown) || (phase === "finished" && revealIsShowdown);
+  const beamFrom = revealIsShowdown && loser === "opponent" ? "left" : revealIsShowdown && loser === "you" ? "right" : null;
+  const beamPick = beamFrom === "left" ? reveal?.yourPick : beamFrom === "right" ? reveal?.opponentPick : null;
 
   function poseFor(who: "you" | "opponent"): Pose {
     const other = who === "you" ? "opponent" : "you";
@@ -253,8 +292,9 @@ export default function RankedBattle({
       return result.reason === "forfeit" ? "idle" : "ko";
     }
     if (phase === "intro") return "enter";
+    if (announcingShowdown) return "idle";
     if (phase === "reveal" && showReveal) {
-      if (loser === who) return "hit";
+      if (loser === who || loser === "both") return "hit";
       if (loser === other) return "attack";
       return "clash";
     }
@@ -278,8 +318,18 @@ export default function RankedBattle({
   } else if (phase === "intro") {
     callout = prepSec >= 3 ? null : prepSec === 2 ? { text: "ROUND 1", kind: "round" } : { text: "FIGHT!", kind: "fight" };
   } else if (phase === "reveal" && showReveal && round) {
-    if (prepSec <= 1) callout = { text: `ROUND ${round.roundNumber}`, kind: "round" };
-    else callout = loser === "opponent" ? { text: "DIRECT HIT!", kind: "hit" } : loser === "you" ? { text: "OUCH!", kind: "ouch" } : { text: "CLASH!", kind: "clash" };
+    if (announcingShowdown) callout = null;
+    else if (prepSec <= 1) callout = { text: `ROUND ${round.roundNumber}`, kind: "round" };
+    else if (loser === "both") callout = { text: "DOUBLE HIT!", kind: "ouch" };
+    else if (revealIsShowdown) {
+      callout = loser === "opponent"
+        ? { text: "SHOWDOWN WON!", kind: "hit" }
+        : loser === "you"
+          ? { text: "SHOWDOWN LOST!", kind: "ouch" }
+          : { text: "STANDOFF!", kind: "clash" };
+    } else {
+      callout = loser === "opponent" ? { text: "DIRECT HIT!", kind: "hit" } : loser === "you" ? { text: "OUCH!", kind: "ouch" } : { text: "CLASH!", kind: "clash" };
+    }
   }
 
   const timerText = phase === "answering" ? String(remainingSec) : phase === "finished" ? "END" : String(prepSec);
@@ -313,30 +363,40 @@ export default function RankedBattle({
       <div className="rk-battle-page">
         {/* ---------- HUD ---------- */}
         <section className="rk-hud" aria-label="Battle status">
-          <HudSide player={match.you} side="left" breakingKey={loser === "you" ? revealKey : null} />
-          <div className={`rk-medallion ${danger ? "is-danger" : ""} ${phase === "answering" ? "is-live" : ""}`} aria-live="off">
-            <small>{round ? `RND ${round.roundNumber}` : "MATCH"}</small>
+          <HudSide player={match.you} side="left" breakingKey={youHurt ? revealKey : null} />
+          <div className={`rk-medallion ${danger ? "is-danger" : ""} ${phase === "answering" ? "is-live" : ""} ${showdownLive ? "is-showdown" : ""}`} aria-live="off">
+            <small>{showdownLive ? "SHOWDOWN" : round ? `RND ${round.roundNumber}` : "MATCH"}</small>
             <strong>{timerText}</strong>
           </div>
-          <HudSide player={match.opponent} side="right" breakingKey={loser === "opponent" ? revealKey : null} />
+          <HudSide player={match.opponent} side="right" breakingKey={oppHurt ? revealKey : null} />
         </section>
         <div className="rk-track" aria-label="Round results">
           {Array.from({ length: Math.min(RANKED_MAX_ROUNDS, Math.max(match.history.length + (round ? 1 : 0), 1)) }, (_, i) => {
             const h = match.history.find((x) => x.roundNumber === i + 1);
-            const cls = h ? (h.loser === "opponent" ? "is-won" : h.loser === "you" ? "is-lost" : "is-tie") : round?.roundNumber === i + 1 ? "is-current" : "";
-            return <span key={i} className={`rk-pip ${cls}`} title={h ? `Round ${i + 1}` : undefined} />;
+            const cls = h
+              ? h.loser === "opponent" ? "is-won" : h.loser === "you" ? "is-lost" : h.loser === "both" ? "is-double" : "is-tie"
+              : round?.roundNumber === i + 1 ? "is-current" : "";
+            const sd = h ? h.showdown : round?.roundNumber === i + 1 && round.showdown;
+            return <span key={i} className={`rk-pip ${cls} ${sd ? "is-sd" : ""}`} title={h ? `Round ${i + 1}${h.showdown ? " · Showdown" : ""}` : undefined} />;
           })}
         </div>
+        {match.status === "active" && (
+          <ShowdownMeter filled={match.showdownMeter} live={showdownLive} suddenDeath={showdownLive && Boolean(reveal?.showdown) && reveal?.loser === null} />
+        )}
 
         {/* ---------- Stage ---------- */}
-        <section className={`rk-stage ${danger ? "is-danger" : ""} ${result ? "is-over" : ""}`} aria-hidden="true">
+        <section className={`rk-stage ${danger ? "is-danger" : ""} ${result ? "is-over" : ""} ${stormy ? "is-showdown" : ""}`} aria-hidden="true">
           <div key={revealKey && loser ? `shake:${revealKey}` : "still"} className={`rk-stage-inner ${revealKey && loser ? (finalBlow && result ? "is-quake" : "is-shake") : ""}`}>
             <div className="rk-sky" />
             <div className="rk-sun" />
             <div className="rk-cloud c1" /><div className="rk-cloud c2" /><div className="rk-cloud c3" />
             <div className="rk-sea" />
             <div className="rk-deck" />
-            {phase === "reveal" && loser === null && <div key={`clash:${revealKey}`} className="rk-clash-spark" />}
+            {stormy && <><div className="rk-bolt b1" /><div className="rk-bolt b2" /><div className="rk-flash" /></>}
+            {phase === "reveal" && loser === null && !announcingShowdown && <div key={`clash:${revealKey}`} className="rk-clash-spark" />}
+            {beamFrom && (phase === "reveal" || phase === "finished") && (
+              <div key={`beam:${revealKey}`} className={`rk-beam from-${beamFrom}`} style={{ "--beam": beamPick ? RANKED_TIER_COLORS[beamPick.tier] : "#fbbf24" } as CSSProperties} />
+            )}
             <Fighter
               player={match.you}
               side="left"
@@ -344,7 +404,8 @@ export default function RankedBattle({
               poseKey={`${youPose}:${revealKey ?? round?.roundNumber ?? "end"}`}
               aura={yourTierColor}
               shout={fx && phase === "answering" ? { text: `${TIER_SHOUT[fx.tier]} +${RANKED_TIER_BONUS_SECONDS[fx.tier]}s`, color: RANKED_TIER_COLORS[fx.tier], key: String(fx.id) } : null}
-              damage={loser === "you" && phase === "reveal" ? revealKey : null}
+              damage={youHurt && phase === "reveal" ? revealKey : null}
+              burning={showdownLive && !round?.yourPick}
             />
             <Fighter
               player={match.opponent}
@@ -352,13 +413,21 @@ export default function RankedBattle({
               pose={oppPose}
               poseKey={`${oppPose}:${revealKey ?? round?.roundNumber ?? "end"}`}
               bubble={phase === "answering" ? (round?.opponentLocked ? "locked" : "thinking") : null}
-              damage={loser === "opponent" && phase === "reveal" ? revealKey : null}
+              damage={oppHurt && phase === "reveal" ? revealKey : null}
+              aura={showdownLive ? "#f43f5e" : undefined}
+              burning={showdownLive}
             />
             {phase === "intro" && prepSec >= 3 && (
               <div className="rk-vs-splash">
                 <div className="rk-vs-plate is-left"><RankedUsername username={match.you.username} /><small>{match.you.title}</small></div>
                 <div className="rk-vs-big">VS</div>
                 <div className="rk-vs-plate is-right"><RankedUsername username={match.opponent.username} /><small>{match.opponent.title}</small></div>
+              </div>
+            )}
+            {announcingShowdown && round && (
+              <div key={`sd:${round.roundNumber}`} className="rk-showdown-splash">
+                <div className="rk-showdown-title">{showdownTie ? "SUDDEN DEATH" : "SHOWDOWN"}</div>
+                <div className="rk-showdown-sub">Less niche pull loses a life</div>
               </div>
             )}
             {callout && <div key={`${callout.text}:${revealKey ?? ""}`} className={`rk-callout is-${callout.kind}`}>{callout.text}</div>}
@@ -419,8 +488,10 @@ export default function RankedBattle({
                   <p className="rk-eyebrow mb-2">ROUND BREAKDOWN</p>
                   <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
                     {match.history.map((h) => (
-                      <div key={h.roundNumber} className={`rk-history-row ${h.loser === "opponent" ? "is-won" : h.loser === "you" ? "is-lost" : ""}`}>
-                        <p className="text-slate-400">R{h.roundNumber} · {h.prompt}</p>
+                      <div key={h.roundNumber} className={`rk-history-row ${h.loser === "opponent" ? "is-won" : h.loser === "you" || h.loser === "both" ? "is-lost" : ""} ${h.showdown ? "is-sd" : ""}`}>
+                        <p className="text-slate-400">
+                          {h.showdown && <span className="rk-sd-tag">⚡ SHOWDOWN</span>}R{h.roundNumber} · {h.prompt}
+                        </p>
                         <div className="mt-1 flex flex-wrap justify-between gap-2 text-base">
                           <span>
                             You:{" "}
@@ -450,26 +521,47 @@ export default function RankedBattle({
               <p className="rk-eyebrow">PLAYER VS PLAYER · {match.mode === "friendly" ? "FRIENDLY" : "RANKED"}</p>
               <p className="mt-2 font-pixel-display text-2xl text-white">Get ready to battle!</p>
               <p className="mt-2 text-base text-slate-300">
-                {RANKED_SECONDS} seconds per question. Rarer answers add bonus time to your next round. No answer = you take a hit.
+                {RANKED_SECONDS} seconds per question. Rarer answers add bonus time to your next round. Only a missed question costs a life.
+              </p>
+              <p className="rk-intro-sd">
+                ⚡ Both answer {RANKED_SHOWDOWN_STREAK} in a row → <strong>SHOWDOWN</strong>: the less niche pull loses a life.
               </p>
             </div>
           ) : phase === "reveal" && reveal ? (
             <div className="text-center">
-              <p className="rk-eyebrow">ROUND {reveal.roundNumber} RESULT</p>
-              <h2 className={`rk-reveal-title ${loser === "opponent" ? "is-good" : loser === "you" ? "is-bad" : ""}`}>
-                {loser === "opponent" ? <><RankedUsername username={match.opponent.username} /> takes a hit!</> : loser === "you" ? "You took a hit!" : "Clash! No life lost."}
+              <p className="rk-eyebrow">{reveal.showdown ? "⚡ SHOWDOWN" : `ROUND ${reveal.roundNumber}`} RESULT</p>
+              <h2 className={`rk-reveal-title ${loser === "opponent" ? "is-good" : loser === "you" || loser === "both" ? "is-bad" : ""}`}>
+                {loser === "both"
+                  ? "Nobody answered. Double hit!"
+                  : reveal.showdown
+                    ? loser === "opponent"
+                      ? reveal.opponentPick ? "Showdown won! Your pull was rarer." : <><RankedUsername username={match.opponent.username} /> froze in the Showdown!</>
+                      : loser === "you"
+                        ? reveal.yourPick ? <>Showdown lost! <RankedUsername username={match.opponent.username} />&apos;s pull was rarer.</> : "You froze in the Showdown!"
+                        : "Standoff! Same rarity."
+                    : loser === "opponent"
+                      ? <><RankedUsername username={match.opponent.username} /> didn&apos;t answer. Takes a hit!</>
+                      : loser === "you"
+                        ? "No answer. You took a hit!"
+                        : "Both landed! No life lost."}
               </h2>
               <div key={revealKey} className="rk-pulls">
                 <PullCard who="YOUR ATTACK" pick={reveal.yourPick} side="left" won={loser === "opponent" ? true : loser === "you" ? false : null} />
                 <span className="rk-pulls-vs">VS</span>
                 <PullCard who={<><RankedUsername username={match.opponent.username.toUpperCase()} />&apos;S ATTACK</>} pick={reveal.opponentPick} side="right" won={loser === "you" ? true : loser === "opponent" ? false : null} />
               </div>
-              <p className="mt-3 text-base text-cyan-200">Next round in {prepSec}…</p>
+              {round?.showdown ? (
+                <p className="rk-sd-next">⚡ {showdownTie ? "SUDDEN DEATH SHOWDOWN" : "SHOWDOWN"} NEXT · LESS NICHE PULL LOSES A LIFE ⚡</p>
+              ) : !loser && !reveal.showdown ? (
+                <p className="mt-3 text-base text-amber-200">Showdown meter {match.showdownMeter}/{RANKED_SHOWDOWN_STREAK}</p>
+              ) : null}
+              <p className="mt-2 text-base text-cyan-200">Next round in {prepSec}…</p>
             </div>
           ) : round ? (
-            <div>
+            <div className={round.showdown ? "rk-sd-panel" : undefined}>
+              {round.showdown && <p className="rk-sd-rule">⚡ SHOWDOWN · Rarest pull wins. Less niche pull loses a life.</p>}
               <div className="flex items-center justify-between gap-4">
-                <span className="rk-eyebrow">ROUND {round.roundNumber} · {RANKED_SECONDS}{round.bonusSeconds ? ` + ${round.bonusSeconds}` : ""}S BLITZ</span>
+                <span className="rk-eyebrow">ROUND {round.roundNumber} · {RANKED_SECONDS}{round.bonusSeconds ? ` + ${round.bonusSeconds}` : ""}S {round.showdown ? "SHOWDOWN" : "BLITZ"}</span>
                 {round.opponentLocked && !round.yourPick && <span className="rk-pressure">⚡ OPPONENT LOCKED IN</span>}
               </div>
               <div className={`rk-fuse ${danger ? "is-danger" : ""}`}>

@@ -38,7 +38,10 @@ export interface RankedRoundState {
   p1Attempts: number;
   p2Attempts: number;
   resolvedAt?: number;
-  loser?: "p1" | "p2" | null;
+  /** Who lost a life this round ("both" when neither player answered). */
+  loser?: "p1" | "p2" | "both" | null;
+  /** Showdown round: when both answer, the less niche pull loses a life. */
+  showdown?: boolean;
 }
 
 export interface RankedMatchResult {
@@ -57,6 +60,8 @@ export interface RankedMatchState {
   roundStartAt: number;
   roundEndAt: number;
   rounds: Record<number, RankedRoundState>;
+  /** Consecutive normal rounds where both players answered correctly. */
+  bothAnsweredStreak?: number;
   result?: RankedMatchResult;
 }
 
@@ -70,6 +75,7 @@ export interface RankedRoundView {
   bonusSeconds: number;
   yourPick: RankedRoundPick | null;
   opponentLocked: boolean;
+  showdown: boolean;
 }
 
 export interface RankedRoundReveal {
@@ -77,7 +83,8 @@ export interface RankedRoundReveal {
   prompt: string;
   yourPick: RankedRoundPick | null;
   opponentPick: RankedRoundPick | null;
-  loser: "you" | "opponent" | null;
+  loser: "you" | "opponent" | "both" | null;
+  showdown: boolean;
 }
 
 export interface RankedMatchView {
@@ -90,6 +97,8 @@ export interface RankedMatchView {
   round: RankedRoundView | null;
   lastReveal: RankedRoundReveal | null;
   history: RankedRoundReveal[];
+  /** Progress toward the next Showdown (0 to RANKED_SHOWDOWN_STREAK). */
+  showdownMeter: number;
   result: {
     outcome: "win" | "loss" | "draw";
     reason: "knockout" | "rounds" | "forfeit";

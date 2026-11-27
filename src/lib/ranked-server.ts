@@ -12,6 +12,8 @@ import { creditCoins } from "./currency-server";
 import {
   RANKED_INTRO_MS,
   RANKED_MAX_ROUNDS,
+  RANKED_SHOWDOWN_REVEAL_MS,
+  RANKED_SHOWDOWN_STREAK,
   RANKED_REVEAL_MS,
   RANKED_SECONDS,
   RANKED_STARTING_LIVES,
@@ -323,17 +325,30 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
     const p2Done = Boolean(r.p2) || now >= (r.p2EndsAt ?? r.endsAt);
     if (!p1Done || !p2Done) break;
 
-    // Resolve this round
-    const p1Pts = r.p1 ? RANKED_TIER_BONUS_SECONDS[r.p1.tier] : 0;
-    const p2Pts = r.p2 ? RANKED_TIER_BONUS_SECONDS[r.p2.tier] : 0;
-    let loser: "p1" | "p2" | null = null;
-    if (p1Pts < p2Pts) {
-      loser = "p1";
-      state.p1.lives = Math.max(0, state.p1.lives - 1);
-    } else if (p2Pts < p1Pts) {
-      loser = "p2";
-      state.p2.lives = Math.max(0, state.p2.lives - 1);
+    // Resolve this round. A life is only lost for not answering; in a
+    // Showdown, when both answered, the less niche pull also loses a life.
+    const p1Answered = Boolean(r.p1);
+    const p2Answered = Boolean(r.p2);
+    let p1Hit = !p1Answered;
+    let p2Hit = !p2Answered;
+    if (r.showdown && r.p1 && r.p2) {
+      const p1Pts = RANKED_TIER_BONUS_SECONDS[r.p1.tier];
+      const p2Pts = RANKED_TIER_BONUS_SECONDS[r.p2.tier];
+      if (p1Pts < p2Pts) p1Hit = true;
+      else if (p2Pts < p1Pts) p2Hit = true;
     }
+    const loser: RankedRoundState["loser"] = p1Hit && p2Hit ? "both" : p1Hit ? "p1" : p2Hit ? "p2" : null;
+    if (p1Hit) state.p1.lives = Math.max(0, state.p1.lives - 1);
+    if (p2Hit) state.p2.lives = Math.max(0, state.p2.lives - 1);
+
+    // Showdown meter: both answering fills it; a miss empties it. A decided
+    // Showdown resets it, a tied one (same tier) goes to sudden death.
+    const streakBefore = state.bothAnsweredStreak ?? 0;
+    state.bothAnsweredStreak = r.showdown
+      ? (loser ? 0 : RANKED_SHOWDOWN_STREAK)
+      : p1Answered && p2Answered
+        ? Math.min(RANKED_SHOWDOWN_STREAK, streakBefore + 1)
+        : 0;
     r.resolvedAt = Math.min(now, r.endsAt);
     r.loser = loser;
     changed = true;
@@ -352,7 +367,9 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
 
     // Prepare next round after a brief reveal pause
     const nextIdx = state.roundIndex + 1;
-    const nextStart = now + RANKED_REVEAL_MS;
+    const nextShowdown = state.bothAnsweredStreak >= RANKED_SHOWDOWN_STREAK;
+    // Longer pause around Showdowns so the announcement and face-off can play.
+    const nextStart = now + (r.showdown || nextShowdown ? RANKED_SHOWDOWN_REVEAL_MS : RANKED_REVEAL_MS);
     const p1BonusSeconds = r.p1 ? RANKED_TIER_BONUS_SECONDS[r.p1.tier] : 0;
     const p2BonusSeconds = r.p2 ? RANKED_TIER_BONUS_SECONDS[r.p2.tier] : 0;
     const p1EndsAt = nextStart + (RANKED_SECONDS + p1BonusSeconds) * 1000;
@@ -373,6 +390,7 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
       p2: null,
       p1Attempts: 0,
       p2Attempts: 0,
+      showdown: nextShowdown,
     };
     break;
   }
@@ -396,13 +414,14 @@ function toReveal(
   const q = getQuestionById(r.questionId);
   const yourPick = youRole === "p1" ? r.p1 ?? null : r.p2 ?? null;
   const oppPick = youRole === "p1" ? r.p2 ?? null : r.p1 ?? null;
-  const loser = !r.loser ? null : r.loser === youRole ? "you" : "opponent";
+  const loser = !r.loser ? null : r.loser === "both" ? "both" : r.loser === youRole ? "you" : "opponent";
   return {
     roundNumber: idx + 1,
     prompt: q?.prompt ?? "One Piece Question",
     yourPick,
     opponentPick: oppPick,
     loser,
+    showdown: Boolean(r.showdown),
   };
 }
 
@@ -436,6 +455,7 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
         bonusSeconds: youRole === "p1" ? (r.p1BonusSeconds ?? 0) : (r.p2BonusSeconds ?? 0),
         yourPick,
         opponentLocked: Boolean(oppPick),
+        showdown: Boolean(r.showdown),
       };
     }
   }
@@ -462,6 +482,7 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
     round: roundView,
     lastReveal: history.length ? history[history.length - 1] : null,
     history,
+    showdownMeter: Math.min(RANKED_SHOWDOWN_STREAK, state.bothAnsweredStreak ?? 0),
     result: resultView,
   };
 }
