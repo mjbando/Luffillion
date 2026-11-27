@@ -6,6 +6,7 @@ import { ArrowLeft, Compass, Flame, Search, Shield, Swords, Trophy, Volume2, Vol
 import CharacterPortrait from "../CharacterPortrait";
 import PixelEmblem from "../pixel-emblems";
 import RankedUsername from "./RankedUsername";
+import StreakFlame from "./StreakFlame";
 import WantedPoster from "./WantedPoster";
 import RankedMenu from "./RankedMenu";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
@@ -72,10 +73,10 @@ function FriendRow({
         <div className="flex flex-wrap items-center gap-2">
           <RankedUsername username={p.username} className="font-pixel-display text-lg text-white" />
           <RankBadge points={p.rankPoints} />
+          {p.winStreak > 1 && <StreakFlame streak={p.winStreak} size={26} />}
         </div>
         <p className="text-sm text-slate-400">
           {p.inMatch ? "In battle" : p.online ? "Online" : "Offline"} · {p.title}
-          {p.winStreak >= 3 ? ` · 🔥 ${p.winStreak} streak` : ""}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
@@ -277,7 +278,7 @@ export default function RankedLobby({
               </div>
               {captain && profile && (
                 <div className="rk-port-plate">
-                  <RankedUsername username={profile.username} />
+                  <span className="flex items-center gap-1.5"><RankedUsername username={profile.username} />{profile.winStreak > 1 && <StreakFlame streak={profile.winStreak} size={28} />}</span>
                   <small style={{ color: tier.color }}>{tier.name} · {profile.rankPoints} RP</small>
                 </div>
               )}
@@ -460,9 +461,11 @@ export default function RankedLobby({
                     </div>
                     <div className={`rk-mini-stat ${profile.winStreak >= 3 ? "is-hot" : ""}`}>
                       <span>STREAK</span>
-                      <b className="text-amber-300">
-                        <Flame size={12} className="inline" /> {profile.winStreak}
-                      </b>
+                      {profile.winStreak > 1 ? <StreakFlame streak={profile.winStreak} size={30} className="mx-auto" /> : (
+                        <b className="text-amber-300">
+                          <Flame size={12} className="inline" /> {profile.winStreak}
+                        </b>
+                      )}
                     </div>
                   </div>
 
@@ -666,7 +669,7 @@ export default function RankedLobby({
                     <span className="rk-podium-char">
                       <CharacterPortrait characterId={entry.characterId} size={place === 1 ? 64 : 50} />
                     </span>
-                    <span className="rk-podium-name"><RankedUsername username={entry.username} /></span>
+                    <span className="rk-podium-name"><RankedUsername username={entry.username} />{entry.winStreak > 1 && <StreakFlame streak={entry.winStreak} size={20} className="ml-1" />}</span>
                     <span className="rk-podium-rp" style={{ color: rankTierFor(entry.rankPoints).color }}>{entry.rankPoints} RP</span>
                     <span className="rk-podium-block">{place}</span>
                   </button>
@@ -713,7 +716,7 @@ export default function RankedLobby({
                       <CharacterPortrait characterId={entry.characterId} size={30} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-base text-white">
-                          <RankedUsername username={entry.username} /> {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
+                          <RankedUsername username={entry.username} /> {entry.winStreak > 1 && <StreakFlame streak={entry.winStreak} size={20} />} {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
                         </p>
                         <p className="truncate text-xs text-slate-400">
                           {entry.rankName} · {entry.wins}W-{entry.losses}L

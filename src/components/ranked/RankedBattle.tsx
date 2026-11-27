@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import { Flag, Swords, Volume2, VolumeX } from "lucide-react";
 import CharacterPortrait from "../CharacterPortrait";
 import RankedUsername from "./RankedUsername";
+import StreakFlame from "./StreakFlame";
 import PixelChest from "../PixelChest";
 import { RANKED_ACHIEVEMENTS, RANKED_BERRY_ACHIEVEMENTS } from "@/lib/ranked-achievements";
 import BerryMark from "../BerryMark";
@@ -53,7 +54,7 @@ function HudSide({ player, side, breakingKey }: { player: RankedPlayerCard; side
       </div>
       <div className="rk-hud-meta">
         <span style={{ color: tier.color }}>{tier.name} · {player.rankPoints} RP</span>
-        {player.winStreak > 1 && <span className="text-amber-300">🔥{player.winStreak}</span>}
+        {player.winStreak > 1 && <StreakFlame streak={player.winStreak} size={26} />}
       </div>
     </div>
   );
@@ -528,7 +529,7 @@ export default function RankedBattle({
                   <div className="mt-2 flex flex-wrap justify-center gap-3 text-sm text-slate-400">
                     <span>Base: {result.you.baseDelta >= 0 ? `+${result.you.baseDelta}` : result.you.baseDelta}</span>
                     {result.you.streakBonus > 0 && (
-                      <span className="text-amber-300">🔥 {result.you.newStreak}-Win Streak: +{result.you.streakBonus}</span>
+                      <span className="inline-flex items-center gap-1 text-amber-300"><StreakFlame streak={result.you.newStreak} size={22} /> {result.you.newStreak}-Win Streak: +{result.you.streakBonus}</span>
                     )}
                     {result.you.newPoints === 0 && result.you.oldPoints === 0 && result.outcome === "loss" && (
                       <span className="text-cyan-200">Bronze 0 RP floor protected</span>
