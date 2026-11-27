@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Ranked from "@/components/ranked/Ranked";
+import RankedComingSoon from "@/components/ranked/RankedComingSoon";
+import { UPDATE_LIVE } from "@/lib/release";
 import "./ranked.css";
 
 export const metadata: Metadata = {
@@ -8,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function RankedPage() {
-  return <Ranked />;
+  return UPDATE_LIVE ? <Ranked /> : <RankedComingSoon />;
 }

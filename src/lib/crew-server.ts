@@ -6,12 +6,14 @@ import { isChestCharacterId } from "@/data/chest-characters";
 import { ACHIEVEMENTS } from "./achievements";
 import { evaluateAchievementsFor } from "./achievements-server";
 import { RequestProblem } from "./account-server";
+import { UPDATE_LIVE } from "./release";
 
 export async function equippedCharacterFor(accountId: string): Promise<CharacterId> {
   const [account] = await db.select({ equipped: accounts.equippedCharacter, usernameKey: accounts.usernameKey }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
   const chosen = characterById(account?.equipped);
   if (chosen.id === "gear-6") return account?.usernameKey === "luffy" ? chosen.id : DEFAULT_CHARACTER;
   if (isChestCharacter(chosen)) {
+    if (!UPDATE_LIVE) return DEFAULT_CHARACTER;
     const [chestUnlock] = await db.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
       .where(and(eq(characterUnlocks.accountId, accountId), eq(characterUnlocks.characterId, chosen.id))).limit(1);
     return chestUnlock ? chosen.id : DEFAULT_CHARACTER;
@@ -24,6 +26,7 @@ export async function equippedCharacterFor(accountId: string): Promise<Character
 }
 
 export async function chestUnlockedCharactersFor(accountId: string): Promise<CharacterId[]> {
+  if (!UPDATE_LIVE) return [];
   const rows = await db.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
     .where(eq(characterUnlocks.accountId, accountId));
   return rows.map((row) => row.id).filter(isChestCharacterId);
@@ -31,6 +34,7 @@ export async function chestUnlockedCharactersFor(accountId: string): Promise<Cha
 
 export async function equipCharacter(accountId: string, id: unknown) {
   if (!isCharacterId(id)) throw new RequestProblem(400, "Choose a character from the crew collection.");
+  if (!UPDATE_LIVE && isChestCharacter(characterById(id))) throw new RequestProblem(400, "Choose a character from the crew collection.");
   return db.transaction(async tx => {
     const [account] = await tx.select({ id: accounts.id, usernameKey: accounts.usernameKey }).from(accounts).where(eq(accounts.id, accountId)).for("update");
     if (!account) throw new RequestProblem(401, "Sign in again to choose your character.");

@@ -5,14 +5,20 @@ import { Archive, ScrollText, X, Trophy, PackageOpen } from "lucide-react";
 import PixelEmblem from "./pixel-emblems";
 import type { Captain } from "@/lib/voyage";
 import { playClick } from "@/lib/sound";
+import { UPDATE_LIVE } from "@/lib/release";
 
 export type MenuTab = "log" | "achievements" | "archive" | "bounties" | "treasure-chests";
-/** Sections reached through the hamburger. */
-const options = [
+/** Sections reached through the hamburger. Until the update is live, Achievements stays in here. */
+const options: readonly { id: MenuTab; title: string }[] = UPDATE_LIVE ? [
   { id: "log", title: "Run Log" },
   { id: "archive", title: "Archive" },
   { id: "bounties", title: "Bounties" },
-] as const;
+] : [
+  { id: "log", title: "Run Log" },
+  { id: "achievements", title: "Achievements" },
+  { id: "archive", title: "Archive" },
+  { id: "bounties", title: "Bounties" },
+];
 /** Sections with their own square button under the hamburger; they open as standalone panels. */
 export const STANDALONE_PANELS = {
   "treasure-chests": "Treasure Shop",
@@ -20,7 +26,7 @@ export const STANDALONE_PANELS = {
 } as const satisfies Partial<Record<MenuTab, string>>;
 export type StandaloneTab = keyof typeof STANDALONE_PANELS;
 export function isStandaloneTab(tab: MenuTab | null): tab is StandaloneTab {
-  return tab === "treasure-chests" || tab === "achievements";
+  return UPDATE_LIVE && (tab === "treasure-chests" || tab === "achievements");
 }
 
 export default function MenuPanel({ tab, captain, onSwitch, onClose, children }: {
@@ -54,7 +60,7 @@ export default function MenuPanel({ tab, captain, onSwitch, onClose, children }:
   }
   if (isStandaloneTab(tab)) {
     const title = STANDALONE_PANELS[tab];
-    return <div ref={ref} id={`panel-${tab}`} role="dialog" aria-label={title} className="voyage-menu px-box px-scan">
+    return <div ref={ref} id={`panel-${tab}`} role="dialog" aria-label={title} className={`voyage-menu px-box px-scan ${UPDATE_LIVE ? "beside-rail" : ""}`}>
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/10 pl-3">
         {tab === "achievements" ? <PixelEmblem kind="seal" size={20} /> : <PackageOpen size={18} className="text-amber-200" aria-hidden="true"/>}
         <h2 className="min-w-0 flex-1 truncate font-pixel-display text-base text-amber-100">{title}</h2>
@@ -64,14 +70,14 @@ export default function MenuPanel({ tab, captain, onSwitch, onClose, children }:
       <div className="shrink-0 border-t border-white/10 px-4 py-1.5 text-sm text-slate-400">{captain ? `Captain ${captain.username} · saved across devices` : "Guest voyage · saved on this device"}</div>
     </div>;
   }
-  return <div ref={ref} id="game-menu" role="dialog" aria-label="Game menu" className="voyage-menu px-box px-scan">
+  return <div ref={ref} id="game-menu" role="dialog" aria-label="Game menu" className={`voyage-menu px-box px-scan ${UPDATE_LIVE ? "beside-rail" : ""}`}>
     <div className="flex shrink-0 items-stretch border-b border-white/10">
-      <div role="tablist" aria-label="Game menu sections" className="grid min-w-0 flex-1 grid-cols-3">
+      <div role="tablist" aria-label="Game menu sections" className={`grid min-w-0 flex-1 ${UPDATE_LIVE ? "grid-cols-3" : "grid-cols-4"}`}>
         {options.map((item, index) => <button key={item.id} type="button" id={`menu-tab-${item.id}`} role="tab"
           aria-selected={tab === item.id} aria-controls={`menu-panel-${item.id}`} onKeyDown={e => navigate(e, index)}
           onClick={() => { playClick(); onSwitch(item.id); }}
-          className={`flex h-14 flex-col items-center justify-center gap-0.5 border-b-2 text-xs leading-none transition-colors sm:text-sm ${tab === item.id ? "border-amber-300 bg-[#21314a] text-amber-200" : "border-transparent text-slate-300 hover:bg-white/5 hover:text-white"}`}>
-          {item.id === "archive" ? <Archive size={16} aria-hidden="true"/> : item.id === "bounties" ? <Trophy size={16} aria-hidden="true"/> : <ScrollText size={16} aria-hidden="true"/>}
+          className={`flex h-14 flex-col items-center justify-center gap-0.5 border-b-2 ${UPDATE_LIVE ? "text-xs leading-none sm:text-sm" : "text-base"} transition-colors ${tab === item.id ? "border-amber-300 bg-[#21314a] text-amber-200" : "border-transparent text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+          {item.id === "achievements" ? <PixelEmblem kind="seal" size={18} /> : item.id === "archive" ? <Archive size={16} aria-hidden="true"/> : item.id === "bounties" ? <Trophy size={16} aria-hidden="true"/> : <ScrollText size={16} aria-hidden="true"/>}
           {item.title}
         </button>)}
       </div>

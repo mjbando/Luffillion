@@ -260,16 +260,22 @@
 /* Three-way hamburger menu and the captain's achievement collection. */
 .voyage-menu {
   position: fixed;
-  /* Opens beside the left rail (hamburger, Shop, Achievements) so the rail stays visible. */
-  left: calc(.75rem + 40px + .5rem);
-  top: 104px;
+  left: .75rem;
+  top: 150px;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  width: min(28rem, calc(100vw - 1.5rem - 48px));
-  max-height: min(720px, calc(100dvh - 128px));
+  width: min(28rem, calc(100vw - 1.5rem));
+  max-height: min(680px, calc(100dvh - 174px));
   background-color: #0b1628;
   filter: drop-shadow(0 12px 24px #0007);
+}
+/* After the treasure update: opens beside the left rail (hamburger, Shop, Achievements) so the rail stays visible. */
+.voyage-menu.beside-rail {
+  left: calc(.75rem + 40px + .5rem);
+  top: 104px;
+  width: min(28rem, calc(100vw - 1.5rem - 48px));
+  max-height: min(720px, calc(100dvh - 128px));
 }
 .voyage-menu :is(button, summary):focus-visible { outline: 2px solid #67e8f9; outline-offset: -3px; }
 .achievement-card { border: 1px solid #29384f; background: #101d30; }

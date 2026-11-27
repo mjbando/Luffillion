@@ -86,3 +86,29 @@
   .rk-fighter.is-right .flex-wrap, .rk-fighter.is-right .mt-2 { justify-content: flex-start; }
   .rk-arena { padding: 16px; }
 }
+
+/* ---------- Coming soon (shown until the ranked update launches) ---------- */
+.rk-soon { display: flex; flex-direction: column; }
+.rk-soon-card {
+  margin: auto; width: min(560px, calc(100% - 32px)); padding: 32px 28px 26px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+}
+.rk-soon-swords { image-rendering: pixelated; margin-bottom: 10px; animation: rk-soon-bob 2.4s steps(4) infinite; }
+.rk-soon-title {
+  font-family: "Pixelify Sans", monospace; font-weight: 700; font-size: clamp(34px, 7vw, 54px);
+  letter-spacing: 4px; color: #ffd36b; text-shadow: 3px 3px 0 #7a2140, 6px 6px 0 #0006; margin: 2px 0 6px;
+}
+.rk-soon-copy { max-width: 440px; color: #b2c5d6; font-size: 20px; }
+.rk-soon-dots { display: flex; gap: 8px; margin: 14px 0 18px; }
+.rk-soon-dots span { width: 10px; height: 10px; background: #ff7a99; animation: rk-soon-blink 1.2s steps(1) infinite; }
+.rk-soon-dots span:nth-child(2) { animation-delay: .4s; }
+.rk-soon-dots span:nth-child(3) { animation-delay: .8s; }
+.rk-soon-cta {
+  display: inline-block; padding: 10px 22px; background: #fbbf24; color: #451a03; text-decoration: none;
+  font-family: "Pixelify Sans", monospace; font-size: 20px; font-weight: 700; letter-spacing: 2px;
+}
+.rk-soon-cta:hover { background: #fcd34d; }
+.rk-soon-alt { margin-top: 12px; }
+@keyframes rk-soon-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes rk-soon-blink { 0%, 100% { opacity: .25; } 33% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rk-soon-swords, .rk-soon-dots span { animation: none; } }

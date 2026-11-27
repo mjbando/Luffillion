@@ -22,6 +22,7 @@ import MenuPanel, { isStandaloneTab, type MenuTab } from "./MenuPanel";
 import PixelChest from "./PixelChest";
 import PixelEmblem from "./pixel-emblems";
 import PixelSpeaker from "./PixelSpeaker";
+import { UPDATE_LIVE } from "@/lib/release";
 import AchievementsPanel from "./AchievementsPanel";
 import ArchivePanel from "./ArchivePanel";
 import AchievementToast from "./AchievementToast";
@@ -740,10 +741,11 @@ export default function Game() {
         aria-label={hamburgerOpen ? "Close game menu" : "Open game menu"}
         aria-expanded={hamburgerOpen}
         aria-controls="game-menu"
-        className="px-btn fixed left-3 top-[104px] z-[60] grid h-10 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-slate-200 hover:bg-[#24335a]"
+        className={`px-btn fixed left-3 top-[104px] z-[60] grid ${UPDATE_LIVE ? "h-10" : "h-9"} w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-slate-200 hover:bg-[#24335a]`}
       >
         {hamburgerOpen ? <CloseIcon size={17} aria-hidden="true" /> : <MenuIcon size={17} aria-hidden="true" />}
       </button>
+      {UPDATE_LIVE && <>
       <button
         type="button"
         onClick={() => { playClick(); setMenuTab((t) => (t === "treasure-chests" ? null : "treasure-chests")); }}
@@ -774,14 +776,23 @@ export default function Game() {
         <PixelEmblem kind="seal" size={24} />
         <span>CREW</span>
       </button>
+      </>}
 
-      <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
-        title={muted ? "Unmute sound effects" : "Mute sound effects"}
-        aria-pressed={muted} data-rail="sound"
-        className={`rail-square px-btn fixed right-3 top-[104px] z-30 ${muted ? "is-muted" : ""}`}>
-        <PixelSpeaker muted={muted} size={24} />
-        <span>{muted ? "MUTED" : "SOUND"}</span>
-      </button>
+      {UPDATE_LIVE ? (
+        <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
+          title={muted ? "Unmute sound effects" : "Mute sound effects"}
+          aria-pressed={muted} data-rail="sound"
+          className={`rail-square px-btn fixed right-3 top-[104px] z-30 ${muted ? "is-muted" : ""}`}>
+          <PixelSpeaker muted={muted} size={24} />
+          <span>{muted ? "MUTED" : "SOUND"}</span>
+        </button>
+      ) : (
+        <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
+          title={muted ? "Unmute sound effects" : "Mute sound effects"}
+          className="px-btn fixed right-3 top-[104px] z-30 grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-lg text-slate-200 hover:bg-[#24335a]">
+          {muted ? "🔇" : "🔊"}
+        </button>
+      )}
 
       {menuTab && (
         <MenuPanel
@@ -830,7 +841,7 @@ export default function Game() {
           {menuTab === "achievements" && daily.captain && <AchievementsPanel key={daily.captain.id} captain={daily.captain} refreshKey={`${daily.day}:${achievementRevision}`} onUnlock={queueUnlocks} equippedCharacter={equippedCharacter} onEquip={handleEquip} />}
           {menuTab === "archive" && <ArchivePanel captain={daily.captain} refreshKey={`${daily.day}:${stats?.you?.score ?? "pending"}`} />}
           {menuTab === "bounties" && <BountiesPanel captain={daily.captain} onSignIn={() => openAccountForMenu("bounties")} />}
-          {menuTab === "treasure-chests" && <TreasureShop key={daily.captain?.id ?? "guest"} captain={daily.captain} onSignIn={() => openAccountForMenu("treasure-chests")} />}
+          {UPDATE_LIVE && menuTab === "treasure-chests" && <TreasureShop key={daily.captain?.id ?? "guest"} captain={daily.captain} onSignIn={() => openAccountForMenu("treasure-chests")} />}
         </MenuPanel>
       )}
 
@@ -847,7 +858,7 @@ export default function Game() {
       {daily.captain && unlockedToast.length > 0 && <AchievementToast unlocked={unlockedToast} onDone={dismissUnlock} />}
 
       {/* ---------- Center prompt card ---------- */}
-      <div className="pointer-events-none fixed inset-x-0 top-[112px] z-10 flex justify-center pl-[60px] pr-3 sm:top-[120px] md:px-3">
+      <div className={`pointer-events-none fixed inset-x-0 top-[112px] z-10 flex justify-center ${UPDATE_LIVE ? "pl-[60px] pr-3 md:px-3" : "px-3"} sm:top-[120px]`}>
         <div
           className={`px-box px-scan pointer-events-auto max-h-[calc(100vh-260px)] w-full max-w-xl overflow-y-auto px-6 py-5 ${
             nopeOn ? "nope" : ""
@@ -894,7 +905,7 @@ export default function Game() {
                     <span className="daily-adventure-mark">↗</span><span><strong>ADVENTURE MODE</strong><small>100 levels · 10 sagas · unlimited retries</small></span><span aria-hidden="true">▸</span>
                   </Link>
                   <Link href="/ranked" onClick={playClick} className="daily-adventure-entry daily-ranked-entry !mt-0">
-                    <span className="daily-adventure-mark">⚔</span><span><strong>ONLINE RANKED</strong><small>10s 1v1 duels | Bronze to Legend</small></span><span aria-hidden="true">▸</span>
+                    <span className="daily-adventure-mark">⚔</span><span><strong>ONLINE RANKED</strong><small>{UPDATE_LIVE ? "10s 1v1 duels | Bronze to Legend" : "Coming soon"}</small></span><span aria-hidden="true">▸</span>
                   </Link>
                 </div>
               )}
@@ -1358,7 +1369,7 @@ function CountdownScreen({
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Link href="/adventure" onClick={playClick} className="daily-adventure-entry !mt-0"><span className="daily-adventure-mark">↗</span><span><strong>KEEP SAILING IN ADVENTURE</strong><small>A separate 100-level journey awaits</small></span><span aria-hidden="true">▸</span></Link>
-          <Link href="/ranked" onClick={playClick} className="daily-adventure-entry daily-ranked-entry !mt-0"><span className="daily-adventure-mark">⚔</span><span><strong>ONLINE RANKED</strong><small>10s 1v1 duels | Bronze to Legend</small></span><span aria-hidden="true">▸</span></Link>
+          <Link href="/ranked" onClick={playClick} className="daily-adventure-entry daily-ranked-entry !mt-0"><span className="daily-adventure-mark">⚔</span><span><strong>ONLINE RANKED</strong><small>{UPDATE_LIVE ? "10s 1v1 duels | Bronze to Legend" : "Coming soon"}</small></span><span aria-hidden="true">▸</span></Link>
         </div>
         {saveMessage && <p role="status" className="mt-3 text-sm text-slate-300">{saveMessage}</p>}
         <button type="button" aria-haspopup="dialog" onClick={onAccount} className="mt-2 inline-flex items-center justify-center gap-2 py-1.5 text-base text-cyan-200 underline-offset-4 hover:underline">

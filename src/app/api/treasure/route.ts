@@ -8,10 +8,12 @@ import { accounts, achievementUnlocks, characterUnlocks, treasureChestOpenings }
 import { currentCaptain, failure, privateJson, readMutation, RequestProblem } from "@/lib/account-server";
 import { CHARACTER_POOLS, CHEST_PRICES, TREASURE_CHESTS, rollRarity, type ChestRarity } from "@/lib/treasure";
 
+import { UPDATE_LIVE } from "@/lib/release";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    if (!UPDATE_LIVE) throw new RequestProblem(404, "Coming soon.");
     const captain = await currentCaptain(req);
     if (!captain) throw new RequestProblem(401, "Sign in to open treasure chests.");
 
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!UPDATE_LIVE) throw new RequestProblem(404, "Coming soon.");
     const captain = await currentCaptain(req);
     if (!captain) throw new RequestProblem(401, "Sign in to open treasure chests.");
     const body = await readMutation(req, 2048);

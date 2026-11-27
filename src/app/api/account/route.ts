@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { accounts } from "@/db/schema";
@@ -59,8 +59,14 @@ export async function POST(req: NextRequest) {
       ? readCheckpoint(body.progress) : null;
     let captain: Captain;
     if (body.action === "register") {
-      const [created] = await db.insert(accounts).values({ username, usernameKey: key, passwordHash: await hashPassword(password) })
-        .onConflictDoNothing({ target: accounts.usernameKey }).returning({ id: accounts.id, username: accounts.username });
+      // Name the columns explicitly: Drizzle's insert lists every schema column (including the
+      // unreleased coins column), which fails on databases that have not run the treasure migration.
+      const inserted = await db.execute<{ id: string; username: string }>(sql`
+        insert into ${accounts} (${sql.identifier("username")}, ${sql.identifier("username_key")}, ${sql.identifier("password_hash")})
+        values (${username}, ${key}, ${await hashPassword(password)})
+        on conflict (${sql.identifier("username_key")}) do nothing
+        returning ${sql.identifier("id")}, ${sql.identifier("username")}`);
+      const created = inserted.rows[0];
       if (!created) throw new RequestProblem(409, "That username is taken. Choose another, or sign in.");
       captain = created;
     } else {

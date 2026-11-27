@@ -2,10 +2,12 @@ import { NextRequest } from "next/server";
 import { currentCaptain, ensureGuest, failure, privateJson, readMutation, RequestProblem } from "@/lib/account-server";
 import { rankedAction, readRankedLobby } from "@/lib/ranked-server";
 
+import { UPDATE_LIVE } from "@/lib/release";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    if (!UPDATE_LIVE) throw new RequestProblem(404, "Coming soon.");
     const captain = await currentCaptain(req);
     const q = req.nextUrl.searchParams.get("q") ?? "";
     const matchId = req.nextUrl.searchParams.get("match");
@@ -20,6 +22,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!UPDATE_LIVE) throw new RequestProblem(404, "Coming soon.");
     const captain = await currentCaptain(req);
     if (!captain) throw new RequestProblem(401, "Sign in to battle in Online Ranked mode.");
     const body = await readMutation(req, 4096);

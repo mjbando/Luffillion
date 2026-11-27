@@ -10,6 +10,7 @@ import { TREASURE_RARITY_COLORS } from "@/lib/treasure";
 import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
+import { UPDATE_LIVE } from "@/lib/release";
 
 const dateLabel = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 type Collection = AchievementReport & { equippedCharacter: CharacterId; chestUnlockedCharacterIds: string[] };
@@ -81,9 +82,9 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
   const achievementCharacterIds = report?.achievements.filter(a => a.unlocked).map(a => a.rewardCharacter) ?? [];
   const ownedCharacterIds = new Set(["luffy", ...achievementCharacterIds, ...(creatorAccount ? ["gear-6"] : [])]);
   const achievementRecruits = crewCharacters.filter(character => ownedCharacterIds.has(character.id)).length;
-  const chestRecruits = CHEST_CHARACTERS.filter(character => chestUnlockedIds.has(character.id)).length;
+  const chestRecruits = UPDATE_LIVE ? CHEST_CHARACTERS.filter(character => chestUnlockedIds.has(character.id)).length : 0;
   const recruitCount = achievementRecruits + chestRecruits;
-  const totalCharacters = crewCharacters.length + CHEST_CHARACTERS.length;
+  const totalCharacters = crewCharacters.length + (UPDATE_LIVE ? CHEST_CHARACTERS.length : 0);
   const tiers = [...CHEST_RARITIES].reverse().filter(tier => chestTier === "all" || chestTier === tier);
   return <section ref={section} className="p-4" aria-labelledby="achievement-title">
     <header className="flex items-center gap-3">
@@ -107,7 +108,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
     {!report && !error && <p role="status" className="py-6 text-center text-cyan-200">Reading your achievements and crew…</p>}
 
     {view === "crew" ? <>
-      <h3 className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Achievement Recruits <small className="text-sm text-slate-400">{achievementRecruits}/{crewCharacters.length}</small></h3>
+      {UPDATE_LIVE && <h3 className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Achievement Recruits <small className="text-sm text-slate-400">{achievementRecruits}/{crewCharacters.length}</small></h3>}
       <p className="mb-3 text-base leading-tight text-slate-400">One unique recruit per achievement. The toughest challenges unlock Emperors, the Pirate King, and Gear 5.</p>
       <div className="grid grid-cols-2 gap-2" aria-label="Unlockable characters">
         {crewCharacters.map(character => {
@@ -136,7 +137,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
         })}
       </div>
 
-      <section className="mt-6 border-t border-white/10 pt-4" aria-labelledby="chest-recruits-title">
+      {UPDATE_LIVE && <section className="mt-6 border-t border-white/10 pt-4" aria-labelledby="chest-recruits-title">
         <h3 id="chest-recruits-title" className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Treasure Recruits <small className="text-sm text-slate-400">{chestRecruits}/{CHEST_CHARACTERS.length}</small></h3>
         <p className="mb-3 text-base leading-tight text-slate-400">A separate crew found only in Treasure Chests. Achievement recruits never drop from chests.</p>
         <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Filter treasure recruits by rarity">
@@ -175,7 +176,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
             </div>
           </div>;
         })}
-      </section>
+      </section>}
     </> : <>
       <div className="mb-3 flex gap-1.5" aria-label="Filter achievements">
         {([['all', 'All'], ['earned', 'Earned'], ['locked', 'Locked']] as const).map(([id, label]) => <button key={id} type="button" aria-pressed={filter === id}
