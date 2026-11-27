@@ -1,11 +1,12 @@
 import { PLAYABLE_CHARACTERS, type AchievementCharacterId, type CharacterId } from "@/data/playable-characters";
-import { isChestCharacterId } from "@/data/chest-characters";
+import { chestCharacterById, isChestCharacterId } from "@/data/chest-characters";
 import { LUFFY_PAL, luffyFrame } from "./art";
 
 export type { RunnerSprite } from "./kit";
 import type { RunnerSprite } from "./kit";
 import { Pixels, feet, human, ink, skin, skinShade, cream, white, silver, gold, type Pose } from "./kit";
 import { chestSprite } from "./generated";
+import { mythicHdSprite } from "./mythic-hd";
 
 function katana(p: Pixels, x: number, y: number, grip: string, long = 12) {
   p.r(x, y, 2, long, ink).r(x, y + 1, 1, long - 5, silver).r(x - 2, y + long - 4, 5, 1, gold).r(x, y + long - 3, 2, 4, grip);
@@ -197,4 +198,11 @@ export function runnerSprite(characterId: CharacterId, running = false, time = 0
   if (characterId === "luffy") return { width: 16, height: 16, rows: luffyFrame(running, time), palette: LUFFY_PAL, goldHat: { x: 0, y: 0 } };
   const sprites = cached[characterId];
   return running ? Math.floor(time / 110) % 2 === 0 ? sprites.left : sprites.right : sprites.idle;
+}
+
+/** Sprite for SVG portraits: mythic chest recruits use their high-detail (2×) art. */
+export function portraitSprite(characterId: CharacterId, running = false, time = 0): RunnerSprite {
+  if (isChestCharacterId(characterId) && chestCharacterById(characterId)?.rarity === "mythic")
+    return mythicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
+  return runnerSprite(characterId, running, time);
 }

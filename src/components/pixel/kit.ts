@@ -4,6 +4,8 @@ export interface RunnerSprite {
   rows: string[];
   palette: Record<string, string>;
   goldHat: { x: number; y: number };
+  /** Sprite pixels per world pixel (2 = high-detail art). Defaults to 1. */
+  scale?: number;
 }
 
 export type Pose = -1 | 0 | 1;
@@ -69,6 +71,12 @@ export class Pixels {
   finish(hatX = 2, hatY = 1): RunnerSprite {
     return { width: this.width, height: this.height, rows: this.cells.map(row => row.join("")), palette: this.palette, goldHat: { x: hatX, y: hatY } };
   }
+}
+
+export function shade(hex: string, amount: number) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v: number) => Math.max(0, Math.min(255, Math.round(amount < 0 ? v * (1 + amount) : v + (255 - v) * amount)));
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => f(v).toString(16).padStart(2, "0")).join("")}`;
 }
 
 export const ink = "#182035", skin = "#f4c69c", skinShade = "#cb8e69", cream = "#fff4dc", white = "#f7f8fb", silver = "#bfcddd", gold = "#edc05e";

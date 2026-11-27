@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 
 import { ArrowLeft, Flag, Swords, Volume2, VolumeX } from "lucide-react";
 import IslandArt from "./IslandArt";
 import PixelEmblem from "../pixel-emblems";
-import { runnerSprite } from "../pixel/runners";
+import { portraitSprite } from "../pixel/runners";
 import { ADVENTURE_LEVELS, ADVENTURE_MAX, ADVENTURE_POINTS, ADVENTURE_QUESTIONS, ADVENTURE_SECONDS, ADVENTURE_SAGAS, ADVENTURE_TITLES } from "@/data/adventure/levels";
 import type { AdventureAction, AdventureResponse } from "@/lib/adventure-types";
 import { characterById, type CharacterId } from "@/data/playable-characters";
@@ -13,8 +13,9 @@ import { playAchievement, playClick, playNext, playPull, playSetSail, playTick, 
 function Runner({characterId,moving}:{characterId:CharacterId;moving:boolean}){
   const [time,setTime]=useState(0);
   useEffect(()=>{if(!moving)return;const id=setInterval(()=>setTime(t=>t+110),110);return()=>clearInterval(id);},[moving]);
-  const sprite=runnerSprite(characterId,moving,time);
-  return <svg viewBox="0 0 32 32" width="100" height="100" shapeRendering="crispEdges" aria-hidden="true">{sprite.rows.flatMap((row,y)=>[...row].map((p,x)=>sprite.palette[p]?<rect key={`${x}:${y}`} x={Math.floor((32-sprite.width)/2)+x} y={31-sprite.height+y} width={1} height={1} fill={sprite.palette[p]}/>:null))}</svg>;
+  const sprite=portraitSprite(characterId,moving,time);
+  const k=sprite.scale??1,box=32*k;
+  return <svg viewBox={`0 0 ${box} ${box}`} width="100" height="100" shapeRendering="crispEdges" aria-hidden="true" overflow="visible">{sprite.rows.flatMap((row,y)=>[...row].map((p,x)=>sprite.palette[p]?<rect key={`${x}:${y}`} x={Math.floor((box-sprite.width)/2)+x} y={box-k-sprite.height+y} width={1} height={1} fill={sprite.palette[p]}/>:null))}</svg>;
 }
 
 export default function AdventureLevel({data,busy,error,muted,onMute,onMap,onAction,onSelect}:{

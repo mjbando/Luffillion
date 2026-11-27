@@ -1,9 +1,24 @@
 "use client";
 
 import { memo } from "react";
-import { runnerSprite } from "./pixel/runners";
+import { portraitSprite } from "./pixel/runners";
 import { chestCharacterById } from "@/data/chest-characters";
 import type { CharacterId } from "@/data/playable-characters";
+
+/** Merges horizontal runs of one colour into a single rect (high-detail art has thousands of pixels). */
+function runs(rows: string[], palette: Record<string, string>) {
+  const out: [number, number, number, string][] = [];
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length;) {
+      const fill = palette[row[x]];
+      let end = x + 1;
+      while (end < row.length && row[end] === row[x]) end++;
+      if (fill) out.push([x, y, end - x, fill]);
+      x = end;
+    }
+  });
+  return out;
+}
 
 function CharacterPortrait({ characterId, size = 64, dim = false, className = "" }: {
   characterId: CharacterId;
@@ -11,16 +26,18 @@ function CharacterPortrait({ characterId, size = 64, dim = false, className = ""
   dim?: boolean;
   className?: string;
 }) {
-  const sprite = runnerSprite(characterId);
+  const sprite = portraitSprite(characterId);
   // Aura sprites (legendary/mythic) can be larger than 32px, so the view box grows to fit.
-  const box = Math.max(32, sprite.width, sprite.height + 1);
-  const left = Math.floor((box - sprite.width) / 2), top = box - 1 - sprite.height;
+  // High-detail art (scale 2) packs two pixels per world pixel into the same frame.
+  const k = sprite.scale ?? 1;
+  const box = Math.max(32 * k, sprite.width, sprite.height + k);
+  const left = Math.floor((box - sprite.width) / 2), top = box - k - sprite.height;
   const tier = chestCharacterById(characterId)?.rarity;
   return <svg viewBox={`0 0 ${box} ${box}`} width={size} height={size} shapeRendering="crispEdges" aria-hidden="true"
     className={`${className}${tier ? ` portrait-${tier}` : ""}`} data-portrait={characterId} data-tier={tier}>
     <g opacity={dim ? 0.5 : 1}>
-      {sprite.rows.flatMap((row, y) => [...row].map((pixel, x) => sprite.palette[pixel]
-        ? <rect key={`${x}:${y}`} x={left + x} y={top + y} width={1} height={1} fill={sprite.palette[pixel]} /> : null))}
+      {runs(sprite.rows, sprite.palette).map(([x, y, w, fill]) =>
+        <rect key={`${x}:${y}`} x={left + x} y={top + y} width={w} height={1} fill={fill} />)}
     </g>
   </svg>;
 }

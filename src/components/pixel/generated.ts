@@ -1,13 +1,13 @@
 import { chestCharacterById, type ChestCharacterId, type ChestCharacterRarity } from "@/data/chest-characters";
 import { CHEST_LOOKS, type Look } from "./chest-looks";
-import { Pixels, feet, ink, silver, skin as defaultSkin, white, gold, type Pose, type RunnerSprite } from "./kit";
+import { Pixels, feet, ink, silver, skin as defaultSkin, white, gold, shade, type Pose, type RunnerSprite } from "./kit";
 
 // Procedural sprites for the chest-only roster. Every character has a hand-written
 // look (build, hair, outfit, hat, weapon and extras); rarity layers on effects:
 // legendary recruits glow, and mythic recruits get a shimmering double aura,
 // glowing eyes and a floating crown spark so they outshine everything else.
 
-const HEAD = 6; // headroom for hats, horns and ears, trimmed afterwards
+export const HEAD = 6; // headroom for hats, horns and ears, trimmed afterwards
 
 interface Geometry { W: number; H: number; hx: number; hy: number; hw: number; hh: number; tx: number; ty: number; tw: number; th: number; legX: number; legY: number; legH: number; gap: number; aw: number }
 const BUILDS: Record<NonNullable<Look["b"]>, Geometry> = {
@@ -17,13 +17,8 @@ const BUILDS: Record<NonNullable<Look["b"]>, Geometry> = {
   giant: { W: 24, H: 27, hx: 7, hy: 2, hw: 10, hh: 8, tx: 4, ty: 10, tw: 16, th: 11, legX: 7, legY: 20, legH: 6, gap: 6, aw: 4 },
 };
 
-function shade(hex: string, amount: number) {
-  const n = parseInt(hex.slice(1), 16);
-  const f = (v: number) => Math.max(0, Math.min(255, Math.round(amount < 0 ? v * (1 + amount) : v + (255 - v) * amount)));
-  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => f(v).toString(16).padStart(2, "0")).join("")}`;
-}
 
-interface Frame {
+export interface Frame {
   p: Pixels; g: Geometry; cx: number; hx: number; hy: number; hw: number; hh: number; tx: number; ty: number; tw: number; th: number;
   lx: number; rx: number; lhy: number; rhy: number; sk: string; bottom: number;
 }
@@ -227,16 +222,17 @@ function drawSpecial(look: Look, pose: Pose): Frame | null {
 }
 
 /** Removes empty headroom so every sprite stands on the same baseline. */
-function trimTop(p: Pixels) {
+export function trimTop(p: Pixels) {
   let top = 0;
   while (top < p.height - 1 && p.cells[top].every(cell => cell === ".")) top++;
   if (top) { p.cells = p.cells.slice(top); p.height -= top; }
   return top;
 }
 
-const MYTHIC_SHIMMER = ["#ffe066", "#ffffff", "#ff8de0"];
+export const MYTHIC_SHIMMER = ["#ffe066", "#ffffff", "#ff8de0"];
 
-function drawChest(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {
+/** Draws the body, hair, extras, hat, weapon and coat — everything except rarity effects. */
+export function buildFigure(id: ChestCharacterId, pose: Pose) {
   const look = CHEST_LOOKS[id];
   const character = chestCharacterById(id)!;
   const rarity: ChestCharacterRarity = character.rarity;
@@ -254,6 +250,11 @@ function drawChest(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprit
       p.under(tx - 2, ty, 3, g.legY + HEAD - ty + 3, look.coat).under(tx + tw - 1, ty, 3, g.legY + HEAD - ty + 3, look.coat);
     }
   }
+  return { f, look, rarity, accent };
+}
+
+function drawChest(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {
+  const { f, look, rarity, accent } = buildFigure(id, pose);
   const { p } = f;
   const glowEye = rarity === "mythic" ? accent : null;
   if (glowEye && !look.special) {
