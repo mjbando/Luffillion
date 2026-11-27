@@ -239,7 +239,10 @@ export function trimTop(p: Pixels) {
 export const MYTHIC_SHIMMER = ["#ffe066", "#ffffff", "#ff8de0"];
 
 /** Draws the body, hair, extras, hat, weapon and coat — everything except rarity effects. */
-export function buildFigure(id: ChestCharacterId, pose: Pose, slim = false) {
+/** Extras that are floating effects rather than part of the body (left out of aura outlines). */
+const EFFECT_EXTRAS = new Set(["spark", "smoke", "fire", "legfire", "clouds", "room", "drums"]);
+
+export function buildFigure(id: ChestCharacterId, pose: Pose, slim = false, bodyOnly = false) {
   const look = CHEST_LOOKS[id];
   const character = chestCharacterById(id)!;
   const rarity: ChestCharacterRarity = character.rarity;
@@ -247,9 +250,10 @@ export function buildFigure(id: ChestCharacterId, pose: Pose, slim = false) {
   const f = drawSpecial(look, pose) ?? drawBody(look, pose, slim);
   if (!look.special) {
     drawHair(f, look.hs, look.h);
-    for (const extra of look.x ?? []) if (!extra.startsWith("^")) drawExtra(f, extra, accent);
+    const extras = (look.x ?? []).filter((extra) => !bodyOnly || !EFFECT_EXTRAS.has(extra.replace("^", "").split(":")[0]));
+    for (const extra of extras) if (!extra.startsWith("^")) drawExtra(f, extra, accent);
     drawHat(f, look.hat, look.hc ?? look.h);
-    for (const extra of look.x ?? []) if (extra.startsWith("^")) drawExtra(f, extra.slice(1), accent);
+    for (const extra of extras) if (extra.startsWith("^")) drawExtra(f, extra.slice(1), accent);
     drawWeapon(f, look.w, look.wc ?? "#7a4a2a");
     if (look.coat) {
       const { p, tx, ty, tw, g } = f;

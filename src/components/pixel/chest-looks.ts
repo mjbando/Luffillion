@@ -19,6 +19,7 @@ export interface Look {
 
 const TAN = "#d9a274", DARK = "#9a6648", BLUE = "#6fa8dc", PALE = "#f7dcc4", MARINE = "#f3f5f8", NAVY = "#2c4470", BONE = "#efeadb";
 const HAKI = "#2b2140";
+const SILHOUETTE = "#0b0910";
 
 export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   // ---------------- Common ----------------
@@ -199,7 +200,7 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "prime-rayleigh": { h: "#f0e6c0", hs: "long", t: "#f2f2f2", l: "#3a3f52", coat: "#2f6a5a", fx: "#b7ffe9", x: ["glasses:#c8e0e8", "goatee:#f0e6c0", "spark:#b7ffe9"], w: "katana", wc: "#3a3f52" },
   "rocks-d-xebec": { b: "giant", h: "#1e1e28", hs: "wild", t: "#3a1a2a", l: "#1e1e28", coat: "#5a1a2a", hat: "bicorne", hc: "#1e1e28", fx: "#ff4d6d", x: ["beard:#1e1e28", "grin", "fire:#ff4d6d"], w: "greatsword", wc: "#c0c8d4" },
   imu: { sk: "#2a1840", h: "#160c24", hs: "long", t: "#20122f", l: "#160c24", sh: "#160c24", hand: "#2a1840", coat: "#0f0818", hat: "crown", hc: "#c06bff", fx: "#d07bff", x: ["smoke:#5a2a8a", "spider:#3a1a5a"] },
-  "joy-boy": { sk: "#fff6e8", h: "#ffffff", hs: "flame", t: "#ffffff", l: "#f4f4ff", sh: "#ffffff", coat: "#ffe8f0", fx: "#fff3a6", x: ["grin", "clouds:#ffffff", "smoke:#fff8e0"] },
+  "joy-boy": { sk: SILHOUETTE, h: SILHOUETTE, hs: "flame", t: SILHOUETTE, l: SILHOUETTE, sh: SILHOUETTE, hand: SILHOUETTE, fx: "#fff3a6", x: ["grin"] },
   "saint-saturn": { b: "big", sk: "#e8dcf0", h: "#e8e8f0", hs: "bald", t: "#2a2d3a", l: "#2a2d3a", fx: "#c9b8ff", x: ["^bighorns:#4a3a6a", "spider:#5a4a7a", "beard:#e8e8f0"], w: "cane", wc: "#c0a060" },
   "saint-mars": { b: "big", sk: PALE, h: "#2a2d3a", hs: "slick", t: "#2a2d3a", l: "#2a2d3a", fx: "#ff7a5c", x: ["beard:#2a2d3a", "^wings:#ff6a3a", "fire:#ffa05a"], w: "cane", wc: "#c0a060" },
   "saint-warcury": { b: "giant", h: "#f2f2f2", hs: "slick", t: "#2a2d3a", l: "#2a2d3a", fx: "#f2d58a", x: ["beard:#f2f2f2", "^bighorns:#fff4dc", "shades:#3a3f52"], w: "greatsword", wc: "#c0c8d4" },
@@ -210,7 +211,7 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "blackbeard-full": { b: "giant", h: "#1e1e28", hs: "wild", t: "#2a1a40", l: "#1e1e28", coat: "#120a20", hat: "bandana", hc: "#d84040", fx: "#7a5cff", x: ["beard:#1e1e28", "grin", "smoke:#1a0a30", "spark:#c8e8ff"] },
   "kaido-hybrid": { b: "giant", sk: "#9fc0ff", h: "#1e2a50", hs: "wild", t: "#4f8fff", l: "#2a3a6a", sh: "#2a3a6a", fx: "#6aa8ff", x: ["^bighorns:#fff4dc", "tail:#3a6ad0", "spark:#ffe84a"], w: "club", wc: "#495166" },
   "big-mom-full": { b: "giant", h: "#ff7ac8", hs: "wild", t: "#ffd8ec", l: "#e85a8a", hat: "pirate", hc: "#2a2d3a", fx: "#ff7ac8", x: ["grin", "fire:#ff8a3a", "clouds:#e8f0ff", "spark:#ffe84a"], w: "katana", wc: "#ffd040" },
-  "luffy-gear-5-bajrang": { b: "big", sk: "#fff6e8", h: "#ffffff", hs: "flame", t: "#ffffff", l: "#f0f0ff", sl: "#ffffff", fx: "#fff6c9", x: ["grin", "bajrang:#2b2140", "clouds:#ffffff", "smoke:#ffe8a0"] },
+  "luffy-gear-5-bajrang": { h: "#ffffff", hs: "afro", t: "#ffffff", sl: "#ffffff", l: "#ffffff", sh: "#d9a274", fx: "#fff6c9", x: ["sash:#8a4ad0"] },
   "zoro-conqueror": { h: "#30ff8a", hs: "short", t: "#1a2a1e", l: "#1a2a1e", coat: "#123a22", fx: "#30ff8a", x: ["scar:#8a2a2a", "spark:#ff3050", "fire:#30ff8a", "sash:#c03030"], w: "katana3", wc: "#c03030" },
   "roger-prime": { b: "big", h: "#2a2d3a", hs: "short", t: "#f2f2f2", l: "#3a3f52", coat: "#c8282c", hat: "bicorne", hc: "#d83a3a", fx: "#ffcc33", x: ["stache:#2a2d3a", "spark:#ff5050", "grin"], w: "katana", wc: "#ffcc33" },
   "whitebeard-quake": { b: "giant", h: "#f2f2f2", hs: "slick", t: "#f2f2f2", l: "#3a3f52", coat: "#e8f0f8", fx: "#e8f6ff", x: ["crescent:#f2f2f2", "sash:#3a3f52", "spark:#c8f0ff"], w: "bisento", wc: "#5a4a3a" },
