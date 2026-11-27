@@ -25,9 +25,6 @@ const LEGACY_LOOKS: Record<LegacyId, Look> = {
 
 /** Tweaks to the chest looks for the HD version (mostly: the HD painter draws its own weapon or effect). */
 const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
-  "shanks-marineford": { ow: true },
-  mihawk: { ow: true, x: ["goatee:#2a2d3a"] },
-  "rayleigh-sabaody": { x: ["glasses:#c8e0e8", "beard:#e8eef2", "scar:#c08a7a"] },
   "kozuki-oden": { ow: true, x: ["beard:#2a2d3a", "open:#f4c69c"] },
   yamato: { ow: true },
   marco: { x: ["open:#f4c69c"] },
@@ -35,13 +32,11 @@ const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
   king: { ow: true, x: ["mask:#2a2d3a"] },
   jack: { ow: true },
   katakuri: { ow: true },
-  "kaido-onigashima": { ow: true },
   aokiji: { x: [] },
   kizaru: { x: ["shades:#5a4a2a"] },
   akainu: { x: [] },
   fujitora: { ow: true },
   sengoku: { x: ["braid:#2a2d3a", "glasses:#c8d8e8"] },
-  blackbeard: { x: ["beard:#2a2d3a", "grin"] },
   "edward-weevil": { ow: true, x: [] },
   "benn-beckman": { ow: true, x: [] },
   "lucky-roux": { ow: true, x: [] },
@@ -49,21 +44,17 @@ const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
   "rob-lucci-awakened": { ow: true, hs: "short", x: ["^ears:#e8c26a:round", "tail:#e8c26a"] },
   "law-awakened": { ow: true, x: ["goatee:#2a2d3a"] },
   "kid-awakened": { x: [] },
-  "luffy-gear-4": { x: ["body:#d83a3a"] },
-  "luffy-snakeman": { x: [] },
-  "luffy-boundman": { x: [] },
-  "zoro-king-of-hell": { ow: true, x: ["scar:#8a2a2a", "sash:#c03030"] },
   "sanji-ifrit-jambe": { x: ["tie:#3a5aa8"] },
   "killer-onigashima": { ow: true, x: [] },
 };
 
 /** Extra transparent canvas (HD pixels per side) for wide weapons and effects. */
 const MARGIN: Partial<Record<LegendaryArtId, number>> = {
-  "shanks-marineford": 6, mihawk: 6, "kozuki-oden": 8, yamato: 6, marco: 4, vista: 6, king: 6, jack: 6, katakuri: 6,
-  "big-mom": 8, "kaido-onigashima": 6, fujitora: 4, "edward-weevil": 6, "benn-beckman": 6, yasopp: 6, "law-awakened": 6,
-  "kid-awakened": 6, "luffy-snakeman": 8, "luffy-boundman": 6, "zoro-king-of-hell": 6, "killer-onigashima": 4,
-  law: 6, rayleigh: 4, whitebeard: 6, shanks: 4, akainu: 2, aokiji: 4, kizaru: 4, ryokugyu: 4, "rayleigh-sabaody": 6,
-  sengoku: 4, garp: 4, blackbeard: 4, "lucky-roux": 4, "rob-lucci-awakened": 2, "sanji-ifrit-jambe": 2, "luffy-gear-4": 4,
+  "kozuki-oden": 8, yamato: 6, marco: 4, vista: 6, king: 6, jack: 6, katakuri: 6,
+  fujitora: 4, "edward-weevil": 6, "benn-beckman": 6, yasopp: 6, "law-awakened": 6,
+  "kid-awakened": 6, "killer-onigashima": 4,
+  law: 6, rayleigh: 4, whitebeard: 6, shanks: 4, akainu: 2, aokiji: 4, kizaru: 4, ryokugyu: 4, 
+  sengoku: 4, "lucky-roux": 4, "rob-lucci-awakened": 2, "sanji-ifrit-jambe": 2, 
 };
 
 // ---------- Helpers ----------
@@ -192,18 +183,6 @@ function wings(d: Detail, tint: (t: number, feather: number) => string, span = 1
 // ---------- Painters ----------
 const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
   // ----- Red Hair Pirates -----
-  "shanks-marineford": (d) => {
-    const { ty } = d;
-    clawScars(d.wipeScar()).eyes("stern", "#5a1a1a", "#7a1818").mouth("line");
-    strands(d, "#d83a3a"); stubble(d);
-    openFront(d, 9, 4, "#c8ccd8");
-    d.belt("#4a3a2a", gold);
-    d.trim("#1e2230", "#a01818", ty).folds("#1e2230", d.legY - 2, 4);
-    // Gryphon drawn and raised, edge glowing with Conqueror's Haki.
-    const hx = d.rx + 2, hy = d.rhy;
-    sword(d, hx, hy, hx + 9, hy - 28, { guard: gold, grip: "#5a2a2a", edge: "#ffe0e4", guardW: 7 });
-    d.bolt(hx + 11, hy - 24, 1, 6);
-  },
   shanks: (d) => {
     const { tx, tw, ty, th } = d;
     clawScars(d.wipeScar()).eyes("stern", "#3a2a2a", "#7a1818").mouth("smile");
@@ -272,30 +251,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
   },
 
   // ----- Swordsmen -----
-  mihawk: (d) => {
-    const { hx, hy, hw, cx, ty, th } = d;
-    d.eyes("hawk", "#ffd24a", "#101018").mouth("none");
-    d.f(cx - 3, hy + 11, 2, 1, "#1e1e28").f(cx + 1, hy + 11, 2, 1, "#1e1e28").f(cx - 2, hy + 13, 4, 1, shade(d.sk, -0.45));
-    // Wide black hat, crimson brim lining, white plume.
-    d.recolor("#2a2d3a", hx - 6, hy - 10, hw + 12, 11, () => "#1a1a24");
-    d.r(hx - 5, hy - 1, hw + 10, 2, "#1a1a24").r(hx - 5, hy + 1, hw + 10, 1, "#7a1a2a");
-    const plume = new Map<string, string>();
-    stroke(plume, 14, (t) => [hx + hw - 2 + t * 6, hy - 4 - t * 6], (t) => 3 - t * 1.5, (t, j) => j === 0 ? "#d8dce8" : "#ffffff");
-    blob(d, plume);
-    // Open black coat with a crimson high collar.
-    openFront(d, 9, 3);
-    d.asBody(() => { for (const s of [-1, 1]) for (let j = 0; j < 5; j++) d.u(s < 0 ? hx - 1 - (j >> 1) : hx + hw - 2 + (j >> 1), ty - j, 3, 1, "#7a1a2a"); });
-    d.trim("#2a2d3a", "#7a1a2a", ty).folds("#2a2d3a", d.legY - 2, 4);
-    d.belt("#3a2a1a", gold, ty + th - 6);
-    // Yoru planted at his side: black blade, gold cross-guard with jewels.
-    const x = d.rx + d.aw + 2, gy = d.rhy - 4;
-    d.asBody(() => {
-      d.r(x - 1, gy, 4, d.bottom - gy, ink).r(x, gy + 1, 2, d.bottom - gy - 2, "#2a2a36").r(x, gy + 1, 1, d.bottom - gy - 2, "#4a4a5a");
-      d.r(x - 4, gy - 2, 10, 2, gold).r(x - 5, gy - 3, 2, 4, gold).r(x + 5, gy - 3, 2, 4, gold).d(x - 4, gy - 2, "#43c66b").d(x + 5, gy - 2, "#4a8aff");
-      for (let k = 1; k < 6; k++) d.r(x, gy - 2 - k * 2, 2, 2, k % 2 ? "#3a4a8a" : "#d8e0f0");
-      d.r(x - 1, gy - 14, 4, 3, gold);
-    });
-  },
   "kozuki-oden": (d) => {
     const { hx, hy, hw, cx, ty, tx, tw, th } = d;
     d.wipeScar(["beard"]).eyes("glare", "#3a2a1a", "#14141c").mouth("grin");
@@ -329,26 +284,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
     sword(d, d.rx + d.aw - 2, d.rhy, d.rx + d.aw + 7, d.rhy - 22, { guard: gold, grip: "#5a2a3a" });
     for (const [x, y] of [[d.lx - 10, d.lhy - 14], [d.lx - 4, d.lhy - 26], [d.rx + 12, d.rhy - 12], [d.rx + 8, d.rhy - 27], [d.lx - 12, d.lhy - 4], [d.rx + 14, d.rhy - 2]])
       d.u(x, y, 2, 1, "#ff8cae").u(x + 1, y + 1, 1, 1, "#ffc0d4");
-  },
-  "zoro-king-of-hell": (d) => {
-    const { hx, hy, hw, cx, ty, th, tc } = d;
-    d.wipeScar().eyes("closedLeft", "#ff3050", "#1a6a3a").mouth("none");
-    strands(d, "#3fd16a");
-    d.r(hx - 2, hy + 9, 1, 2, gold).r(hx - 2, hy + 12, 1, 2, gold).r(hx - 2, hy + 15, 1, 2, gold);
-    // Wado in his teeth.
-    d.asBody(() => {
-      d.r(hx - 6, hy + 12, cx - hx + 4, 2, "#e8eef8").r(hx - 6, hy + 12, cx - hx + 4, 1, "#ffffff");
-      d.r(cx - 2, hy + 11, 2, 4, gold).r(cx, hy + 12, hw / 2 + 4, 2, "#f4f4f8");
-    });
-    // Dark green kimono open over the chest scar, red haramaki.
-    openFront(d, 11, 4);
-    for (let i = 0; i < 8; i++) d.f(tc + 3 - i, ty + 2 + i, 1, 1, "#a85a4a"), d.d(tc + 3 - i, ty + 2 + i, "#a85a4a");
-    d.folds("#2f5a3a", d.legY - 4, 4).trim("#2f5a3a", "#1a3a24", ty);
-    d.recolor("#c03030", 0, ty + th - 8, d.W, 6, (x) => x % 3 === 0 ? "#8a1a1a" : null);
-    // Enma and Kitetsu crossed low, wreathed in dark green flame.
-    sword(d, d.lx + 1, d.lhy, d.lx - 9, d.lhy - 22, { grip: "#4a2a6a", guard: gold });
-    sword(d, d.rx + d.aw - 2, d.rhy, d.rx + d.aw + 8, d.rhy - 22, { grip: "#8a1a2a", guard: gold });
-    fire(d, d.lx - 9, d.lhy - 18, 9, "#0e5a2a", "#30c060", "#c8ffd8").flame(d.rx + d.aw + 8, d.rhy - 18, 9, ["#c8ffd8", "#30c060", "#0e5a2a"]);
   },
   "killer-onigashima": (d) => {
     const { hx, hy, hw, cx, ty, th } = d;
@@ -442,27 +377,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
   },
 
   // ----- Beasts Pirates -----
-  "kaido-onigashima": (d) => {
-    const { hx, hy, hw, cx, ty, tx, tw, th } = d;
-    d.eyes("happy").mouth("open");
-    d.f(d.L - 1, d.ey + 2, 4, 2, "#e86a6a").f(d.R, d.ey + 2, 4, 2, "#e86a6a"); // drunk blush
-    strands(d, "#2a2d3a");
-    d.f(cx - 3, hy + 15, 6, 2, "#2a2d3a").f(cx - 5, hy + 12, 2, 4, "#2a2d3a").f(cx + 3, hy + 12, 2, 4, "#2a2d3a"); // beard
-    d.recolor("#fff4dc", hx - 6, hy - 14, hw + 12, 14, (x, y) => (x + y) % 4 === 0 ? "#d8c8a8" : null); // ridged horns
-    // Bare chest, a blue dragon tattoo coiling up his arm, purple sash, open coat.
-    muscles(d, 3);
-    for (let y = d.lhy - 14; y < d.lhy; y += 2) d.r(d.lx + ((y >> 1) % 2), y, 3, 1, "#3a6ad0").d(d.lx + 2 - ((y >> 1) % 2), y + 1, "#7aa0f0");
-    d.recolor("#a76ac4", 0, ty + th - 8, d.W, 6, (x) => x % 3 === 0 ? "#7a4a9a" : null);
-    d.asBody(() => d.r(tx - 2, ty - 1, 5, d.th - 4, "#5a3a7a").r(tx + tw - 3, ty - 1, 5, d.th - 4, "#5a3a7a").r(tx - 2, ty - 1, 1, d.th - 4, "#8a6ab0"));
-    // Hassaikai over his shoulder, a sake gourd in his other hand.
-    d.asBody(() => {
-      const x = d.rx + 2;
-      d.line(x, d.rhy + 2, x + 8, hy - 8, ink).line(x + 1, d.rhy + 2, x + 9, hy - 8, ink);
-      for (let k = 0; k < 18; k++) { const px = Math.round(x + 2 + (8 * k) / 18), py = Math.round(hy - 6 + ((d.rhy - hy) * (1 - k / 18)) * 0.55); d.r(px - 2, py, 5, 2, k % 3 === 0 ? "#8a90a0" : "#4a5166"); if (k % 3 === 0) d.d(px - 3, py, "#c8ccd8").d(px + 3, py, "#c8ccd8"); }
-      const gx = d.lx - 5, gy = d.lhy + 1;
-      d.r(gx, gy, 6, 5, ink).r(gx + 1, gy + 1, 4, 3, "#c83a2a").r(gx + 1, gy - 4, 4, 4, ink).r(gx + 2, gy - 3, 2, 2, "#c83a2a").d(gx + 1, gy + 1, "#ff7a5a");
-    });
-  },
   king: (d) => {
     const { hx, hy, hw, ty, tx, tw, th } = d;
     d.eyes("shadow", "#ff4a2a").mouth("none");
@@ -556,24 +470,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
     pole(d, x, hy - 8, d.bottom - 2, "#f4f0ec");
     d.asBody(() => { d.r(x - 4, hy - 8, 10, 2, "#f4f0ec"); for (const ox of [-4, 1, 5]) d.r(x + ox, hy - 15, 2, 7, "#ffffff").d(x + ox, hy - 16, "#ffd8e8"); });
     for (const [mx, my] of [[d.lx - 2, d.lhy + 4], [d.lx, d.lhy + 7]]) d.u(mx, my, 2, 2, "#ffffff");
-  },
-  "big-mom": (d) => {
-    const { hy, cx, ty, tx, tw, th } = d;
-    d.wipeScar(["lips"]).eyes("glare", "#e04070", "#c85a8a").mouth("grin");
-    d.f(cx - 3, hy + 11, 6, 1, "#e04070");
-    strands(d, "#ff8fb0");
-    // Pirate hat with a white skull mark.
-    d.r(cx - 2, hy - 6, 4, 3, "#ffffff").d(cx - 1, hy - 5, ink).d(cx + 1, hy - 5, ink);
-    // Polka-dot dress, a red cape.
-    d.recolor("#f2f2f2", tx, ty, tw, th + 4, (x, y) => ((x + (y % 8 < 4 ? 0 : 2)) % 4 === 0 && y % 4 === 1) ? "#ff8fb0" : null);
-    d.asBody(() => d.r(tx - 3, ty - 1, 4, th + 6, "#c8283a").r(tx + tw - 1, ty - 1, 4, th + 6, "#c8283a").r(tx - 3, ty - 1, tw + 6, 2, "#c8283a"));
-    d.recolor("#e85a8a", 0, d.legY, d.W, d.legH + 4, (x) => x % 3 === 0 ? "#c8406a" : null);
-    // Prometheus (a living sun) and Zeus (a thundercloud) at her sides.
-    d.orb(d.lx - 7, ty - 4, 5, "#ffb03a").u(d.lx - 9, ty - 5, 1, 1, ink).u(d.lx - 5, ty - 5, 1, 1, ink).u(d.lx - 8, ty - 2, 3, 1, "#c84a1a");
-    fire(d, d.lx - 7, ty - 9, 6, "#ff6a1a", "#ffb03a", "#fff0a0");
-    wisps(d, [[d.rx + d.aw + 6, ty - 4, 3], [d.rx + d.aw + 10, ty - 3, 3], [d.rx + d.aw + 8, ty - 7, 3]], "#5a5f78");
-    d.u(d.rx + d.aw + 6, ty - 5, 1, 1, "#fff4a0").u(d.rx + d.aw + 10, ty - 5, 1, 1, "#fff4a0");
-    d.bolt(d.rx + d.aw + 8, ty, 1, 6, "#fff060", "#c8a020");
   },
 
   // ----- Marines -----
@@ -672,25 +568,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
       for (let a = 0; a < 8; a++) { const ang = (a * Math.PI) / 4; d.u(Math.round(x + Math.cos(ang) * 5), Math.round(y + Math.sin(ang) * 5), 1, 1, "#fff0a0"); }
     }
   },
-  garp: (d) => {
-    const { hx, hy, hw } = d;
-    d.wipeScar().eyes("glare", "#3a2a1a", "#c8ccd4").mouth("grin");
-    d.f(d.R + 3, hy + 4, 1, 7, "#b56a5a");
-    strands(d, "#e0e4ea");
-    // Bushy white beard.
-    d.recolor("#e0e4ea", hx, hy + 8, hw, 12, (x, y) => (x + y) % 3 === 0 ? "#b8bcc8" : null);
-    // Dress shirt, tie, white hero coat with blue cuffs.
-    d.suit(SHIRT, "#3a5aa8", "#c8ccd8");
-    marineCoat(d);
-    d.recolor(MARINE, 0, d.legY - 2, d.W, 6, (x, y) => (y - d.legY) % 3 === 0 ? "#2a4a8a" : null);
-    // Rice-cracker bag in one hand, a Haki-clenched fist on the other.
-    d.asBody(() => {
-      const bx = d.lx - 5, by = d.lhy - 1;
-      d.r(bx, by, 7, 8, ink).r(bx + 1, by + 1, 5, 6, "#c89a5a").r(bx + 1, by + 1, 5, 1, "#e8c088").d(bx + 3, by + 3, "#8a5a2a").d(bx + 2, by + 5, "#8a5a2a");
-    });
-    d.recolor(d.sk, d.rx - 1, d.rhy - 1, d.aw + 2, 5, () => HAKI);
-    d.bolt(d.rx + d.aw + 2, d.rhy - 4, 1, 6);
-  },
   tsuru: (d) => {
     const { hx, hy, cx, ty, th } = d;
     d.eyes("happy").mouth("smile");
@@ -706,33 +583,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
   },
 
   // ----- Revolutionaries / others -----
-  dragon: (d) => {
-    const { hx, hy, hw, tc, ty, tx, tw } = d;
-    d.wipeScar().eyes("glare", "#5cff9d", "#0e1018").mouth("line");
-    for (const [ox, oy] of [[hx + hw - 4, hy + 3], [hx + hw - 3, hy + 8]] as [number, number][])
-      for (const [dx, dy] of [[1, 0], [0, 1], [2, 1], [1, 2], [0, 2], [2, 2], [1, 3]]) d.f(ox + dx, oy + dy, 1, 1, dy === 2 && dx !== 1 ? "#a02020" : "#e03a3a");
-    stubble(d);
-    strands(d, "#2a2d3a");
-    // Green cloak with an orange-lined hood resting on the shoulders.
-    d.trim("#2f6a3f", "#143018", ty).folds("#2f6a3f", ty + 6, 4);
-    d.asBody(() => d.r(tc - 8, ty - 2, 16, 3, "#2f6a3f").r(tc - 6, ty - 1, 12, 2, "#e0802a").r(tc - 4, ty, 8, 1, "#b85a1a"));
-    d.belt("#3a2a1a", gold);
-    // A whirl of wind at his feet.
-    for (let i = 0; i < 3; i++) d.line(tx - 10 + i * 2, d.bottom - 4 - i * 5, tx - 4 + i * 2, d.bottom - 6 - i * 5, "#a8ffd0", true).line(tx + tw + 4 - i * 2, d.bottom - 2 - i * 5, tx + tw + 10 - i * 2, d.bottom - 4 - i * 5, "#a8ffd0", true);
-  },
-  "rayleigh-sabaody": (d) => {
-    const { hx, hy, hw, ty, th } = d;
-    d.wipeScar(["glasses"]).eyes("stern", "#5a7a8a", "#c8d0d8").glasses("#8a7a50", "#e8f4f8").mouth("smirk");
-    d.line(d.L - 1, hy + 4, d.L + 1, hy + 12, "#b0806a");
-    strands(d, "#e8eef2");
-    d.recolor("#e8eef2", hx, hy + 9, hw, 12, (x, y) => (x + y) % 3 === 0 ? "#c8d0d8" : null);
-    // Short-sleeved shirt open at the collar, a coating mechanic's coat.
-    openFront(d, 7, 3, "#c8ccd8");
-    d.trim("#8ab8a8", "#5a8a7a", ty).folds("#8ab8a8", ty + 6, 4);
-    d.belt("#5a3a20", gold, ty + th - 6);
-    // Sabaody's floating bubbles.
-    for (const [x, y, r] of [[d.lx - 7, ty - 2, 3], [d.lx - 4, ty + 8, 2], [d.rx + d.aw + 6, ty - 6, 3], [d.rx + d.aw + 4, ty + 6, 2], [d.rx + d.aw + 7, hy, 2]]) bubble(d, x, y, r);
-  },
   rayleigh: (d) => {
     const { hx, hy, hw, ty, tx, tw, th } = d;
     d.wipeScar(["glasses"]).eyes("stern", "#5a7a8a", "#c8d0d8").glasses("#8a7a50", "#e8f4f8").mouth("smirk");
@@ -809,48 +659,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
     });
     d.bolt(d.lx - 12, d.lhy - 18, -1, 7, "#ff5a3c", "#6a1a0a").bolt(d.lx + 2, d.lhy - 20, 1, 6, "#ff5a3c", "#6a1a0a");
   },
-  "luffy-gear-4": (d) => {
-    const { hx, hy, hw, ty, tx, tw, th } = d;
-    d.eyes("glare", "#3a1a1a", "#14141c").mouth("grin");
-    d.f(hx + 3, d.ey + 4, 3, 1, "#a85a4a"); // scar under his eye
-    strands(d, "#1e2230");
-    // Haki flame patterns over the chest and arms, steam rising off him.
-    d.recolor("#d83a3a", tx, ty, tw, th, (x, y) => ((x - tx) + (y - ty) * 2) % 9 < 2 && y > ty + 4 ? HAKI : null);
-    d.recolor(HAKI, 0, ty, d.W, d.p.height, (x, y) => (x + y) % 5 === 0 ? "#c83a3a" : (x * 2 + y) % 7 === 0 ? "#4a3a6a" : null);
-    d.folds("#3a5aa8", d.legY, 3).belt("#e8c84a", null, ty + th - 4);
-    wisps(d, [[tx - 5, ty - 2, 2], [tx + tw + 4, ty - 4, 2], [tx - 7, ty + 6, 2], [tx + tw + 6, ty + 5, 2], [hx + hw + 3, hy - 4, 2]], "#f8f0f0");
-  },
-  "luffy-snakeman": (d) => {
-    const { hx, hy, hw, ty, tx } = d;
-    d.eyes("glare", "#3a1a1a", "#14141c").mouth("grin");
-    d.f(hx + 3, d.ey + 4, 3, 1, "#a85a4a");
-    strands(d, "#1e2230");
-    d.trim("#d83a3a", "#ff7a6a", ty).folds("#d83a3a", d.legY - 4, 4);
-    d.recolor(HAKI, 0, ty, d.W, d.p.height, (x, y) => (x + y) % 5 === 0 ? "#c83a3a" : null);
-    // Python: a Haki arm snaking out in a long curve to a black fist.
-    const arm = new Map<string, string>();
-    const sx = d.rx + d.aw - 1, sy = d.rhy - 6;
-    stroke(arm, 40, (t) => [sx + 12 * t, sy - 8 * Math.sin(t * Math.PI * 1.5) - t * 6], () => 3, (t, j) => j === 0 ? "#4a3a6a" : (Math.round(t * 40) % 5 === 0 ? "#c83a3a" : HAKI));
-    blob(d, arm);
-    d.asBody(() => d.r(sx + 11, sy - 12, 6, 6, HAKI).r(sx + 12, sy - 11, 2, 2, "#5a4a7a"));
-    wisps(d, [[tx - 5, ty - 2, 2], [tx - 7, ty + 6, 2], [hx + hw + 2, hy - 4, 2]], "#f8f0f0");
-  },
-  "luffy-boundman": (d) => {
-    const { hx, hy, hw, ty, tx, tw, th } = d;
-    d.eyes("glare", "#3a1a1a", "#14141c").mouth("grin");
-    d.f(hx + 3, d.ey + 4, 3, 1, "#a85a4a");
-    strands(d, "#1e2230");
-    d.recolor("#d83a3a", tx, ty, tw, th, (x, y) => ((x - tx) + (y - ty) * 2) % 9 < 2 && y > ty + 4 ? HAKI : null);
-    d.folds("#3a5aa8", d.legY, 3).belt("#e8c84a", null, ty + th - 4);
-    // Kong Gun: a huge Haki fist pulled back, flame patterns across the knuckles.
-    d.asBody(() => {
-      const fx = d.rx + d.aw - 2, fy = d.rhy - 10;
-      for (let j = 0; j < 14; j++) for (let i = 0; i < 13; i++) if ((i - 6) ** 2 / 42 + (j - 7) ** 2 / 50 <= 1) d.r(fx + i, fy + j, 1, 1, (i + j * 2) % 9 < 2 ? "#c83a3a" : i + j < 8 ? "#4a3a6a" : HAKI);
-      for (let k = 0; k < 4; k++) d.r(fx + 2 + k * 3, fy + 1, 2, 1, "#5a4a7a");
-    });
-    d.recolor(HAKI, 0, ty, d.W, d.p.height, (x, y) => (x + y) % 5 === 0 ? "#c83a3a" : null);
-    wisps(d, [[tx - 5, ty - 2, 3], [tx - 8, ty + 7, 2], [hx + hw + 3, hy - 4, 2], [tx + tw + 14, ty - 6, 2]], "#f8f0f0");
-  },
   "sanji-ifrit-jambe": (d) => {
     const { hx, hy, ty } = d;
     d.eyes("glare", "#3a6ad0", "#c8a838").mouth("smirk");
@@ -884,25 +692,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
     for (const s of [-1, 1]) for (let i = 0; i < 3; i++) d.f(d.cx + s * (3 + i), hy + 11 + i % 2, 1, 1, "#8a7a6a"); // whiskers
     // Claws gleaming.
     for (const [x, y] of [[d.lx, d.lhy + 4], [d.rx, d.rhy + 4]]) for (let i = 0; i < 3; i++) d.r(x + i * 2, y, 1, 3, "#ffffff");
-  },
-  blackbeard: (d) => {
-    const { hx, hy, hw, cx, tc, ty, tx, tw, th } = d;
-    d.wipeScar(["beard"]).eyes("glare", "#7a5cff", "#120a20").mouth("gapGrin");
-    d.r(cx - 4, hy + 13, 8, 2, "#c83a4a").r(cx - 3, hy + 14, 6, 1, "#ff7a8a");
-    d.f(hx, hy + 8, 3, 9, "#2a2d3a").f(hx + hw - 3, hy + 8, 3, 9, "#2a2d3a").f(hx + 2, hy + 15, hw - 4, 2, "#2a2d3a");
-    d.asBody(() => { d.r(cx - 5, hy + d.hh, 10, 3, "#2a2d3a"); for (const x of [cx - 5, cx - 1, cx + 3]) d.d(x + 1, hy + d.hh + 3, "#2a2d3a"); });
-    strands(d, "#2a2d3a");
-    // Red bandana knot.
-    d.asBody(() => d.r(hx + hw - 1, hy - 1, 4, 3, "#d84040").line(hx + hw + 2, hy + 1, hx + hw + 4, hy + 6, "#b82a2a"));
-    // Open shirt over a hairy belly, flintlocks in the sash.
-    openFront(d, th - 6, 6, "#c8ccd8");
-    for (let y = ty + 6; y < ty + th - 8; y += 2) for (let x = tc - 4; x < tc + 4; x += 3) d.d(x + (y % 4 ? 1 : 0), y, shade(d.sk, -0.3));
-    d.r(tx + 1, ty + th - 7, tw - 2, 3, "#e8c040");
-    for (const x of [tc - 6, tc + 3]) d.asBody(() => d.r(x, ty + th - 10, 2, 6, "#6a6a78").r(x - 1, ty + th - 11, 3, 2, gold));
-    d.trim("#2a2d3a", gold, ty);
-    // Darkness pooling at his feet and swirling in one hand.
-    for (let i = 0; i < 7; i++) d.u(d.legX - 10 + i * 5, d.bottom - 2 - (i % 2) * 2, 5, 3, i % 2 ? "#2a1a40" : "#120a20");
-    d.orb(d.lx - 5, d.lhy, 4, "#1a0a30", "#7a5cff");
   },
 };
 

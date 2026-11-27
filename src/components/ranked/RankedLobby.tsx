@@ -10,6 +10,7 @@ import StreakFlame from "./StreakFlame";
 import WantedPoster from "./WantedPoster";
 import RankedMenu from "./RankedMenu";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
+import { RETIRED_RECRUITS } from "@/data/roster";
 import { BOT_RP_FACTOR, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
 
 /** After this long in the queue, offer a half-RP bot battle. */
@@ -216,7 +217,7 @@ export default function RankedLobby({
   const roulette = [...new Set<CharacterId>([
     ...friends.map((p) => p.characterId),
     ...leaderboard.map((e) => e.characterId),
-    ...PLAYABLE_CHARACTERS.map((c) => c.id),
+    ...PLAYABLE_CHARACTERS.filter((c) => c.id !== "gear-6" && !RETIRED_RECRUITS.has(c.id)).map((c) => c.id),
   ])];
   const spinId = roulette[spin % roulette.length];
   const searchClock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;

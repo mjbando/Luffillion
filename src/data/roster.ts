@@ -15,14 +15,16 @@ export const FORMER_ACHIEVEMENT_RARITY: Partial<Record<AchievementCharacterId, C
   robin: "epic",
   jinbe: "epic",
   ace: "epic",
-  law: "legendary",
-  rayleigh: "legendary",
-  whitebeard: "legendary",
-  shanks: "legendary",
   kaido: "mythic",
   roger: "mythic",
   "gear-5": "mythic",
 };
+
+/**
+ * Former achievement recruits taken out of the game (they repeated a Mythic or another Legendary):
+ * they never drop from chests or codes and aren't listed, but captains who already earned one keep it.
+ */
+export const RETIRED_RECRUITS: ReadonlySet<string> = new Set(["law", "rayleigh", "whitebeard", "shanks"]);
 
 export interface RosterEntry {
   id: CharacterId;
@@ -55,6 +57,7 @@ export function rosterEntry(id: string): RosterEntry | undefined {
   return TREASURE_ROSTER.find((c) => c.id === id);
 }
 
+/** Former achievement recruits (retired ones included): ownership still counts for these. */
 export function isFormerAchievementCharacter(id: string): boolean {
-  return id in FORMER_ACHIEVEMENT_RARITY;
+  return id in FORMER_ACHIEVEMENT_RARITY || RETIRED_RECRUITS.has(id);
 }

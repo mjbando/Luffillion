@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import PixelEmblem from "./pixel-emblems";
 import CharacterPortrait from "./CharacterPortrait";
 import { ACHIEVEMENTS, formatBerries, type AchievementReport } from "@/lib/achievements";
-import { rosterEntry } from "@/data/roster";
+import { RETIRED_RECRUITS, rosterEntry } from "@/data/roster";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { CHEST_CHARACTERS, CHEST_RARITIES, type ChestCharacterRarity } from "@/data/chest-characters";
 import { TREASURE_RARITY_COLORS } from "@/lib/treasure";
@@ -127,12 +127,14 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
   const badges = report?.achievements.filter(a => filter === "all" || (filter === "earned" ? a.unlocked : !a.unlocked)) ?? [];
   const current = characterById(equippedCharacter);
   const creatorAccount = captain.username.trim().toLowerCase() === "luffy";
-  const crewCharacters = PLAYABLE_CHARACTERS.filter(character => character.id !== "gear-6" || creatorAccount);
   const chestUnlockedIds = new Set(report?.chestUnlockedCharacterIds ?? []);
   const achievementCharacterIds = report?.achievements.filter(a => a.unlocked && a.rewardCharacter).map(a => a.rewardCharacter as string) ?? [];
   const ownedCharacterIds = new Set(UPDATE_LIVE
     ? ["luffy", ...(report?.ownedCharacterIds ?? []), ...chestUnlockedIds]
     : ["luffy", ...achievementCharacterIds, ...(creatorAccount ? ["gear-6"] : [])]);
+  // Retired recruits only show for captains who already have them.
+  const crewCharacters = PLAYABLE_CHARACTERS.filter(character => (character.id !== "gear-6" || creatorAccount)
+    && (!UPDATE_LIVE || !RETIRED_RECRUITS.has(character.id) || ownedCharacterIds.has(character.id)));
   const achievementRecruits = crewCharacters.filter(character => ownedCharacterIds.has(character.id)).length;
   const chestRecruits = UPDATE_LIVE ? CHEST_CHARACTERS.filter(character => chestUnlockedIds.has(character.id)).length : 0;
   const recruitCount = achievementRecruits + chestRecruits;
