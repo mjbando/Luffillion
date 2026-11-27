@@ -16,6 +16,12 @@ const BUILDS: Record<NonNullable<Look["b"]>, Geometry> = {
   big: { W: 22, H: 26, hx: 6, hy: 3, hw: 10, hh: 7, tx: 5, ty: 10, tw: 12, th: 10, legX: 6, legY: 19, legH: 6, gap: 6, aw: 3 },
   giant: { W: 24, H: 27, hx: 7, hy: 2, hw: 10, hh: 8, tx: 4, ty: 10, tw: 16, th: 11, legX: 7, legY: 20, legH: 6, gap: 6, aw: 4 },
 };
+// Leaner proportions for the high-detail mythic art: narrower heads, torsos and arms, longer legs.
+const SLIM_BUILDS: Record<"normal" | "big" | "giant", Geometry> = {
+  normal: { W: 20, H: 26, hx: 6, hy: 3, hw: 8, hh: 7, tx: 6, ty: 10, tw: 8, th: 10, legX: 6, legY: 19, legH: 6, gap: 4, aw: 2 },
+  big: { W: 22, H: 27, hx: 7, hy: 3, hw: 8, hh: 7, tx: 6, ty: 10, tw: 10, th: 10, legX: 7, legY: 19, legH: 7, gap: 4, aw: 3 },
+  giant: { W: 24, H: 28, hx: 7, hy: 2, hw: 10, hh: 8, tx: 6, ty: 10, tw: 12, th: 11, legX: 8, legY: 20, legH: 7, gap: 4, aw: 3 },
+};
 
 
 export interface Frame {
@@ -23,8 +29,9 @@ export interface Frame {
   lx: number; rx: number; lhy: number; rhy: number; sk: string; bottom: number;
 }
 
-function drawBody(look: Look, pose: Pose): Frame {
-  const g = BUILDS[look.b ?? "normal"];
+function drawBody(look: Look, pose: Pose, slim = false): Frame {
+  const build = look.b ?? "normal";
+  const g = slim && build !== "small" ? SLIM_BUILDS[build] : BUILDS[build];
   const p = new Pixels(g.W, g.H + HEAD);
   const o = HEAD, sk = look.sk ?? defaultSkin, swing = pose === -1 ? 0 : pose === 0 ? -1 : 1;
   const sleeve = look.sl ?? look.t, hand = look.hand ?? sk;
@@ -232,12 +239,12 @@ export function trimTop(p: Pixels) {
 export const MYTHIC_SHIMMER = ["#ffe066", "#ffffff", "#ff8de0"];
 
 /** Draws the body, hair, extras, hat, weapon and coat — everything except rarity effects. */
-export function buildFigure(id: ChestCharacterId, pose: Pose) {
+export function buildFigure(id: ChestCharacterId, pose: Pose, slim = false) {
   const look = CHEST_LOOKS[id];
   const character = chestCharacterById(id)!;
   const rarity: ChestCharacterRarity = character.rarity;
   const accent = look.fx ?? character.color;
-  const f = drawSpecial(look, pose) ?? drawBody(look, pose);
+  const f = drawSpecial(look, pose) ?? drawBody(look, pose, slim);
   if (!look.special) {
     drawHair(f, look.hs, look.h);
     for (const extra of look.x ?? []) if (!extra.startsWith("^")) drawExtra(f, extra, accent);

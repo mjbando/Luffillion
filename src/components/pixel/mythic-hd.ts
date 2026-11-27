@@ -88,8 +88,8 @@ class Detail {
     return this;
   }
   /** Repaints the low-res scar/tattoo cell column with skin before drawing a sharper one. */
-  wipeScar() {
-    const spec = this.look.x?.find((x) => x.startsWith("scar:") || x.startsWith("tattoo:"));
+  wipeScar(names = ["scar", "tattoo"]) {
+    const spec = this.look.x?.find((x) => names.includes(x.split(":")[0]));
     if (spec) this.recolor(spec.split(":")[1], this.hx, this.hy, this.hw, this.hh, (x, y) => {
       const row = this.faceMask[Math.floor(y / S)];
       if (row) row[Math.floor(x / S)] = true;
@@ -139,6 +139,16 @@ class Detail {
   /** Vertical cloth folds every few pixels in the lower half of a garment. */
   folds(family: string, fromY: number, every = 4) {
     return this.recolor(family, 0, fromY, this.p.width, this.p.height - fromY, (x, y) => (x + (y > fromY + 6 ? 1 : 0)) % every === 0 ? shade(family, -0.28) : null);
+  }
+
+  /** Two separate round lenses with a bridge and a glint (replaces the low-res glasses). */
+  glasses(frame: string, lens: string) {
+    this.wipeScar(["glasses"]);
+    for (const x of [this.L - 1, this.R]) {
+      this.r(x + 1, this.ey - 2, 2, 1, frame).r(x + 1, this.ey + 2, 2, 1, frame).r(x, this.ey - 1, 1, 3, frame).r(x + 3, this.ey - 1, 1, 3, frame);
+      this.r(x + 1, this.ey - 1, 2, 3, lens).d(x + 1, this.ey - 1, white);
+    }
+    return this.r(this.L + 3, this.ey, this.R - this.L - 3, 1, frame);
   }
 
   // ---------- Face ----------
@@ -271,10 +281,8 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
     d.bolt(d.rx + 10, d.rhy - 8, 1, 9).bolt(d.rx - 4, d.rhy + 4, -1, 7).sparkle(d.rx + 12, d.rhy + 2, "#ff8a8a");
   },
   "prime-rayleigh": (d) => {
-    d.eyes("stern", "#5fc8a8", "#d8cc9a").mouth("smirk");
-    // Round glasses with glints.
-    for (const x of [d.L - 1, d.R - 1]) d.r(x, d.ey - 1, 5, 1, "#c8e0e8").r(x, d.ey + 2, 5, 1, "#c8e0e8").r(x, d.ey, 1, 2, "#c8e0e8").r(x + 4, d.ey, 1, 2, "#c8e0e8").d(x + 1, d.ey, white);
-    d.r(d.L + 4, d.ey, d.R - d.L - 5, 1, "#c8e0e8");
+    d.wipeScar(["glasses"]).eyes("none", "#5fc8a8", "#d8cc9a").glasses("#8a9aa8", "#d8eef4").mouth("smirk");
+    for (const x of [d.L, d.R + 1]) d.d(x + 1, d.ey, ink).d(x + 1, d.ey + 1, "#5fc8a8");
     d.line(d.L - 1, d.hy + 3, d.L + 1, d.hy + 12, "#b0806a"); // scar over his right eye
     d.trim("#2f6a5a", gold, d.ty).folds("#2f6a5a", d.legY);
     d.suit("#f4f6fa", undefined, "#d8dce6").buttons("#9aa4b8", 2, d.ty + 11);
@@ -335,8 +343,8 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
     d.r(d.rx + d.aw - 4, d.rhy - 6, 6, 2, gold).d(d.rx + d.aw - 2, d.rhy - 6, "#ff4d6d"); // sword guard gem
   },
   "saint-nusjuro": (d) => {
-    d.eyes("stern", "#9fe7ff").mouth("line");
-    for (const x of [d.L - 1, d.R - 1]) d.r(x, d.ey - 1, 5, 4, "#c8e8f8").r(x + 1, d.ey, 3, 2, "#e8f8ff").d(x + 1, d.ey, white).d(x + 2, d.ey + 1, ink);
+    d.wipeScar(["glasses"]).eyes("none", "#9fe7ff").glasses("#2a3a50", "#c8e8f8").mouth("line");
+    for (const x of [d.L, d.R + 1]) d.d(x + 1, d.ey, ink).d(x + 1, d.ey + 1, "#9fe7ff");
     suitElder(d, "#4a90c0");
     // Frost-edged Shodai Kitetsu.
     const x = Math.min(d.rx + d.aw - 2, d.W - 4);
@@ -473,7 +481,7 @@ function crown(d: Detail, frame: number) {
 }
 
 function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {
-  const { f, look, accent } = buildFigure(id, pose);
+  const { f, look, accent } = buildFigure(id, pose, true);
   // Remember which low-res cells are face, so features stay on skin.
   const faceColors = new Set([f.sk, shade(f.sk, -0.2), shade(f.sk, -0.25)]);
   const mask = f.p.cells.map((row, y) => row.map((k, x) => k !== "." && (faceColors.has(f.p.palette[k]) ||
@@ -486,8 +494,7 @@ function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite 
   if (paint) paint(d); else d.eyes().mouth();
   if (look.hat !== "crown") crown(d, frame); // Imu already wears one
   const top = trimTop(p);
-  p.aura(shade(accent, 0.35), undefined, 1);
-  p.aura(accent, MYTHIC_SHIMMER[frame], 2);
+  p.aura(shade(accent, 0.3), MYTHIC_SHIMMER[frame], 2);
   const sprite = p.finish(Math.max(0, d.hx - 6 + 3), Math.max(0, d.hy - 6 - top + 3));
   return { ...sprite, scale: S };
 }
