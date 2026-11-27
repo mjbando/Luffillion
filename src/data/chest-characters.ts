@@ -103,7 +103,6 @@ const RARE = [
   ["kyros", "Kyros", "Kyros", "Legendary Gladiator", "#d1c08a", "A one-legged hero who was a tin soldier for years."],
   ["pekoms", "Pekoms", "Pekoms", "Lion Mink", "#e6b65c", "A lion mink with a turtle shell and shades."],
   ["tamago", "Tamago", "Tamago", "Baron Egg", "#f5f0dc", "An egg in a monocle. He becomes Viscount Hiyoko, then Count Niwatori. Soir!"],
-  ["vergo", "Vergo", "Vergo", "Demon Bamboo", "#5f84b8", "Haki-coated bamboo, and a piece of food stuck to his face."],
   ["monet", "Monet", "Monet", "Snow Woman", "#9bd4c7", "A harpy with green hair, wings, and snow powers."],
 ] as const satisfies readonly Row[];
 
@@ -171,6 +170,7 @@ const LEGENDARY = [
   ["law-awakened", "Trafalgar Law · Awakened", "Awakened Law", "Surgeon of Death", "#5ccfd8", "Law's awakened power: Room glowing and Kikoku drawn."],
   ["kid-awakened", "Eustass Kid · Awakened", "Awakened Kid", "Magnetic Emperor", "#ff5a3c", "A giant magnetic arm and the Damned Punk."],
   ["sanji-ifrit-jambe", "Sanji · Ifrit Jambe", "Ifrit Sanji", "Blue Flame Kicker", "#5ab0ff", "Sanji's legs burning with blue Ifrit flames."],
+  ["vergo", "Vergo", "Vergo", "Demon Bamboo", "#b07ae8", "Armament Haki over his whole body, and a bamboo stick harder than steel."],
   ["killer-onigashima", "Killer · Onigashima", "Onigashima Killer", "Kamazo", "#7fc0f0", "Killer at Onigashima, unmasked as Kamazo and laughing."],
 ] as const satisfies readonly Row[];
 

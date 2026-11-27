@@ -46,13 +46,14 @@ const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
   "kid-awakened": { x: [] },
   "sanji-ifrit-jambe": { x: ["tie:#3a5aa8"] },
   "killer-onigashima": { ow: true, x: [] },
+  vergo: { ow: true, x: ["goatee:#16121c"] },
 };
 
 /** Extra transparent canvas (HD pixels per side) for wide weapons and effects. */
 const MARGIN: Partial<Record<LegendaryArtId, number>> = {
   "kozuki-oden": 8, yamato: 6, marco: 4, vista: 6, king: 6, jack: 6, katakuri: 6,
   fujitora: 4, "edward-weevil": 6, "benn-beckman": 6, yasopp: 6, "law-awakened": 6,
-  "kid-awakened": 6, "killer-onigashima": 4,
+  "kid-awakened": 6, "killer-onigashima": 4, vergo: 4,
   law: 6, rayleigh: 4, whitebeard: 6, shanks: 4, akainu: 2, aokiji: 4, kizaru: 4, ryokugyu: 4, 
   sengoku: 4, "lucky-roux": 4, "rob-lucci-awakened": 2, "sanji-ifrit-jambe": 2, 
 };
@@ -284,6 +285,45 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
     sword(d, d.rx + d.aw - 2, d.rhy, d.rx + d.aw + 7, d.rhy - 22, { guard: gold, grip: "#5a2a3a" });
     for (const [x, y] of [[d.lx - 10, d.lhy - 14], [d.lx - 4, d.lhy - 26], [d.rx + 12, d.rhy - 12], [d.rx + 8, d.rhy - 27], [d.lx - 12, d.lhy - 4], [d.rx + 14, d.rhy - 2]])
       d.u(x, y, 2, 1, "#ff8cae").u(x + 1, y + 1, 1, 1, "#ffc0d4");
+  },
+  vergo: (d) => {
+    const { hx, hy, hw, hh, cx, tc, ty, tx, tw, th } = d;
+    const BODY = "#2a2236", GLOSS = "#7a4ab8", RIM = "#b88ae8", SPEC = "#f4dcff", DEEP = "#120e18";
+    // Head: hardened like the rest of him, lit from the upper left, with a rim of violet light.
+    d.recolor(BODY, hx, hy, hw, hh + 2, (x, y) => (x === hx + 1 || y === hy + 1) ? RIM : (x === hx + hw - 2 ? GLOSS : null));
+    d.r(hx + 2, hy + 2, 3, 2, shade(BODY, 0.35)).d(hx + 2, hy + 2, SPEC);
+    d.recolor("#16121c", hx - 4, hy - 10, hw + 8, 12, (x, y) => (x + y * 2) % 9 === 0 ? "#3a3048" : null); // close-cropped black hair
+    // Sunglasses with a teal glint, a straight nose and a hard, flat mouth.
+    d.eyes("none").mouth("none");
+    for (const x of [d.L - 1, d.R]) d.r(x, d.ey - 1, 5, 3, "#060508").r(x + 1, d.ey - 1, 2, 1, "#5ae0d0").d(x + 3, d.ey + 1, "#2e8a80");
+    d.r(d.L + 4, d.ey - 1, d.R - d.L - 4, 1, "#060508");
+    d.r(cx, d.ey + 2, 1, 3, GLOSS).d(cx + 1, d.ey + 4, DEEP);
+    d.r(cx - 3, d.ey + 7, 7, 1, DEEP).r(cx - 2, d.ey + 8, 5, 1, GLOSS);
+    // Short beard around the jaw.
+    d.f(hx + 1, hy + hh - 6, 2, 6, DEEP).f(hx + hw - 3, hy + hh - 6, 2, 6, DEEP).f(hx + 2, hy + hh - 1, hw - 4, 3, DEEP);
+    for (let i = 0; i < hw - 4; i += 2) d.d(hx + 2 + i, hy + hh, "#3a2e4a");
+    // Full-body Armament Haki: glossy black-violet muscle, outlined in purple like hardened steel.
+    const half = Math.min(8, tw / 2 - 1);
+    for (let i = 0; i <= half; i++) { const y = ty + 7 - Math.round(2 * Math.sin((i / half) * Math.PI)); d.d(tc - 1 - i, y, GLOSS).d(tc + i, y, GLOSS); } // pecs
+    d.r(tc - half, ty + 2, 3, 1, RIM).r(tc + half - 3, ty + 2, 3, 1, RIM).d(tc - half + 1, ty + 3, SPEC).d(tc + half - 2, ty + 3, SPEC);
+    d.r(tc, ty + 3, 1, th - 9, GLOSS); // centre line
+    for (let r = 0; r < 3; r++) { const y = ty + 10 + r * 3; d.r(tc - 4, y, 3, 1, GLOSS).r(tc + 2, y, 3, 1, GLOSS).d(tc - 3, y + 1, SPEC).d(tc + 3, y + 1, shade(BODY, 0.4)); }
+    d.line(tx + 1, ty + 9, tc - 5, ty + th - 6, GLOSS).line(tx + tw - 2, ty + 9, tc + 5, ty + th - 6, GLOSS); // obliques
+    for (const s of [-1, 1]) {
+      const ax = s < 0 ? d.lx : d.rx, ah = (s < 0 ? d.lhy : d.rhy) - ty;
+      d.recolor(BODY, ax, ty + 1, 1, ah, () => RIM).recolor(BODY, ax + d.aw - 1, ty + 1, 1, ah, () => GLOSS);
+      d.r(ax + 1, ty + 5, d.aw - 2, 1, GLOSS).d(ax + 1, ty + 3, SPEC).r(ax + 1, ty + Math.round(ah * 0.6), d.aw - 2, 1, GLOSS);
+    }
+    d.recolor(BODY, tx - 1, ty, 1, th - 5, () => RIM).recolor(BODY, tx + tw, ty, 1, th - 5, () => GLOSS);
+    // White trousers and a brown belt with a brass buckle.
+    d.folds("#e2e0da", d.legY, 4).belt("#6a4a2a", "#c8a050", ty + th - 4);
+    // His bamboo stick resting behind his shoulder, coated in Haki at the top.
+    d.asBody(() => {
+      const x0 = d.lx - 4, y0 = d.bottom - 6, x1 = d.lx + 6, y1 = hy - 6;
+      d.line(x0 - 1, y0, x1 - 1, y1, "#1e2a14").line(x0, y0, x1, y1, "#5a8a3a").line(x0 + 1, y0, x1 + 1, y1, "#8ab85a").line(x0 + 2, y0, x1 + 2, y1, "#1e2a14");
+      for (let k = 1; k < 6; k++) { const t = k / 6, x = Math.round(x0 + (x1 - x0) * t), y = Math.round(y0 + (y1 - y0) * t); d.r(x - 1, y, 4, 1, "#2e4a1e"); }
+      for (let k = 0; k < 10; k++) { const t = k / 36, x = Math.round(x1 + (x0 - x1) * t), y = Math.round(y1 + (y0 - y1) * t); d.r(x - 1, y, 4, 1, k % 3 ? BODY : GLOSS); }
+    });
   },
   "killer-onigashima": (d) => {
     const { hx, hy, hw, cx, ty, th } = d;

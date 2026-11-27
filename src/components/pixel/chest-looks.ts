@@ -117,7 +117,6 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   kyros: { h: "#d1c08a", hs: "long", t: "#8a6a4a", l: "#5a4a3a", x: ["beard:#d1c08a", "scar:#c08a6a"], w: "katana" },
   pekoms: { sk: "#e6b65c", h: "#c8902a", hs: "short", t: "#5a6a4a", l: "#3a3f52", x: ["mane:#c8902a", "shades:#2a2d3a", "shell:#7a8a5a"] },
   tamago: { b: "small", special: "egg", h: "#d84040", t: "#f5f0dc", l: "#2a2d3a" },
-  vergo: { h: "#2a2d3a", hs: "slick", t: "#f2f2f2", l: "#5f84b8", coat: "#2a3a5a", x: ["shades:#3a3f52"], w: "staff", wc: "#5a8a4a" },
   monet: { h: "#7fd0a0", hs: "long", t: "#f2f2f2", l: "#c08a4a", x: ["glasses:#e0e8f0", "^wings:#d8f0ff"] },
 
   // ---------------- Epic ----------------
@@ -183,6 +182,7 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "law-awakened": { h: "#2a2d3a", hs: "short", t: "#f0d040", l: "#3a3f52", hat: "beanie", hc: "#f2f2f2", coat: "#2a2d3a", x: ["goatee:#2a2d3a", "room:#5ccfd8"], w: "greatsword", wc: "#c0c8d4" },
   "kid-awakened": { b: "big", h: "#ff5a3c", hs: "flame", t: "#2a2d3a", l: "#3a2a2a", coat: "#7a2a2a", x: ["magnet:#ff5a3c", "spark:#ff8a5a"] },
   "sanji-ifrit-jambe": { h: "#f0d070", hs: "fringe", t: "#2a2d3a", l: "#2a2d3a", sh: "#5ab0ff", x: ["legfire:#5ab0ff", "tie:#3a5aa8", "cigar"] },
+  vergo: { b: "big", sk: "#2a2236", h: "#16121c", hs: "short", t: "#2a2236", l: "#e2e0da", sh: "#2a2236", hand: "#2a2236", x: ["goatee:#16121c", "shades:#2e6e6a", "belt:#7a5a3a"], w: "staff", wc: "#6a9a4a" },
   "killer-onigashima": { h: "#f0d888", hs: "wild", t: "#7fc0f0", l: "#3a5aa8", x: ["grin", "xscar:#c05050"], w: "blades" },
 
   // ---------------- Mythic ----------------
