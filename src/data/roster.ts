@@ -15,16 +15,13 @@ export const FORMER_ACHIEVEMENT_RARITY: Partial<Record<AchievementCharacterId, C
   robin: "epic",
   jinbe: "epic",
   ace: "epic",
-  kaido: "mythic",
-  roger: "mythic",
-  "gear-5": "mythic",
 };
 
 /**
  * Former achievement recruits taken out of the game (they repeated a Mythic or another Legendary):
  * they never drop from chests or codes and aren't listed, but captains who already earned one keep it.
  */
-export const RETIRED_RECRUITS: ReadonlySet<string> = new Set(["law", "rayleigh", "whitebeard", "shanks"]);
+export const RETIRED_RECRUITS: ReadonlySet<string> = new Set(["law", "rayleigh", "whitebeard", "shanks", "kaido", "roger", "gear-5"]);
 
 export interface RosterEntry {
   id: CharacterId;
