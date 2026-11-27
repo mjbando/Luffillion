@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import PixelEmblem from "./pixel-emblems";
 import { playClick } from "@/lib/sound";
+import { UPDATE_LIVE } from "@/lib/release";
 
 export default function LockedAchievements({ onSignIn, onClose }: { onSignIn: () => void; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -38,7 +39,7 @@ export default function LockedAchievements({ onSignIn, onClose }: { onSignIn: ()
             A captain needs an account
           </h2>
           <p id="locked-description" className="mt-2 text-lg leading-tight text-slate-300">
-            Sign in or create a free account to unlock and save every achievement. Your earned pixel emblems will follow you across devices.
+            Sign in or create a free account to unlock and save {UPDATE_LIVE ? "every achievement" : "all 15 achievements"}. Your earned pixel emblems will follow you across devices.
           </p>
           <div className="mt-4 flex flex-col gap-2">
             <button

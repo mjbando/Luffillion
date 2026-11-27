@@ -5,6 +5,7 @@ import "@fontsource/pixelify-sans/500.css";
 import "@fontsource/pixelify-sans/700.css";
 import "./globals.css";
 import SitePresence from "@/components/SitePresence";
+import UpdateAnnouncement from "@/components/UpdateAnnouncement";
 
 export const metadata: Metadata = {
   title: "Luffillion: One Piece Trivia",
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-[#05070f] font-pixel text-slate-100 antialiased">{children}<SitePresence /></body>
+      <body className="bg-[#05070f] font-pixel text-slate-100 antialiased">{children}<SitePresence /><UpdateAnnouncement /></body>
     </html>
   );
 }

@@ -910,8 +910,6 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
       d.r(bx, by + 2, 6, 6, "#ffffff").r(bx + 1, by + 3, 4, 4, "#f2f2f2").d(bx + 4, by + 3, ink).r(bx + 6, by + 4, 2, 1, "#f08a3a");
       d.r(bx + 1, by - 2, 4, 3, "#ffffff").r(bx, by + 1, 6, 1, "#ffffff").r(bx + 1, by, 4, 1, "#1e1e28").r(bx + 2, by + 6, 1, 3, "#c8ccd8");
     });
-    // Leopard claw marks in the air.
-    for (let i = 0; i < 3; i++) d.line(d.lx - 10 + i * 3, d.lhy - 16, d.lx - 14 + i * 3, d.lhy - 4, i === 1 ? "#ffffff" : "#e8c26a");
   },
 };
 
