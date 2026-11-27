@@ -1,22 +1,37 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { ArrowLeft, Compass, Flame, Search, Shield, Swords, Trophy, Users, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Compass, Flame, Search, Shield, Swords, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import CharacterPortrait from "../CharacterPortrait";
 import PixelEmblem from "../pixel-emblems";
 import RankedUsername from "./RankedUsername";
-import { characterById } from "@/data/playable-characters";
+import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { RANK_TIERS, rankTierFor } from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
 import { voyageRequest } from "@/lib/voyage-client";
-import { playClick } from "@/lib/sound";
+import { playClick, playQueueHorn, playSonar } from "@/lib/sound";
 
 function RankBadge({ points }: { points: number }) {
   const tier = rankTierFor(points);
   return (
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-sm font-bold tracking-wider ring-1 ${tier.badge}`}>
       {tier.name.toUpperCase()} · {points} RP
+    </span>
+  );
+}
+
+/** Pixel shield in the tier's colour, lettered with the tier initial. */
+function RankEmblem({ points, size = 48 }: { points: number; size?: number }) {
+  const t = rankTierFor(points);
+  return (
+    <span
+      className={`rk-emblem is-${t.id}`}
+      style={{ "--tier": t.color, width: size, height: Math.round(size * 1.14), fontSize: Math.round(size * 0.5) } as CSSProperties}
+      aria-label={`${t.name} rank`}
+      role="img"
+    >
+      <span>{t.name[0]}</span>
     </span>
   );
 }
@@ -64,11 +79,31 @@ export default function RankedLobby({
   useEffect(() => {
     if (selectedProfileId) profileCloseButton.current?.focus();
   }, [selectedProfileId]);
+  const [elapsed, setElapsed] = useState(0);
+  const [spin, setSpin] = useState(0);
   const { captain, profile, inQueue, onlineCount, onlinePlayers, friendlyInvites, leaderboard, recentMatches, serverNow } = data;
   const tier = rankTierFor(profile?.rankPoints ?? 0);
   const pctToNext = tier.nextMin && profile
     ? Math.min(100, Math.round(((profile.rankPoints - tier.min) / (tier.nextMin - tier.min)) * 100))
     : 100;
+
+  // Searching: run the clock, spin the mystery challenger, ping the sonar.
+  useEffect(() => {
+    if (!inQueue) return;
+    const started = performance.now();
+    const frame = requestAnimationFrame(() => setElapsed(0));
+    const tick = setInterval(() => {
+      setElapsed(Math.floor((performance.now() - started) / 1000));
+      setSpin((n) => n + 1);
+    }, 160);
+    playSonar();
+    const sonar = setInterval(playSonar, 2400);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(tick);
+      clearInterval(sonar);
+    };
+  }, [inQueue]);
 
   async function openProfile(accountId: string, trigger: HTMLButtonElement) {
     const requestId = ++profileRequest.current;
@@ -100,8 +135,21 @@ export default function RankedLobby({
     profileTrigger.current?.focus();
   }
 
+  const form = recentMatches.slice(0, 5).map((m) => m.result?.outcome ?? "draw");
+  const tierIndex = RANK_TIERS.findIndex((t) => t.id === tier.id);
+  const roulette = [...new Set<CharacterId>([
+    ...onlinePlayers.map((p) => p.characterId),
+    ...leaderboard.map((e) => e.characterId),
+    ...PLAYABLE_CHARACTERS.map((c) => c.id),
+  ])];
+  const spinId = roulette[spin % roulette.length];
+  const searchClock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+  const podium = leaderboard.slice(0, 3);
+  const segments = 10;
+  const litSegments = Math.round((pctToNext / 100) * segments);
+
   return (
-    <main className="ranked-shell">
+    <main className="ranked-shell rk-lobby">
       <header className="rk-topbar">
         <div className="flex items-center gap-4">
           <Link href="/" onClick={playClick} className="rk-link">
@@ -133,12 +181,93 @@ export default function RankedLobby({
       </header>
 
       <div className="rk-page">
-        <section className="rk-hero">
-          <p className="rk-eyebrow">10-SECOND KNOWLEDGE DUELS · 3 LIVES</p>
-          <h1>Ranked Battle Arena</h1>
-          <p>
-            Ranked battles use matchmaking only. Invite an online friend for a friendly match that never changes rank points.
-          </p>
+        {/* ---------- Harbor: your captain waits on the dock for a challenger ---------- */}
+        <section className={`rk-port ${inQueue ? "is-searching" : ""}`} aria-label="Matchmaking">
+          <div className="rk-port-scene" aria-hidden="true">
+            <div className="rk-port-sky" />
+            <div className="rk-stars" />
+            <div className="rk-stars s2" />
+            <div className="rk-moon" />
+            <div className="rk-port-ship" />
+            <div className="rk-sea" />
+            <div className="rk-deck" />
+            <div className="rk-lantern l1" />
+            <div className="rk-lantern l2" />
+            <div className="rk-fighter-slot is-left">
+              <div className="rk-flip">
+                <div className="rk-body pose-idle">
+                  <CharacterPortrait characterId={profile?.characterId ?? "luffy"} size={150} dim={!captain} />
+                </div>
+                <div className="rk-shadow" />
+              </div>
+              {captain && profile && (
+                <div className="rk-port-plate">
+                  <RankedUsername username={profile.username} />
+                  <small style={{ color: tier.color }}>{tier.name} · {profile.rankPoints} RP</small>
+                </div>
+              )}
+            </div>
+            <div className="rk-fighter-slot is-right">
+              {inQueue ? (
+                <>
+                  <div className="rk-radar" />
+                  <div className="rk-flip">
+                    <div key={spinId} className="rk-body rk-silhouette">
+                      <CharacterPortrait characterId={spinId} size={150} />
+                    </div>
+                    <div className="rk-shadow" />
+                  </div>
+                  <div className="rk-port-plate is-unknown">??? <small>SCANNING…</small></div>
+                </>
+              ) : (
+                <div className="rk-wanted">
+                  <small>WANTED</small>
+                  <span>?</span>
+                  <small>CHALLENGER</small>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rk-port-hud">
+            <p className="rk-eyebrow">10-SECOND KNOWLEDGE DUELS · 3 LIVES · SHOWDOWNS</p>
+            <h1 className="rk-port-title">Ranked Battle Arena</h1>
+            <p className="rk-online">
+              <span className="rk-live-dot" /> {onlineCount} captain{onlineCount === 1 ? "" : "s"} online
+            </p>
+            {captain ? (
+              inQueue ? (
+                <div className="rk-search" role="status">
+                  <p className="rk-search-title">
+                    SEARCHING THE SEAS<span className="rk-dots3"><i /><i /><i /></span>
+                  </p>
+                  <p className="rk-search-clock">{searchClock}</p>
+                  <button type="button" disabled={busy} onClick={onUnqueue} className="rk-btn-muted h-10 px-5">
+                    <X size={16} className="mr-1 inline" /> CANCEL SEARCH
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    playQueueHorn();
+                    onQueue();
+                  }}
+                  className="rk-find-btn"
+                >
+                  <Swords size={22} /> FIND MATCH
+                </button>
+              )
+            ) : (
+              <button type="button" onClick={onAccount} className="rk-find-btn">
+                <Shield size={20} /> SIGN IN TO BATTLE
+              </button>
+            )}
+            <p className="rk-port-note">
+              {inQueue ? "Looking for a captain near your rank." : "Matchmaking pairs you with a captain near your rank."}
+            </p>
+          </div>
         </section>
 
         {error && (
@@ -153,10 +282,12 @@ export default function RankedLobby({
               const sec = Math.max(0, Math.ceil((ch.expiresAt - serverNow) / 1000));
               return (
                 <div key={ch.id} className={`rk-challenge-card ${ch.direction === "incoming" ? "is-incoming" : ""}`}>
-                  <CharacterPortrait characterId={ch.opponent.characterId} size={52} />
+                  <div className="rk-challenge-portrait">
+                    <CharacterPortrait characterId={ch.opponent.characterId} size={56} />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="rk-eyebrow">
-                      {ch.direction === "incoming" ? "FRIENDLY BATTLE INVITE" : "INVITE SENT"} · {sec}S
+                      {ch.direction === "incoming" ? "⚔ CHALLENGE! FRIENDLY BATTLE INVITE" : "INVITE SENT"} · {sec}S
                     </p>
                     <p className="rk-challenge-title">
                       <strong><RankedUsername username={ch.opponent.username} /></strong> · {ch.opponent.title} ·{" "}
@@ -165,6 +296,7 @@ export default function RankedLobby({
                       </span>{" "}
                       · {ch.opponent.bounty.toLocaleString()} berries
                     </p>
+                    <div className="rk-challenge-timer"><span style={{ width: `${Math.min(100, (sec / 60) * 100)}%` }} /></div>
                   </div>
                   {ch.direction === "incoming" ? (
                     <div className="flex gap-2">
@@ -187,15 +319,13 @@ export default function RankedLobby({
         )}
 
         <div className="rk-grid">
-          {/* Left column: Player Stats & Rank Guide */}
+          {/* ---------- Left: captain card + rank ladder ---------- */}
           <aside className="space-y-4">
-            <div className="rk-card px-scan" style={{ borderTopColor: tier.color }}>
+            <div className="rk-card rk-captain px-scan" style={{ "--tier": tier.color } as CSSProperties}>
               {captain && profile ? (
                 <>
                   <div className="flex items-center gap-3">
-                    <div className="rk-portrait-box">
-                      <CharacterPortrait characterId={profile.characterId} size={74} />
-                    </div>
+                    <RankEmblem points={profile.rankPoints} size={60} />
                     <div className="min-w-0 flex-1">
                       <p className="rk-eyebrow">CAPTAIN CARD</p>
                       <h2 className="rk-username"><RankedUsername username={profile.username} /></h2>
@@ -206,7 +336,7 @@ export default function RankedLobby({
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rk-stat-box">
                       <span className="rk-stat-label">BOUNTY</span>
-                      <span className="rk-stat-val text-amber-300">{profile.bounty.toLocaleString()}</span>
+                      <span className="rk-stat-val text-amber-300">฿ {profile.bounty.toLocaleString()}</span>
                     </div>
                     <div className="rk-stat-box">
                       <span className="rk-stat-label">RANK</span>
@@ -223,31 +353,42 @@ export default function RankedLobby({
                         {tier.nextMin ? `${tier.nextMin - profile.rankPoints} to ${rankTierFor(tier.nextMin).name}` : "Max Tier"}
                       </span>
                     </div>
-                    <div className="mt-1 h-2 bg-slate-800">
-                      <div className="h-full transition-[width]" style={{ width: `${pctToNext}%`, backgroundColor: tier.color }} />
+                    <div className="rk-xp" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pctToNext} aria-label="Progress to next rank">
+                      {Array.from({ length: segments }, (_, i) => (
+                        <i key={i} className={i < litSegments ? "is-on" : ""} style={{ animationDelay: `${i * 60}ms` }} />
+                      ))}
                     </div>
                   </div>
 
                   <div className="mt-3 grid grid-cols-4 gap-1 text-center text-sm">
-                    <div className="bg-white/5 py-1">
-                      <span className="block text-xs text-slate-500">W</span>
-                      <span className="text-emerald-300">{profile.wins}</span>
+                    <div className="rk-mini-stat">
+                      <span>W</span>
+                      <b className="text-emerald-300">{profile.wins}</b>
                     </div>
-                    <div className="bg-white/5 py-1">
-                      <span className="block text-xs text-slate-500">L</span>
-                      <span className="text-rose-300">{profile.losses}</span>
+                    <div className="rk-mini-stat">
+                      <span>L</span>
+                      <b className="text-rose-300">{profile.losses}</b>
                     </div>
-                    <div className="bg-white/5 py-1">
-                      <span className="block text-xs text-slate-500">D</span>
-                      <span className="text-slate-300">{profile.draws}</span>
+                    <div className="rk-mini-stat">
+                      <span>D</span>
+                      <b className="text-slate-300">{profile.draws}</b>
                     </div>
-                    <div className="bg-white/5 py-1">
-                      <span className="block text-xs text-slate-500">STREAK</span>
-                      <span className="text-amber-300">
+                    <div className={`rk-mini-stat ${profile.winStreak >= 3 ? "is-hot" : ""}`}>
+                      <span>STREAK</span>
+                      <b className="text-amber-300">
                         <Flame size={12} className="inline" /> {profile.winStreak}
-                      </span>
+                      </b>
                     </div>
                   </div>
+
+                  {form.length > 0 && (
+                    <div className="rk-form" aria-label="Last five results">
+                      <span>FORM</span>
+                      {form.map((o, i) => (
+                        <i key={i} className={`is-${o}`}>{o === "win" ? "W" : o === "loss" ? "L" : "D"}</i>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="py-3 text-center">
@@ -264,15 +405,21 @@ export default function RankedLobby({
             </div>
 
             <div className="rk-card px-scan">
-              <p className="rk-eyebrow">RANKED TIERS &amp; SCORING</p>
-              <ul className="mt-2 space-y-1 text-base">
-                {RANK_TIERS.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between border-b border-white/5 py-1">
-                    <span style={{ color: t.color }}>{t.name}</span>
-                    <span className="text-slate-400">{t.min}+ RP</span>
-                  </li>
-                ))}
-              </ul>
+              <p className="rk-eyebrow">RANK LADDER</p>
+              <ol className="rk-ladder">
+                {[...RANK_TIERS].reverse().map((t) => {
+                  const idx = RANK_TIERS.findIndex((x) => x.id === t.id);
+                  const state = !profile ? "" : idx === tierIndex ? "is-you" : idx < tierIndex ? "is-cleared" : "is-locked";
+                  return (
+                    <li key={t.id} className={`rk-rung ${state}`} style={{ "--tier": t.color } as CSSProperties}>
+                      <RankEmblem points={t.min} size={22} />
+                      <span className="rk-rung-name">{t.name}</span>
+                      {state === "is-you" && <span className="rk-rung-you">YOU ▸</span>}
+                      <span className="rk-rung-rp">{t.min}+</span>
+                    </li>
+                  );
+                })}
+              </ol>
               <div className="mt-3 space-y-1 text-sm text-slate-400">
                 <p>• Win: +30 RP (more vs higher ranks, less vs lower)</p>
                 <p>• Loss: -15 RP (bigger drop vs lower ranks, 0 floor)</p>
@@ -280,51 +427,27 @@ export default function RankedLobby({
                 <p>• Win streaks: +10 (3 wins), +20 (5 wins), +50 (10 wins)</p>
               </div>
             </div>
+
+            <div className="rk-card rk-rules px-scan">
+              <p className="rk-eyebrow">HOW BATTLES WORK</p>
+              <ul>
+                <li><b>♥</b><span>Miss a question and you lose a life.</span></li>
+                <li><b className="text-cyan-300">+</b><span>Rarer answers add bonus seconds to your next round.</span></li>
+                <li><b className="text-rose-300">⚡</b><span>Both answer 5 in a row: <strong>SHOWDOWN</strong>. The less niche pull loses a life.</span></li>
+                <li><b className="text-amber-300">∞</b><span>After round 12 it&apos;s <strong>OVERTIME</strong>: every round is a Showdown until a K.O.</span></li>
+              </ul>
+            </div>
           </aside>
 
-          {/* Center column: Search & Matchmaking */}
+          {/* ---------- Center: friendly battles + recent duels ---------- */}
           <section className="space-y-4">
-            <div className="rk-card px-scan">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="rk-eyebrow">QUICK MATCHMAKING</p>
-                  <h2 className="font-pixel-display text-2xl text-white">
-                    {inQueue ? "Searching for an opponent…" : "Find a Ranked Opponent"}
-                  </h2>
-                  <p className="text-base text-slate-400">
-                    <Users size={14} className="mr-1 inline" /> {onlineCount} captain{onlineCount === 1 ? "" : "s"} online in Ranked right now
-                  </p>
-                </div>
-                {captain ? (
-                  inQueue ? (
-                    <button type="button" disabled={busy} onClick={onUnqueue} className="rk-btn-muted h-11 px-5">
-                      <X size={16} className="mr-1 inline" /> CANCEL SEARCH
-                    </button>
-                  ) : (
-                    <button type="button" disabled={busy} onClick={onQueue} className="rk-btn-gold h-11 px-6">
-                      <Swords size={16} className="mr-1.5 inline" /> FIND MATCH ▸
-                    </button>
-                  )
-                ) : (
-                  <button type="button" onClick={onAccount} className="rk-btn-gold h-11 px-5">
-                    SIGN IN TO QUEUE ▸
-                  </button>
-                )}
-              </div>
-              {inQueue && (
-                <div className="mt-3 flex items-center gap-2 border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-base text-amber-200">
-                  <span className="h-2.5 w-2.5 animate-ping rounded-full bg-amber-300" />
-                  Searching for another online pirate near your rank…
-                </div>
-              )}
-            </div>
-
             <div className="rk-card px-scan">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="rk-eyebrow">FRIENDLY BATTLE</p>
-                  <h2 className="font-pixel-display text-xl text-white">Invite an Online Friend</h2>
+                  <p className="rk-eyebrow">FRIENDLY BATTLE · NO RANK POINTS</p>
+                  <h2 className="font-pixel-display text-xl text-white">Captains in Port</h2>
                 </div>
+                <span className="rk-online is-small"><span className="rk-live-dot" /> {onlinePlayers.length} nearby</span>
               </div>
 
               <form
@@ -356,12 +479,15 @@ export default function RankedLobby({
                   <p className="border border-dashed border-white/15 py-5 text-center text-base text-slate-400">
                     {search.trim()
                       ? `No online players matching "${search.trim()}".`
-                      : "No other captains are online right now."}
+                      : "No other captains are in port right now."}
                   </p>
                 ) : (
                   onlinePlayers.map((p) => (
-                    <div key={p.accountId} className="flex flex-wrap items-center gap-3 border border-white/10 bg-white/[.03] px-3 py-2">
-                      <CharacterPortrait characterId={p.characterId} size={44} />
+                    <div key={p.accountId} className={`rk-crew-row ${p.inMatch ? "is-busy" : ""}`} style={{ "--tier": rankTierFor(p.rankPoints).color } as CSSProperties}>
+                      <div className="rk-crew-portrait">
+                        <CharacterPortrait characterId={p.characterId} size={46} />
+                        <span className={`rk-crew-status ${p.inMatch ? "is-busy" : ""}`} />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <RankedUsername username={p.username} className="font-pixel-display text-lg text-white" />
@@ -373,7 +499,7 @@ export default function RankedLobby({
                         </p>
                       </div>
                       {p.inMatch ? (
-                        <span className="text-sm text-rose-300">In Battle</span>
+                        <span className="rk-busy-tag"><Swords size={14} /> IN BATTLE</span>
                       ) : captain ? (
                         <button
                           type="button"
@@ -381,7 +507,7 @@ export default function RankedLobby({
                           onClick={() => onInviteFriend({ targetId: p.accountId })}
                           className="rk-btn-cyan h-9 px-3 text-base"
                         >
-                          INVITE ▸
+                          ⚔ CHALLENGE
                         </button>
                       ) : (
                         <button type="button" onClick={onAccount} className="rk-btn-muted h-9 px-3 text-sm">
@@ -396,43 +522,38 @@ export default function RankedLobby({
 
             {recentMatches.length > 0 && (
               <div className="rk-card px-scan">
-                <p className="rk-eyebrow">RECENT DUELS</p>
+                <p className="rk-eyebrow">RECENT DUELS · TAP TO REPLAY THE RESULT</p>
                 <div className="mt-2 space-y-2">
-                  {recentMatches.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        playClick();
-                        onInspectMatch(m);
-                      }}
-                      className="flex w-full items-center justify-between gap-3 border border-white/10 bg-white/[.03] px-3 py-2 text-left hover:bg-white/[.07]"
-                    >
-                      <span className="min-w-0 truncate text-base">
-                        <span
-                          className={
-                            m.result?.outcome === "win"
-                              ? "text-emerald-300"
-                              : m.result?.outcome === "loss"
-                                ? "text-rose-300"
-                                : "text-amber-200"
-                          }
-                        >
-                          {m.result?.outcome.toUpperCase()}
-                        </span>{" "}
-                        vs <strong className="font-normal text-white"><RankedUsername username={m.opponent.username} /></strong> ({m.opponent.rankName})
-                      </span>
-                      <span className="shrink-0 text-base text-cyan-200">
-                        {m.result ? `${m.result.you.delta >= 0 ? "+" : ""}${m.result.you.delta} RP` : ""} ▸
-                      </span>
-                    </button>
-                  ))}
+                  {recentMatches.map((m) => {
+                    const outcome = m.result?.outcome ?? "draw";
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          playClick();
+                          onInspectMatch(m);
+                        }}
+                        className={`rk-duel-row is-${outcome}`}
+                      >
+                        <span className="rk-duel-chip">{outcome === "win" ? "WIN" : outcome === "loss" ? "LOSS" : "DRAW"}</span>
+                        <CharacterPortrait characterId={m.opponent.characterId} size={30} />
+                        <span className="min-w-0 flex-1 truncate text-base">
+                          vs <strong className="font-normal text-white"><RankedUsername username={m.opponent.username} /></strong>{" "}
+                          <span className="text-slate-400">({m.opponent.rankName}{m.mode === "friendly" ? " · friendly" : ""})</span>
+                        </span>
+                        <span className="shrink-0 text-base text-cyan-200">
+                          {m.result && m.mode !== "friendly" ? `${m.result.you.delta >= 0 ? "+" : ""}${m.result.you.delta} RP` : ""} ▸
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </section>
 
-          {/* Right column: Ranked Leaderboard */}
+          {/* ---------- Right: leaderboard with podium ---------- */}
           <aside className="rk-card px-scan">
             <div className="mb-3 flex items-center gap-2">
               <Trophy size={18} className="text-amber-300" />
@@ -446,39 +567,63 @@ export default function RankedLobby({
                 No ranked captains yet. Play the first match!
               </p>
             ) : (
-              <ol className="max-h-[540px] space-y-1.5 overflow-y-auto pr-1">
-                {leaderboard.map((entry) => (
-                  <li key={entry.accountId}>
-                    <button
-                      type="button"
-                      onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
-                      aria-label={`View ${entry.username}'s player card`}
-                      className={`flex w-full items-center gap-2 border px-2.5 py-1.5 text-left hover:border-cyan-300/50 hover:bg-cyan-300/[.06] ${
-                        entry.isYou ? "border-amber-300/60 bg-amber-300/10" : "border-white/5 bg-white/[.03]"
-                      }`}
-                    >
-                      <span className="w-7 text-right font-pixel-display text-base text-slate-400">#{entry.rank}</span>
-                      <CharacterPortrait characterId={entry.characterId} size={30} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-base text-white">
-                          <RankedUsername username={entry.username} /> {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
-                        </p>
-                        <p className="truncate text-xs text-slate-400">
-                          {entry.title} · {entry.bounty.toLocaleString()} berries
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-base font-bold" style={{ color: rankTierFor(entry.rankPoints).color }}>
-                          {entry.rankPoints} RP
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {entry.wins}W-{entry.losses}L
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ol>
+              <>
+                <div className="rk-podium">
+                  {[podium[1], podium[0], podium[2]].map((entry, slot) =>
+                    entry ? (
+                      <button
+                        key={entry.accountId}
+                        type="button"
+                        onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
+                        aria-label={`View ${entry.username}'s player card`}
+                        className={`rk-podium-spot place-${entry.rank} ${entry.isYou ? "is-you" : ""}`}
+                      >
+                        <span className="rk-podium-char">
+                          <CharacterPortrait characterId={entry.characterId} size={slot === 1 ? 64 : 50} />
+                        </span>
+                        <span className="rk-podium-name"><RankedUsername username={entry.username} /></span>
+                        <span className="rk-podium-rp" style={{ color: rankTierFor(entry.rankPoints).color }}>{entry.rankPoints} RP</span>
+                        <span className="rk-podium-block">{entry.rank}</span>
+                      </button>
+                    ) : (
+                      <span key={`empty-${slot}`} className="rk-podium-spot is-empty" />
+                    ),
+                  )}
+                </div>
+                {leaderboard.length > 3 && (
+                  <ol className="mt-3 max-h-[420px] space-y-1.5 overflow-y-auto pr-1">
+                    {leaderboard.slice(3).map((entry) => (
+                      <li key={entry.accountId}>
+                        <button
+                          type="button"
+                          onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
+                          aria-label={`View ${entry.username}'s player card`}
+                          className={`rk-board-row ${entry.isYou ? "is-you" : ""}`}
+                        >
+                          <span className="w-7 text-right font-pixel-display text-base text-slate-400">#{entry.rank}</span>
+                          <CharacterPortrait characterId={entry.characterId} size={30} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-base text-white">
+                              <RankedUsername username={entry.username} /> {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
+                            </p>
+                            <p className="truncate text-xs text-slate-400">
+                              {entry.title} · {entry.bounty.toLocaleString()} berries
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-base font-bold" style={{ color: rankTierFor(entry.rankPoints).color }}>
+                              {entry.rankPoints} RP
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {entry.wins}W-{entry.losses}L
+                            </p>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </>
             )}
           </aside>
         </div>

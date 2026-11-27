@@ -499,3 +499,212 @@
 .rk-track { flex-wrap: wrap; max-width: 520px; margin-left: auto; margin-right: auto; }
 .rk-pip.is-ot:not(.is-sd) { border-color: #f43f5e; }
 @media (max-width: 700px) { .rk-track { gap: 4px; max-width: 300px; } .rk-pip { width: 10px; height: 10px; } }
+
+/* =====================================================================
+   Lobby: night harbor where your captain waits for a challenger
+   ===================================================================== */
+.rk-port { position: relative; height: clamp(320px, 33vw, 380px); margin-bottom: 22px; border: 3px solid #050a14; box-shadow: 0 0 0 2px #2a3a5c, 0 18px 40px #0009; overflow: hidden; }
+.rk-port-scene { position: absolute; inset: 0; }
+.rk-port-sky { position: absolute; inset: 0; background: linear-gradient(#050816 0 16%, #0a1030 16% 32%, #15174a 32% 46%, #2a1d5c 46% 56%, #4a2468 56%); }
+.rk-stars, .rk-stars.s2 {
+  position: absolute; top: 0; left: 0; width: 2px; height: 2px; background: transparent; animation: rk-twinkle 2.4s steps(2) infinite;
+  box-shadow: 40px 18px #fff, 120px 52px #cbd5e1, 210px 26px #fff, 300px 70px #fde68a, 390px 14px #fff, 470px 46px #cbd5e1, 560px 22px #fff,
+    640px 60px #fff, 720px 30px #fde68a, 810px 12px #fff, 900px 48px #cbd5e1, 980px 24px #fff, 1060px 64px #fff, 1140px 18px #fde68a, 1210px 42px #fff,
+    80px 96px #94a3b8, 260px 110px #94a3b8, 520px 100px #94a3b8, 760px 92px #94a3b8, 1020px 104px #94a3b8, 1180px 96px #94a3b8;
+}
+.rk-stars.s2 { transform: translate(55px, 34px); animation-delay: 1.2s; }
+@keyframes rk-twinkle { 50% { opacity: .35; } }
+.rk-moon {
+  position: absolute; top: 12%; right: 9%; width: 58px; height: 58px; background: #f1f5f9;
+  box-shadow: 0 0 0 5px #e2e8f033, 0 0 50px #c7d2fe; clip-path: polygon(25% 0, 75% 0, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0 75%, 0 25%);
+}
+.rk-moon::after { content: ""; position: absolute; left: 14px; top: 18px; width: 10px; height: 10px; background: #cbd5e1; box-shadow: 18px 12px 0 2px #cbd5e1, 6px 22px 0 -2px #cbd5e1; }
+.rk-port-ship {
+  position: absolute; bottom: 37%; left: -90px; width: 72px; height: 54px; background: #0b0f24; opacity: .85;
+  clip-path: polygon(46% 0, 50% 0, 50% 8%, 86% 30%, 50% 30%, 50% 40%, 80% 64%, 50% 64%, 50% 72%, 100% 72%, 86% 100%, 14% 100%, 0 72%, 46% 72%, 46% 40%, 18% 64%, 46% 30%, 46% 8%);
+  animation: rk-sail 46s linear infinite;
+}
+@keyframes rk-sail { to { translate: calc(100vw + 180px) 0; } }
+.rk-port .rk-sea { background: repeating-linear-gradient(90deg, #c7d2fe40 0 14px, transparent 14px 46px) 0 30% / 92px 2px repeat-x, linear-gradient(#1e2a6b, #0b1440); }
+.rk-port .rk-sea::after { content: ""; position: absolute; top: 0; right: 9%; width: 58px; height: 100%; background: repeating-linear-gradient(#e0e7ff55 0 3px, transparent 3px 9px); opacity: .6; }
+.rk-lantern { position: absolute; bottom: 20%; z-index: 2; width: 6px; height: 46px; background: #3b2412; }
+.rk-lantern::before { content: ""; position: absolute; top: -14px; left: -6px; width: 18px; height: 16px; background: #fbbf24; box-shadow: 0 0 18px 6px #f59e0b88, 0 0 50px 16px #f59e0b33; animation: rk-flicker 1.6s steps(3) infinite; }
+.rk-lantern.l1 { left: 5%; }
+.rk-lantern.l2 { right: 5%; }
+@keyframes rk-flicker { 33% { opacity: .82; } 66% { opacity: 1; } 80% { opacity: .9; } }
+.rk-port .rk-fighter-slot.is-left { left: 11%; }
+.rk-port .rk-fighter-slot.is-right { right: 11%; }
+.rk-port-plate {
+  margin-top: 6px; display: flex; flex-direction: column; align-items: center; padding: 2px 10px; background: #050a14d0; border: 1px solid #ffffff22;
+  font-family: "Pixelify Sans", monospace; font-size: 16px; color: #fff; white-space: nowrap;
+}
+.rk-port-plate small { font-family: "VT323", monospace; font-size: 14px; letter-spacing: 1px; }
+.rk-port-plate.is-unknown { color: #fda4af; letter-spacing: 3px; }
+.rk-port-plate.is-unknown small { color: #94a3b8; }
+
+/* Empty challenger spot: a wanted poster nailed to a post */
+.rk-wanted {
+  display: flex; flex-direction: column; align-items: center; width: 96px; padding: 8px 6px 10px; margin-bottom: 14px;
+  background: #e9d6a6; color: #3b2412; border: 3px solid #8a5a2b; box-shadow: 4px 4px 0 #050a14; rotate: 3deg;
+  font-family: "Pixelify Sans", monospace; animation: rk-sway 3s ease-in-out infinite;
+}
+.rk-wanted small { font-size: 11px; letter-spacing: 2px; font-weight: 700; }
+.rk-wanted span { display: grid; place-items: center; width: 64px; height: 64px; margin: 4px 0; background: #cdb683; border: 2px solid #8a5a2b; font-size: 44px; font-weight: 700; color: #6b4520; }
+@keyframes rk-sway { 50% { rotate: -2deg; } }
+
+/* Searching: a radar sweep and a shadowy roulette of challengers */
+.rk-silhouette svg { filter: brightness(0) drop-shadow(0 0 6px #f43f5e) drop-shadow(0 0 2px #fda4af) !important; animation: rk-silhouette-in .16s steps(2) both; }
+@keyframes rk-silhouette-in { from { opacity: .3; transform: translateY(4px); } }
+.rk-radar {
+  position: absolute; left: 50%; bottom: 30%; z-index: 0; width: 220px; height: 220px; margin-left: -110px; border-radius: 50%;
+  background: conic-gradient(from 0deg, #f43f5e66, transparent 22%), repeating-radial-gradient(circle, transparent 0 34px, #f43f5e33 34px 36px);
+  animation: rk-sweep 1.6s linear infinite; mask: radial-gradient(circle, #000 60%, transparent 71%);
+}
+@keyframes rk-sweep { to { rotate: 360deg; } }
+
+/* Title, online count and the big button over the scene */
+.rk-port-hud {
+  position: absolute; left: 50%; top: 9%; z-index: 5; width: min(640px, 62%); transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+}
+.rk-port-title {
+  font-family: "Pixelify Sans", monospace; font-weight: 700; font-size: clamp(28px, 3.7vw, 46px); line-height: 1; letter-spacing: 2px; color: #fff;
+  text-shadow: 4px 4px 0 #050a14, -2px -2px 0 #050a14, 2px -2px 0 #050a14, -2px 2px 0 #050a14, 0 0 30px #f43f5e88;
+}
+.rk-online { display: inline-flex; align-items: center; gap: 8px; padding: 2px 10px; background: #050a14b0; font-size: 17px; color: #bbf7d0; }
+.rk-online.is-small { background: transparent; padding: 0; font-size: 15px; }
+.rk-live-dot { width: 9px; height: 9px; background: #4ade80; box-shadow: 0 0 0 0 #4ade80aa; animation: rk-live 1.6s ease-out infinite; }
+@keyframes rk-live { 0% { box-shadow: 0 0 0 0 #4ade80aa; } 100% { box-shadow: 0 0 0 9px #4ade8000; } }
+.rk-find-btn {
+  position: relative; display: inline-flex; align-items: center; gap: 10px; margin-top: 6px; padding: 12px 34px;
+  font-family: "Pixelify Sans", monospace; font-size: 26px; font-weight: 700; letter-spacing: 3px; color: #241a04;
+  background: linear-gradient(#fde68a 0 45%, #f5c542 45%); border: 3px solid #050a14;
+  box-shadow: inset 0 -5px 0 #b7861f, 0 0 0 3px #fbbf24, 5px 5px 0 3px #050a14, 0 0 34px #fbbf2499;
+  animation: rk-find-pulse 1.6s ease-in-out infinite; overflow: hidden;
+}
+.rk-find-btn::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%; background: #ffffff88; transform: skewX(-20deg); animation: rk-shine 2.6s ease-in-out infinite; }
+.rk-find-btn:hover:not(:disabled) { filter: brightness(1.08); translate: 0 -2px; }
+.rk-find-btn:active:not(:disabled) { translate: 2px 2px; box-shadow: inset 0 -2px 0 #b7861f, 0 0 0 3px #fbbf24, 2px 2px 0 3px #050a14; }
+@keyframes rk-find-pulse { 50% { box-shadow: inset 0 -5px 0 #b7861f, 0 0 0 3px #fbbf24, 5px 5px 0 3px #050a14, 0 0 54px #fbbf24cc; } }
+@keyframes rk-shine { 0%, 55% { left: -40%; } 100% { left: 130%; } }
+.rk-port-note { font-size: 15px; color: #a5b4fc; text-shadow: 1px 1px 0 #050a14; }
+.rk-search { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rk-search-title { font-family: "Pixelify Sans", monospace; font-size: 20px; letter-spacing: 3px; color: #fda4af; text-shadow: 2px 2px 0 #050a14; }
+.rk-search-clock { font-family: "Pixelify Sans", monospace; font-size: 40px; line-height: 1; color: #fde68a; text-shadow: 3px 3px 0 #050a14; }
+.rk-dots3 { display: inline-flex; gap: 3px; margin-left: 4px; }
+.rk-dots3 i { width: 4px; height: 4px; background: currentColor; animation: rk-dots 1.2s steps(1) infinite; }
+.rk-dots3 i:nth-child(2) { animation-delay: .3s; }
+.rk-dots3 i:nth-child(3) { animation-delay: .6s; }
+.rk-port.is-searching { box-shadow: 0 0 0 2px #be123c, 0 0 30px #be123c66, 0 18px 40px #0009; }
+
+/* Invites */
+.rk-challenge-portrait { display: grid; place-items: center; width: 64px; height: 64px; background: #081221; border: 2px solid #31445e; }
+.rk-challenge-card.is-incoming { animation: rk-invite-glow 1s steps(2) infinite; box-shadow: 0 0 0 1px #fbbf24; }
+.rk-challenge-card.is-incoming .rk-challenge-portrait { border-color: #fbbf24; }
+@keyframes rk-invite-glow { 50% { background: #3d2f12; box-shadow: 0 0 22px #fbbf2466, 0 0 0 1px #fbbf24; } }
+.rk-challenge-timer { height: 4px; margin-top: 6px; background: #ffffff14; }
+.rk-challenge-timer span { display: block; height: 100%; background: #fbbf24; transition: width 1s linear; }
+
+/* Captain card */
+.rk-captain { border-top-color: var(--tier); box-shadow: inset 0 3px 18px -10px var(--tier); }
+.rk-emblem {
+  position: relative; display: inline-grid; place-items: center; flex-shrink: 0;
+  background: linear-gradient(160deg, #ffffffaa 0 18%, var(--tier) 18% 62%, color-mix(in srgb, var(--tier) 60%, #000) 62%);
+  clip-path: polygon(0 0, 100% 0, 100% 58%, 82% 80%, 50% 100%, 18% 80%, 0 58%);
+  font-family: "Pixelify Sans", monospace; font-weight: 700; color: #0b1220;
+}
+.rk-emblem::before { content: ""; position: absolute; inset: 12%; background: color-mix(in srgb, var(--tier) 75%, #fff); clip-path: inherit; opacity: .35; }
+.rk-emblem > span { position: relative; margin-top: -10%; text-shadow: 1px 1px 0 #ffffff88; }
+.rk-emblem.is-champion, .rk-emblem.is-legend { animation: rk-emblem-glow 1.4s steps(2) infinite; }
+@keyframes rk-emblem-glow { 50% { filter: brightness(1.25) drop-shadow(0 0 6px var(--tier)); } }
+.rk-xp { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; margin-top: 4px; }
+.rk-xp i { height: 10px; background: #1e293b; border: 1px solid #334155; }
+.rk-xp i.is-on { background: var(--tier); border-color: color-mix(in srgb, var(--tier) 55%, #000); box-shadow: 0 0 6px var(--tier); animation: rk-xp-in .4s steps(2) both; }
+@keyframes rk-xp-in { from { opacity: 0; transform: scaleY(.2); } }
+.rk-mini-stat { display: flex; flex-direction: column; background: #ffffff0d; padding: 4px 0; }
+.rk-mini-stat span { font-size: 11px; color: #64748b; letter-spacing: 1px; }
+.rk-mini-stat b { font-weight: 400; font-size: 18px; }
+.rk-mini-stat.is-hot { background: #f9731622; box-shadow: inset 0 0 0 1px #f97316; }
+.rk-form { display: flex; align-items: center; gap: 4px; margin-top: 10px; }
+.rk-form span { margin-right: 6px; font-size: 12px; letter-spacing: 2px; color: #64748b; }
+.rk-form i { display: grid; place-items: center; width: 22px; height: 22px; font-style: normal; font-family: "Pixelify Sans", monospace; font-size: 13px; color: #0b1220; }
+.rk-form i.is-win { background: #34d399; }
+.rk-form i.is-loss { background: #fb7185; }
+.rk-form i.is-draw { background: #94a3b8; }
+
+/* Rank ladder */
+.rk-ladder { position: relative; margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+.rk-ladder::before { content: ""; position: absolute; left: 10px; top: 8px; bottom: 8px; width: 2px; background: #334155; }
+.rk-rung { position: relative; display: flex; align-items: center; gap: 10px; padding: 3px 8px 3px 0; font-size: 17px; }
+.rk-rung-name { flex: 1; color: var(--tier); }
+.rk-rung-rp { color: #64748b; font-size: 15px; }
+.rk-rung.is-locked { opacity: .5; }
+.rk-rung.is-locked .rk-emblem { filter: grayscale(.7) brightness(.7); }
+.rk-rung.is-you { background: linear-gradient(90deg, color-mix(in srgb, var(--tier) 28%, transparent), transparent); box-shadow: inset 2px 0 0 var(--tier); }
+.rk-rung-you { font-family: "Pixelify Sans", monospace; font-size: 12px; letter-spacing: 1px; color: #0b1220; background: var(--tier); padding: 0 6px; animation: rk-blink-text 1s steps(1) infinite; }
+
+/* Battle rules */
+.rk-rules ul { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 16px; color: #cbd5e1; }
+.rk-rules li { display: flex; gap: 8px; }
+.rk-rules li b { flex-shrink: 0; width: 18px; text-align: center; font-weight: 400; }
+.rk-rules li b:not([class]) { color: #fb7185; }
+.rk-rules strong { font-weight: 400; color: #fde047; }
+
+/* Captains in port */
+.rk-crew-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: #ffffff08; border: 1px solid #ffffff1a; border-left: 3px solid var(--tier); transition: background .15s, translate .15s; }
+.rk-crew-row:hover { background: #ffffff10; translate: 2px 0; }
+.rk-crew-row.is-busy { opacity: .7; }
+.rk-crew-portrait { position: relative; display: grid; place-items: center; width: 52px; height: 52px; background: #081221; border: 1px solid #31445e; }
+.rk-crew-status { position: absolute; right: -3px; bottom: -3px; width: 11px; height: 11px; background: #4ade80; border: 2px solid #0d1a2e; animation: rk-live 1.6s ease-out infinite; }
+.rk-crew-status.is-busy { background: #fb7185; animation: none; }
+.rk-busy-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 14px; letter-spacing: 1px; color: #fda4af; border: 1px solid #fb718566; background: #fb71851a; }
+
+/* Recent duels */
+.rk-duel-row { display: flex; width: 100%; align-items: center; gap: 10px; padding: 6px 12px 6px 0; text-align: left; background: #ffffff08; border: 1px solid #ffffff1a; transition: background .15s, translate .15s; }
+.rk-duel-row:hover { background: #ffffff12; translate: 2px 0; }
+.rk-duel-chip { align-self: stretch; display: grid; place-items: center; width: 54px; font-family: "Pixelify Sans", monospace; font-size: 14px; letter-spacing: 1px; color: #0b1220; }
+.rk-duel-row.is-win .rk-duel-chip { background: #34d399; }
+.rk-duel-row.is-loss .rk-duel-chip { background: #fb7185; }
+.rk-duel-row.is-draw .rk-duel-chip { background: #94a3b8; }
+
+/* Leaderboard podium */
+.rk-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 6px; padding-top: 8px; }
+.rk-podium-spot { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
+.rk-podium-spot.is-empty { height: 60px; }
+.rk-podium-char { animation: rk-bob 1.2s steps(2) infinite; filter: drop-shadow(2px 0 0 #050a14) drop-shadow(-2px 0 0 #050a14) drop-shadow(0 2px 0 #050a14); }
+.place-1 .rk-podium-char { filter: drop-shadow(2px 0 0 #050a14) drop-shadow(-2px 0 0 #050a14) drop-shadow(0 0 10px #fde68a); }
+.rk-podium-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; color: #fff; }
+.rk-podium-rp { font-size: 14px; }
+.rk-podium-block {
+  display: grid; place-items: center; width: 100%; margin-top: 4px; font-family: "Pixelify Sans", monospace; font-size: 24px; font-weight: 700; color: #0b1220;
+  box-shadow: inset 0 4px 0 #ffffff66, inset 0 -4px 0 #00000033;
+}
+.place-1 .rk-podium-block { height: 62px; background: linear-gradient(#fde68a, #f59e0b); }
+.place-2 .rk-podium-block { height: 44px; background: linear-gradient(#f1f5f9, #94a3b8); }
+.place-3 .rk-podium-block { height: 32px; background: linear-gradient(#fdba74, #b45309); }
+.rk-podium-spot.is-you .rk-podium-name { color: #fde68a; }
+.rk-podium-spot:hover .rk-podium-block { filter: brightness(1.12); }
+.rk-board-row { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 10px; text-align: left; border: 1px solid #ffffff0d; background: #ffffff08; }
+.rk-board-row:hover { border-color: #67e8f980; background: #67e8f90f; }
+.rk-board-row.is-you { border-color: #fbbf2499; background: #fbbf241a; }
+
+@media (max-width: 700px) {
+  .rk-port { height: 360px; }
+  .rk-port-hud { top: 6%; width: 92%; }
+  .rk-port-hud .rk-eyebrow { display: none; }
+  .rk-port .rk-fighter-slot { bottom: 14%; }
+  .rk-port .rk-fighter-slot.is-left { left: 4%; }
+  .rk-port .rk-fighter-slot.is-right { right: 4%; }
+  .rk-port .rk-body svg { width: 84px; }
+  .rk-port-plate { font-size: 13px; }
+  .rk-find-btn { font-size: 20px; padding: 10px 22px; }
+  .rk-port-note { display: none; }
+  .rk-wanted { width: 76px; }
+  .rk-wanted span { width: 48px; height: 48px; font-size: 32px; }
+  .rk-radar { width: 150px; height: 150px; margin-left: -75px; }
+  .rk-search-clock { font-size: 30px; }
+  .rk-moon { width: 40px; height: 40px; top: 6%; right: 5%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rk-lobby *, .rk-lobby *::before, .rk-lobby *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
+}

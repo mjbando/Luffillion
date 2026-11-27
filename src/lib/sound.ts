@@ -652,3 +652,22 @@ export function playBeam(): void {
   playTone(a.ctx, a.out, t, { freq: 140, slideTo: 32, start: 0.36, dur: 0.5, type: "sine", vol: 0.46, attack: 0.002 });
   playNoise(a.ctx, a.out, t, 0.36, 0.35, 0.18, "lowpass", 3000, 200);
 }
+
+/** Matchmaking search: a soft sonar ping with a faint echo. */
+export function playSonar(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playTone(a.ctx, a.out, t, { freq: 1180, slideTo: 1040, dur: 0.5, type: "sine", vol: 0.05, attack: 0.004 });
+  playTone(a.ctx, a.out, t, { freq: 1180, slideTo: 1040, start: 0.32, dur: 0.45, type: "sine", vol: 0.018 });
+}
+
+/** Opening the lobby search: anchor chain rattle and a horn blast. */
+export function playQueueHorn(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playNoise(a.ctx, a.out, t, 0, 0.35, 0.05, "bandpass", 2400, 900);
+  playTone(a.ctx, a.out, t, { freq: 146.8, start: 0.12, dur: 0.7, type: "sawtooth", vol: 0.09, attack: 0.05, filterHz: 900 });
+  playTone(a.ctx, a.out, t, { freq: 220, start: 0.12, dur: 0.7, type: "sawtooth", vol: 0.05, attack: 0.05, filterHz: 900 });
+}
