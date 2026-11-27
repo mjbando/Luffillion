@@ -349,3 +349,12 @@
 .rail-square[data-rail="shop"]:not(.is-active) svg { animation: rail-chest 3.2s ease-in-out infinite; }
 @keyframes rail-chest { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(-6deg); } 94% { transform: rotate(6deg); } }
 @media (prefers-reduced-motion: reduce) { .rail-square svg { animation: none !important; } }
+.rail-square[data-rail="sound"] span { font-size: 8px; }
+.rail-square.is-muted { color: #fda4af; }
+.pixel-speaker .ps-wave { animation: ps-wave 1.6s steps(1) infinite; }
+.pixel-speaker .ps-wave-2 { animation-delay: .2s; }
+.pixel-speaker .ps-wave-3 { animation-delay: .4s; }
+@keyframes ps-wave { 0%, 70% { opacity: 1; } 85% { opacity: .25; } }
+.rail-square.is-muted .ps-mute { animation: ps-mute-in .25s steps(2); }
+@keyframes ps-mute-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pixel-speaker .ps-wave, .rail-square.is-muted .ps-mute { animation: none !important; } }

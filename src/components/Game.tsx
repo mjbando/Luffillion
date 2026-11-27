@@ -21,6 +21,7 @@ import TreasureShop from "./TreasureShop";
 import MenuPanel, { isStandaloneTab, type MenuTab } from "./MenuPanel";
 import PixelChest from "./PixelChest";
 import PixelEmblem from "./pixel-emblems";
+import PixelSpeaker from "./PixelSpeaker";
 import AchievementsPanel from "./AchievementsPanel";
 import ArchivePanel from "./ArchivePanel";
 import AchievementToast from "./AchievementToast";
@@ -776,8 +777,10 @@ export default function Game() {
 
       <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
         title={muted ? "Unmute sound effects" : "Mute sound effects"}
-        className="px-btn fixed right-3 top-[104px] z-30 grid h-9 w-10 place-items-center border-2 border-[#2a3a5c] bg-[#1a2540]/95 text-lg text-slate-200 hover:bg-[#24335a]">
-        {muted ? "🔇" : "🔊"}
+        aria-pressed={muted} data-rail="sound"
+        className={`rail-square px-btn fixed right-3 top-[104px] z-30 ${muted ? "is-muted" : ""}`}>
+        <PixelSpeaker muted={muted} size={24} />
+        <span>{muted ? "MUTED" : "SOUND"}</span>
       </button>
 
       {menuTab && (
