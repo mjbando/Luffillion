@@ -753,40 +753,63 @@ function kaido(d: Detail) {
 
 function bigMom(d: Detail) {
   const { hx, hy, hw, cx, tc, ty, tx, tw, th } = d;
+  const HAT = "#b8285e", HAT_D = "#7a1a40", HAIR = "#f290c0", HAIR_D = "#c85a90", TOP = "#ec6a98", DOT = "#9a1838";
+  const COAT = "#fbd6e8", COAT_D = "#e8b0cc", LINING = "#5a2266", LINING_D = "#3e1648", PANTS = "#dcdce4";
   d.eyes("glare", "#c03a8a", "#8a2a5a").mouth("smirk");
   d.f(cx - 2, hy + 12, 4, 1, "#e83a6a").f(cx - 1, hy + 13, 2, 1, "#c02a50"); // red lips
   for (const x of [d.L - 1, d.R + 3]) d.f(x, d.ey - 1, 1, 1, ink); // lashes
-  // Hat: skull and crossbones, gold band, white feather plume.
-  d.recolor("#f7f8fb", hx - 4, hy - 10, hw + 8, 9, () => "#c8407a");
-  const sx = cx - 2, sy = hy - 8;
-  d.r(sx, sy, 4, 3, white).d(sx + 1, sy + 1, ink).d(sx + 2, sy + 1, ink).r(sx + 1, sy + 3, 2, 1, white).d(sx - 2, sy - 1, white).d(sx + 5, sy - 1, white).d(sx - 2, sy + 4, white).d(sx + 5, sy + 4, white);
-  d.r(hx - 2, hy - 3, hw + 4, 1, gold);
-  const plume = new Map<string, string>();
-  for (const [ox, oy, r] of [[hw / 2 + 2, -8, 3], [hw / 2 + 5, -6, 3], [hw / 2 + 4, -10, 2]] as [number, number, number][])
-    for (let j = -r; j <= r; j++) for (let k = -r; k <= r; k++) if (k * k + j * j <= r * r) plume.set(`${cx + ox + k},${hy + oy + j}`, j < 0 ? "#ffffff" : "#e8e0f0");
-  blob(d, plume);
-  // Long wavy pink hair down past the shoulders.
+  // Long wavy pink hair falling past the shoulders.
   const hair = new Map<string, string>();
-  for (const s of [-1, 1]) for (let y = hy + 2; y < ty + 14; y++) {
-    const wave = Math.round(Math.sin((y - hy) / 3) * 1.5), x0 = s < 0 ? hx - 4 + wave : hx + hw + wave;
-    for (let i = 0; i < 4; i++) hair.set(`${x0 + i},${y}`, i === 3 ? "#d8508a" : (i + y) % 9 === 0 ? "#ffb8e0" : "#ff8ac8");
+  for (const s2 of [-1, 1]) for (let y = hy + 1; y < ty + 12; y++) {
+    const wave = Math.round(Math.sin((y - hy) / 3) * 1.2), x0 = s2 < 0 ? hx - 3 + wave : hx + hw - 1 + wave;
+    for (let i = 0; i < 4; i++) hair.set(`${x0 + i},${y}`, (s2 < 0 ? i === 0 : i === 3) ? HAIR_D : (i + y) % 9 === 0 ? "#ffc0e0" : HAIR);
   }
   blob(d, hair, (x, y) => y < ty);
-  // Polka-dot top, gold belt, white trousers that flare at the hem.
-  d.recolor("#ff8ab8", 0, ty, d.W, th, (x, y) => ((x + (Math.floor(y / 4) % 2) * 2) % 5 < 2 && y % 4 < 2) ? "#c8203a" : null);
-  d.belt("#c8a040", gold);
-  for (let i = 0; i < 6; i++) { const half = Math.max(0, 3 - Math.floor(i / 2)); d.r(tc - half, ty + 1 + i, half * 2, 1, d.sk); }
-  // Pink-and-white captain's coat with purple lining and gold epaulettes.
-  d.trim("#ffd4e8", "#8a3a8a", ty).folds("#ffd4e8", d.legY);
-  d.asBody(() => { d.epaulettes(gold); fringe(d, tx - 3, ty + 4, 6); fringe(d, tx + tw - 3, ty + 4, 6); });
-  for (let y = ty + 4; y < d.legY + 4; y += 5) d.d(tx - 2, y, gold).d(tx + tw + 1, y, gold);
-  // Zeus, the grinning thundercloud, and Prometheus, the laughing sun.
-  const zx = d.rx + d.aw + 3, zy = hy + 8;
-  for (const [ox, oy, r] of [[0, 0, 4], [5, -1, 4], [9, 1, 3], [3, 3, 3]] as [number, number, number][]) for (let j = -r; j <= r; j++) for (let k = -r; k <= r; k++) if (k * k + j * j <= r * r) d.u(zx + ox + k, zy + oy + j, 1, 1, j > r / 2 ? "#c8d4f0" : "#f4f8ff");
-  d.u(zx + 3, zy, 1, 2, ink).u(zx + 7, zy, 1, 2, ink).u(zx + 4, zy + 3, 3, 1, "#e85a8a");
-  const px = d.lx - 7, py = d.lhy - 14;
-  for (let j = -6; j <= 6; j++) for (let k = -6; k <= 6; k++) { const r2 = k * k + j * j; if (r2 <= 16) d.u(px + k, py + j, 1, 1, r2 <= 9 ? "#ffd040" : "#ff9a2a"); else if (r2 <= 36 && (Math.atan2(j, k) * 4 / Math.PI + 8) % 1 < 0.35) d.u(px + k, py + j, 1, 1, "#ff6a2a"); }
-  d.u(px - 2, py - 1, 1, 2, ink).u(px + 1, py - 1, 1, 2, ink).u(px - 2, py + 2, 4, 1, "#c8402a");
+  d.recolor("#ff8ac8", hx - 4, hy - 4, hw + 8, 30, (x, y) => (x * 2 + y) % 11 === 0 ? HAIR_D : HAIR);
+  // Pirate hat: a tall magenta tricorn with an upturned brim, gold edging and a small skull.
+  d.clear(hx - 6, hy - 12, hw + 12, 10);
+  d.asBody(() => {
+    for (let y = hy - 10; y < hy - 2; y++) { const inset = y === hy - 10 ? 3 : y === hy - 9 ? 1 : 0; d.r(hx + inset, y, hw - inset * 2, 1, y < hy - 7 ? "#c83a6e" : HAT); }
+    d.r(hx - 5, hy - 3, hw + 10, 3, HAT).r(hx - 5, hy - 3, hw + 10, 1, gold).r(hx - 5, hy - 1, hw + 10, 1, HAT_D);
+    for (let k = 0; k < 4; k++) d.r(hx - 6 - (k >> 1), hy - 4 - k, 2, 1, HAT).r(hx + hw + 4 + (k >> 1), hy - 4 - k, 2, 1, HAT);
+    d.d(hx - 8, hy - 8, gold).d(hx + hw + 7, hy - 8, gold);
+  });
+  const sx = cx - 2, sy = hy - 8;
+  d.r(sx, sy, 4, 2, white).r(sx + 1, sy + 2, 2, 1, white).d(sx + 1, sy + 1, ink).d(sx + 2, sy + 1, ink);
+  d.d(sx - 1, sy + 3, white).d(sx + 4, sy + 3, white).d(sx - 1, sy - 1, white).d(sx + 4, sy - 1, white);
+  // Long pale-pink coat draped open, flaring to the ankles, its purple lining showing.
+  d.asBody(() => {
+    for (let y = ty; y < d.bottom - 1; y++) {
+      const k = y - ty, spread = Math.floor(k / 3), w = 3 + spread, lin = Math.min(1 + Math.floor(k / 3), w - 3);
+      for (const s2 of [-1, 1]) for (let i = 0; i < w; i++) {
+        const x = s2 < 0 ? tx - 1 - i : tx + tw + i, inner = i < lin;
+        const c = i === w - 1 ? COAT_D : inner ? (i === 0 ? LINING_D : LINING) : i === lin ? gold : COAT;
+        d.u(x, y, 1, 1, c);
+      }
+    }
+    for (let y = ty + 6; y < d.bottom - 4; y += 6) d.u(tx - 4 - Math.floor((y - ty) / 3), y, 1, 1, gold).u(tx + tw + 3 + Math.floor((y - ty) / 3), y, 1, 1, gold);
+  });
+  // Fitted polka-dot blouse with puffed sleeves, a thin gold belt and a ruffled peplum.
+  d.recolor("#ff8ab8", 0, ty, d.W, th + 2, (x, y) => {
+    const gx = ((x - tc) % 5 + 5) % 5, gy = ((y - ty) % 5 + 5) % 5, off = Math.floor((y - ty) / 5) % 2 ? 2 : 0;
+    return ((gx + off) % 5 < 2 && gy < 2) ? DOT : TOP;
+  });
+  for (let i = 0; i < 5; i++) { const half = Math.max(0, 2 - Math.floor(i / 2)); d.r(tc - half, ty + 1 + i, half * 2, 1, d.sk); }
+  const by = ty + th - 6;
+  d.r(tx, by, tw, 2, "#e8a040").r(tx, by + 1, tw, 1, "#b87a28");
+  d.asBody(() => { for (let x = tx - 1; x < tx + tw + 1; x++) d.r(x, by + 2, 1, 3 + ((x - tx) % 3 === 0 ? 1 : 0), (x - tx) % 3 === 0 ? "#c84a78" : TOP); });
+  // Wide grey-white trousers that flare out at the hem, bare feet in sandals.
+  d.recolor("#f2eef4", 0, d.legY, d.W, d.legH * 2 + 6, (x, y) => (x + y) % 9 === 0 ? "#c4c4d0" : PANTS);
+  d.asBody(() => { for (const x of [d.legX, d.legX + d.gap]) for (let j = 0; j < 4; j++) d.r(x - 1 - (j >> 1), d.bottom - 6 + j, 1, 1, PANTS).r(x + 4 + (j >> 1) + 3, d.bottom - 6 + j, 1, 1, "#c4c4d0"); });
+  // Gold epaulettes with fringe on her shoulders.
+  d.asBody(() => { d.epaulettes(gold); fringe(d, tx - 2, ty + 3, 5); fringe(d, tx + tw - 3, ty + 3, 5); });
+  // Zeus, the smiling thundercloud, over her raised hand; Prometheus, a little laughing sun, at her shoulder.
+  const zx = d.rx + d.aw + 3, zy = hy + 2;
+  for (const [ox, oy, r] of [[0, 0, 4], [5, -2, 4], [9, 1, 3], [4, 3, 3]] as [number, number, number][]) for (let j = -r; j <= r; j++) for (let k = -r; k <= r; k++) if (k * k + j * j <= r * r) d.u(zx + ox + k, zy + oy + j, 1, 1, j > r / 2 ? "#c8d4f0" : "#f6f9ff");
+  d.r(zx + 3, zy - 1, 1, 2, ink).r(zx + 7, zy - 1, 1, 2, ink).r(zx + 4, zy + 2, 3, 1, ink).r(zx + 5, zy + 3, 1, 1, "#e85a8a").r(zx + 2, zy + 1, 1, 1, "#ffb0c8").r(zx + 8, zy + 1, 1, 1, "#ffb0c8");
+  const px = d.lx - 6, py = ty - 2;
+  for (let j = -4; j <= 4; j++) for (let k = -4; k <= 4; k++) { const r2 = k * k + j * j; if (r2 <= 18) d.u(px + k, py + j, 1, 1, r2 >= 13 ? "#e89a1a" : j < -1 && k < 0 ? "#fff07a" : "#ffd23a"); }
+  d.r(px - 2, py - 1, 1, 2, ink).r(px + 1, py - 1, 1, 2, ink).r(px - 2, py + 2, 4, 1, ink).r(px - 1, py + 3, 2, 1, "#c8402a");
 }
 
 function zoro(d: Detail) {
