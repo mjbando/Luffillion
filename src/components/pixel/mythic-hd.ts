@@ -1,6 +1,6 @@
 import type { ChestCharacterId } from "@/data/chest-characters";
 import type { Look } from "./chest-looks";
-import { buildFigure, trimTop, HEAD, MYTHIC_SHIMMER, type Frame } from "./generated";
+import { buildFigure, trimTop, HEAD, type Frame } from "./generated";
 import { Pixels, ink, white, gold, silver, shade, type Pose, type RunnerSprite } from "./kit";
 
 // High-detail mythic art. The mythic silhouette is built on the normal pixel grid,
@@ -1137,7 +1137,6 @@ function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, 
     edge = next;
   }
   const hash = (x: number, y: number) => (((x * 73856093) ^ (y * 19349663) ^ ((frame + 1) * 83492791)) >>> 0);
-  const shimmer = MYTHIC_SHIMMER[frame];
   const core = p.key(shade(accent, 0.5)), mid = p.key(`${shade(accent, 0.1)}c8`), haze = p.key(`${accent}66`), mist = p.key(`${accent}30`);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const r = ring[y][x];
@@ -1147,7 +1146,7 @@ function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, 
     else if (r === 3 || (r === 4 && (x * 3 + y + frame) % 4 === 0)) p.cells[y][x] = mist;
   }
   // Flame licks: on upward-facing edges, thin tongues climb out of the glow and flicker per frame.
-  const tip = p.key(shimmer), lick = p.key(shade(accent, 0.45)), lickSoft = p.key(`${shade(accent, 0.3)}b0`);
+  const tip = p.key(shade(accent, 0.7)), lick = p.key(shade(accent, 0.45)), lickSoft = p.key(`${shade(accent, 0.3)}b0`);
   for (let x = 1; x < w - 1; x++) for (let y = 1; y < h; y++) {
     if (ring[y][x] !== 1 || !isBody(x, y + 1) || isBody(x, y - 1)) continue;
     const k = hash(x, 7) % 11;
