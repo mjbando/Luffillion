@@ -254,7 +254,7 @@ export function buildFigure(id: ChestCharacterId, pose: Pose, slim = false, body
     for (const extra of extras) if (!extra.startsWith("^")) drawExtra(f, extra, accent);
     drawHat(f, look.hat, look.hc ?? look.h);
     for (const extra of extras) if (extra.startsWith("^")) drawExtra(f, extra.slice(1), accent);
-    drawWeapon(f, look.w, look.wc ?? "#7a4a2a");
+    if (!(slim && look.ow)) drawWeapon(f, look.w, look.wc ?? "#7a4a2a");
     if (look.coat) {
       const { p, tx, ty, tw, g } = f;
       p.r(tx - 1, ty, tw + 2, 2, look.coat);

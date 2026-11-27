@@ -15,6 +15,8 @@ export interface Look {
   special?: "duck" | "egg";
   sk?: string; h: string; hs?: Hair; t: string; sl?: string; l: string; sh?: string; hand?: string;
   hat?: Hat; hc?: string; coat?: string; w?: Weapon; wc?: string; fx?: string; x?: string[];
+  /** The high-detail art paints its own weapon, so the low-res one is skipped there. */
+  ow?: boolean;
 }
 
 const TAN = "#d9a274", DARK = "#9a6648", BLUE = "#6fa8dc", PALE = "#f7dcc4", MARINE = "#f3f5f8", NAVY = "#2c4470", BONE = "#efeadb";
@@ -196,8 +198,8 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "killer-onigashima": { h: "#f0d888", hs: "wild", t: "#7fc0f0", l: "#3a5aa8", x: ["grin", "xscar:#c05050"], w: "blades" },
 
   // ---------------- Mythic ----------------
-  "prime-garp": { b: "big", h: "#2a2d3a", hs: "short", t: "#f2f2f2", l: "#3a5aa8", coat: "#f2f4f7", hand: HAKI, fx: "#e8f4ff", x: ["scar:#c08a7a", "spark:#ffffff", "bigfist:#2b2140"] },
-  "prime-rayleigh": { h: "#f0e6c0", hs: "long", t: "#f2f2f2", l: "#3a3f52", coat: "#2f6a5a", fx: "#b7ffe9", x: ["glasses:#c8e0e8", "goatee:#f0e6c0", "spark:#b7ffe9"], w: "katana", wc: "#3a3f52" },
+  "prime-garp": { b: "big", h: "#2a2d3a", hs: "short", t: "#1e1e28", l: "#1e1e28", coat: "#f2f4f7", hand: HAKI, fx: "#e8f4ff", x: ["scar:#c08a7a", "spark:#ffffff", "bigfist:#2b2140"] },
+  "prime-rayleigh": { h: "#f0d890", hs: "long", t: "#2a2a50", l: "#c8c0e8", sh: "#5a4030", coat: "#2a2a50", fx: "#b7ffe9", x: ["glasses:#c8e0e8", "goatee:#f0d890", "spark:#b7ffe9"], w: "katana", wc: "#2a5a4a", ow: true },
   "rocks-d-xebec": { b: "giant", sk: "#d9a072", h: "#3a78d0", hs: "wild", t: "#d9a072", l: "#1e1e28", coat: "#1a1620", fx: "#ff4d6d", x: ["grin", "scar:#c0282c", "fire:#ff4d6d"], w: "greatsword", wc: "#c0c8d4" },
   imu: { sk: "#2a1840", h: "#160c24", hs: "long", t: "#20122f", l: "#160c24", sh: "#160c24", hand: "#2a1840", coat: "#0f0818", hat: "crown", hc: "#c06bff", fx: "#d07bff", x: ["smoke:#5a2a8a", "spider:#3a1a5a"] },
   "joy-boy": { sk: SILHOUETTE, h: SILHOUETTE, hs: "flame", t: SILHOUETTE, l: SILHOUETTE, sh: SILHOUETTE, hand: SILHOUETTE, fx: "#fff3a6", x: ["grin"] },
@@ -207,14 +209,14 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "saint-nusjuro": { b: "big", sk: "#c89870", h: "#c89870", hs: "bald", t: "#f2f2f2", l: "#f2f2f2", sh: "#3a2a1a", fx: "#9fe7ff", x: ["glasses:#4a3a2a", "sash:#e0901a"], w: "katana", wc: "#2a2d3a" },
   "saint-ju-peter": { b: "big", sk: PALE, h: "#e8d090", hs: "slick", t: "#24161e", l: "#24161e", coat: "#6a6a70", fx: "#8cffb0", x: ["goatee:#e8d090"] },
   "saint-garling": { b: "big", sk: PALE, h: "#ece2bc", hs: "spiky", t: "#1e1e28", l: "#1e1e28", coat: "#c83040", fx: "#ffe680", x: ["shades:#14141c", "braid:#ece2bc"], w: "katana", wc: "#6a4a8a" },
-  "shanks-divine": { h: "#ff3030", hs: "short", t: "#f2f2f2", l: "#4a4a5a", coat: "#1e1e28", fx: "#ff3b3b", x: ["scar:#a03a3a", "spark:#ff5050", "smoke:#2a0a14"], w: "greatsword", wc: "#ff6060" },
-  "blackbeard-full": { b: "giant", h: "#1e1e28", hs: "wild", t: "#2a1a40", l: "#1e1e28", coat: "#120a20", hat: "bandana", hc: "#d84040", fx: "#7a5cff", x: ["beard:#1e1e28", "grin", "smoke:#1a0a30", "spark:#c8e8ff"] },
-  "kaido-hybrid": { b: "giant", sk: "#9fc0ff", h: "#1e2a50", hs: "wild", t: "#4f8fff", l: "#2a3a6a", sh: "#2a3a6a", fx: "#6aa8ff", x: ["^bighorns:#fff4dc", "tail:#3a6ad0", "spark:#ffe84a"], w: "club", wc: "#495166" },
-  "big-mom-full": { b: "giant", h: "#ff7ac8", hs: "wild", t: "#ffd8ec", l: "#e85a8a", hat: "pirate", hc: "#2a2d3a", fx: "#ff7ac8", x: ["grin", "fire:#ff8a3a", "clouds:#e8f0ff", "spark:#ffe84a"], w: "katana", wc: "#ffd040" },
+  "shanks-divine": { h: "#d82828", hs: "long", t: "#f2f2f2", l: "#3a3a4a", sh: "#2a2a30", coat: "#1a1a22", fx: "#ff3b3b", x: ["scar:#a03a3a", "spark:#ff5050", "smoke:#2a0a14"], w: "greatsword", wc: "#ff6060", ow: true },
+  "blackbeard-full": { b: "giant", sk: "#c8946a", h: "#1e1e28", hs: "wild", t: "#d83a40", l: "#5a8a5a", sh: "#1a1a20", coat: "#16141c", hat: "pirate", hc: "#1e1e28", fx: "#7a5cff", x: ["beard:#1e1e28", "sash:#e8c040", "smoke:#1a0a30", "spark:#c8e8ff"] },
+  "kaido-hybrid": { b: "giant", sk: "#c8906a", h: "#1e1a24", hs: "wild", t: "#c8906a", l: "#4a5a4a", sh: "#1a1a20", coat: "#3a3a7a", fx: "#b07aff", x: ["^bighorns:#f0ece0", "goatee:#1e1a24", "sash:#8a5aa8", "spark:#c89aff"], w: "club", wc: "#5a5a6a", ow: true },
+  "big-mom-full": { b: "giant", sk: PALE, h: "#ff8ac8", hs: "long", t: "#ff8ab8", l: "#f2eef4", sh: "#e8c8a0", hat: "pirate", hc: "#c8407a", coat: "#ffd4e8", fx: "#ff7ac8", x: ["lips:#e83a6a", "spark:#ffe84a"] },
   "luffy-gear-5-bajrang": { h: "#ffffff", hs: "afro", t: "#ffffff", sl: "#ffffff", l: "#ffffff", sh: "#d9a274", fx: "#fff6c9", x: ["sash:#8a4ad0"] },
-  "zoro-conqueror": { h: "#30ff8a", hs: "short", t: "#1a2a1e", l: "#1a2a1e", coat: "#123a22", fx: "#30ff8a", x: ["scar:#8a2a2a", "spark:#ff3050", "fire:#30ff8a", "sash:#c03030"], w: "katana3", wc: "#c03030" },
+  "zoro-conqueror": { sk: "#e8b88a", h: "#3ad870", hs: "spiky", t: "#e8b88a", l: "#1e3a28", sh: "#1a1a20", fx: "#30ff8a", x: ["scar:#8a2a2a", "sash:#3a8a4a", "spark:#ff3050", "fire:#30ff8a"], w: "katana3", wc: "#7a3aa8", ow: true },
   "roger-prime": { b: "big", h: "#2a2d3a", hs: "short", t: "#f2f2f2", l: "#3a3f52", coat: "#c8282c", hat: "bicorne", hc: "#d83a3a", fx: "#ffcc33", x: ["stache:#2a2d3a", "spark:#ff5050", "grin"], w: "katana", wc: "#ffcc33" },
-  "whitebeard-quake": { b: "giant", h: "#f2f2f2", hs: "slick", t: "#f2f2f2", l: "#3a3f52", coat: "#e8f0f8", fx: "#e8f6ff", x: ["crescent:#f2f2f2", "sash:#3a3f52", "spark:#c8f0ff"], w: "bisento", wc: "#5a4a3a" },
-  "dragon-full": { b: "big", h: "#1e2230", hs: "wild", t: "#2a4a2a", l: "#2a4a2a", coat: "#1f5a2f", fx: "#5cff9d", x: ["tattoo:#d03030", "smoke:#a8ffd0", "spark:#5cff9d"] },
-  "mihawk-strongest": { h: "#1e1e28", hs: "short", t: "#2a2d3a", l: "#2a2d3a", hat: "plume", hc: "#1e1e28", coat: "#1a1a24", fx: "#ffd24a", x: ["goatee:#1e1e28", "spark:#ffd24a"], w: "greatsword", wc: "#0e0e18" },
+  "whitebeard-quake": { b: "giant", sk: "#e8b88a", h: "#f2f2f2", hs: "bald", t: "#e8b88a", l: "#2a3048", sh: "#1a1a20", coat: "#f4f4f8", hat: "bandana", hc: "#1a1a24", fx: "#e8f6ff", x: ["crescent:#f2f2f2", "sash:#3a5aa8", "spark:#c8f0ff"], w: "bisento", wc: "#6a4a2a", ow: true },
+  "dragon-full": { b: "big", h: "#1a1a24", hs: "wild", t: "#2a5a2a", l: "#2a5a2a", sh: "#1a1a20", coat: "#2a5a2a", fx: "#5cff9d", x: ["tattoo:#d03030", "smoke:#a8ffd0", "spark:#5cff9d"] },
+  "mihawk-strongest": { h: "#1e1e28", hs: "short", t: "#1a1a24", sl: "#7a1a2a", l: "#c8b8e0", sh: "#1a1a20", hat: "plume", hc: "#1a1a24", coat: "#6a1424", fx: "#ffd24a", x: ["goatee:#1e1e28", "spark:#ffd24a"], w: "greatsword", wc: "#0e0e18", ow: true },
 };
