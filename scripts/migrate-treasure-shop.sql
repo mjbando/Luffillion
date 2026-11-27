@@ -5,12 +5,12 @@
 --
 -- Safe to run more than once. Every payout (live or backfilled) is recorded in
 -- coin_ledger under a unique (account, source, ref) key, so a voyage, adventure
--- level, ranked win or achievement can never be paid twice. The backfill only
+-- level or ranked win can never be paid twice. The backfill only
 -- credits ledger rows it newly inserts.
 --
 -- Reward values mirror src/lib/coins.ts:
 --   daily voyage +10, adventure level (first clear) +10, ranked win +10,
---   achievements Crew +25 / Elite +50 / Legendary +100 / Mythic +250.
+--   achievements pay bounty (berries) instead of coins.
 
 BEGIN;
 
@@ -134,31 +134,7 @@ BEGIN
       AND EXISTS (SELECT 1 FROM captain_accounts WHERE captain_accounts.id = ranked_matches.winner_id);
   END IF;
 
-  -- Achievements, by the grade of the character they unlock.
-  INSERT INTO coin_backfill_awards
-  SELECT account_id, 'achievement', achievement_id, reward
-  FROM (
-    SELECT account_id, achievement_id, CASE achievement_id
-      WHEN 'first-voyage'        THEN 25   -- Crew
-      WHEN 'perfect-run'         THEN 25   -- Crew
-      WHEN 'daily-dedication'    THEN 25   -- Crew
-      WHEN 'rookie-pirate'       THEN 25   -- Crew
-      WHEN 'no-mistakes'         THEN 50   -- Elite
-      WHEN 'encyclopedia'        THEN 50   -- Elite
-      WHEN 'grand-line-explorer' THEN 50   -- Elite
-      WHEN 'one-in-a-luffillion' THEN 50   -- Elite
-      WHEN 'rising-supernova'    THEN 100  -- Legendary
-      WHEN 'deep-lore'           THEN 100  -- Legendary
-      WHEN 'yonko-status'        THEN 100  -- Legendary
-      WHEN 'laugh-tale'          THEN 100  -- Legendary
-      WHEN 'unstoppable'         THEN 250  -- Mythic
-      WHEN 'pirate-king'         THEN 250  -- Mythic
-      WHEN 'the-will-of-d'       THEN 250  -- Mythic
-      ELSE 0
-    END AS reward
-    FROM achievement_unlocks
-  ) graded
-  WHERE reward > 0;
+  -- Achievements pay bounty (berries), not coins, so they are not part of the coin backfill.
 
   -- Insert into the ledger, skipping anything already paid live, then credit
   -- exactly the newly recorded rows.

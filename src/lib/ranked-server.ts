@@ -1,6 +1,7 @@
 import { and, desc, eq, gt, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, achievementUnlocks, adventureProgress, bounties, rankedChallenges, rankedFriends, rankedMatches, rankedProfiles } from "@/db/schema";
+import { accounts, achievementUnlocks, adventureProgress, rankedChallenges, rankedFriends, rankedMatches, rankedProfiles } from "@/db/schema";
+import { achievementBountySql } from "./achievements-server";
 import { adventureTitle } from "@/data/adventure/levels";
 import { isCharacterId, DEFAULT_CHARACTER, type CharacterId } from "@/data/playable-characters";
 import type { Tier } from "@/data/tiers";
@@ -210,12 +211,11 @@ async function buildPlayerCard(tx: Tx, accountId: string, lives = RANKED_STARTIN
       losses: rankedProfiles.losses,
       draws: rankedProfiles.draws,
       winStreak: rankedProfiles.winStreak,
-      bounty: bounties.total,
+      bounty: achievementBountySql(),
       advCompleted: adventureProgress.completed,
     })
     .from(accounts)
     .innerJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
-    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
     .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
     .where(eq(accounts.id, accountId))
     .limit(1);
@@ -721,12 +721,11 @@ async function fetchLeaderboard(tx: Tx, viewerId: string | null): Promise<Ranked
       losses: rankedProfiles.losses,
       draws: rankedProfiles.draws,
       winStreak: rankedProfiles.winStreak,
-      bounty: bounties.total,
+      bounty: achievementBountySql(),
       advCompleted: adventureProgress.completed,
     })
     .from(rankedProfiles)
     .innerJoin(accounts, eq(accounts.id, rankedProfiles.accountId))
-    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
     .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
     .orderBy(desc(rankedProfiles.points), desc(rankedProfiles.wins), accounts.username)
     .limit(50);
@@ -764,12 +763,11 @@ export async function readRankedPublicProfile(accountId: string): Promise<Ranked
       draws: rankedProfiles.draws,
       winStreak: rankedProfiles.winStreak,
       bestStreak: rankedProfiles.bestStreak,
-      bounty: bounties.total,
+      bounty: achievementBountySql(),
       advCompleted: adventureProgress.completed,
     })
     .from(accounts)
     .innerJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
-    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
     .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
     .where(eq(accounts.id, accountId))
     .limit(1);
@@ -798,7 +796,7 @@ export async function readRankedPublicProfile(accountId: string): Promise<Ranked
     bestStreak: row.bestStreak,
     characterId: isCharacterId(row.equippedCharacter) ? row.equippedCharacter : DEFAULT_CHARACTER,
     achievements: ACHIEVEMENTS.flatMap((achievement) => {
-      const unlocked = unlockedAt.get(achievement.id);
+      const unlocked = unlockedAt.get(achievement.id) ?? (achievement.legacyId ? unlockedAt.get(achievement.legacyId) : undefined);
       return unlocked
         ? [{
             id: achievement.id,
@@ -846,7 +844,7 @@ async function buildLobbyData(
     winStreak: rankedProfiles.winStreak,
     queuedAt: rankedProfiles.queuedAt,
     lastSeenAt: rankedProfiles.lastSeenAt,
-    bounty: bounties.total,
+    bounty: achievementBountySql(),
     advCompleted: adventureProgress.completed,
   };
   type SummaryRow = {
@@ -894,8 +892,7 @@ async function buildLobbyData(
       .from(rankedFriends)
       .innerJoin(accounts, eq(accounts.id, rankedFriends.friendId))
       .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
-      .leftJoin(bounties, eq(bounties.accountId, accounts.id))
-      .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+        .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
       .where(eq(rankedFriends.accountId, accountId))
       .orderBy(accounts.usernameKey)
       .limit(100);
@@ -908,8 +905,7 @@ async function buildLobbyData(
         .select(summaryColumns)
         .from(accounts)
         .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
-        .leftJoin(bounties, eq(bounties.accountId, accounts.id))
-        .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+            .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
         .where(and(eq(accounts.usernameKey, key), ne(accounts.id, accountId), ne(accounts.usernameKey, BOT_USERNAME_KEY)))
         .limit(1);
       if (hit) searchResult = toFriend(hit);
@@ -953,13 +949,12 @@ async function buildLobbyData(
           points: rankedProfiles.points,
           winStreak: rankedProfiles.winStreak,
           queuedAt: rankedProfiles.queuedAt,
-          bounty: bounties.total,
+          bounty: achievementBountySql(),
           advCompleted: adventureProgress.completed,
         })
         .from(accounts)
         .innerJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
-        .leftJoin(bounties, eq(bounties.accountId, accounts.id))
-        .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+            .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
         .where(inArray(accounts.id, peerIds));
       for (const r of peerRows) peerMap.set(r.accountId, toOnlineSummary(r));
     }

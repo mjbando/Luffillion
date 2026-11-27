@@ -3,6 +3,7 @@ import type { EmblemKind } from "@/data/achievement-emblems";
 import { LAUGH_TALE_AT } from "@/data/arcs";
 import { DAILY_QUESTION_COUNT, MAX_POINTS } from "@/data/tiers";
 import type { Progress } from "./voyage";
+import { UPDATE_LIVE } from "./release";
 
 export interface AchievementDef {
   id: string;
@@ -10,10 +11,18 @@ export interface AchievementDef {
   description: string;
   detail: string;
   emblem: EmblemKind;
-  rewardCharacter: CharacterId;
+  /** Which progress rule decides this achievement (see evaluateAchievements). */
+  goal: string;
+  /** Legacy system: the character recruited by this achievement. */
+  rewardCharacter?: CharacterId;
+  /** Treasure-update system: bounty in berries paid by this achievement. */
+  bounty?: number;
+  /** Treasure-update system: an old achievement id whose past unlock also counts (no character is granted). */
+  legacyId?: string;
 }
 
-export const ACHIEVEMENTS: AchievementDef[] = [
+/** The original achievements, each recruiting a character. Live until the treasure update ships. */
+export const LEGACY_ACHIEVEMENTS: AchievementDef[] = ([
   { id: "first-voyage", title: "First Voyage", description: "Complete your first daily challenge.", detail: "Finish all seven questions, answered or timed out.", emblem: "first-voyage", rewardCharacter: "chopper" },
   { id: "perfect-run", title: "Perfect Run", description: "Answer all 7 questions correctly.", detail: "Every question solved in one daily voyage. Wrong guesses are allowed.", emblem: "perfect", rewardCharacter: "zoro" },
   { id: "no-mistakes", title: "No Mistakes", description: "Complete a voyage without a wrong answer.", detail: "Seven correct answers, zero rejected guesses and no timeouts.", emblem: "no-mistakes", rewardCharacter: "sanji" },
@@ -29,7 +38,56 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "the-will-of-d", title: "The Will of D.", description: "Complete 100 daily voyages.", detail: "One hundred completed daily challenges. Every saved voyage counts once.", emblem: "will", rewardCharacter: "gear-5" },
   { id: "one-in-a-luffillion", title: "One in a Luffillion", description: "Get a One in a Luffillion answer.", detail: "Earn a 100-point pull. The badge is permanent; Luffy's gold hat lasts for that run.", emblem: "gold-hat", rewardCharacter: "ace" },
   { id: "laugh-tale", title: "Laugh Tale", description: "Make it to Laugh Tale.", detail: "Reach 500 points in a single voyage. Unlocks as soon as the score is saved.", emblem: "treasure", rewardCharacter: "shanks" },
+] as Omit<AchievementDef, "goal">[]).map(def => ({ ...def, goal: def.id }));
+
+export const HIGH_SCORE_TARGET = 350;
+
+/**
+ * Treasure update: achievements pay a bounty instead of a character. The former achievement
+ * characters now drop from Treasure Chests; anyone who already earned one keeps it.
+ * New ids keep new unlocks separate from the old character-granting ones, while `legacyId`
+ * lets an achievement earned under the old system still count (and pay its bounty).
+ */
+export const BOUNTY_ACHIEVEMENTS: AchievementDef[] = [
+  { id: "bounty-first-voyage", legacyId: "first-voyage", goal: "first-voyage", bounty: 50_000, emblem: "first-voyage",
+    title: "First Voyage", description: "Complete your first Daily Voyage.", detail: "Finish all seven questions, answered or timed out." },
+  { id: "bounty-rookie-pirate", legacyId: "rookie-pirate", goal: "rookie-pirate", bounty: 150_000, emblem: "rookie",
+    title: "Rookie Pirate", description: "Complete 10 Daily Voyages.", detail: "Ten completed daily challenges; they don't have to be consecutive." },
+  { id: "bounty-high-score", goal: "high-score", bounty: 50_000, emblem: "rising",
+    title: "Supernova", description: `Score ${HIGH_SCORE_TARGET} or higher.`, detail: `Earn at least ${HIGH_SCORE_TARGET} points in a single voyage.` },
+  { id: "bounty-laugh-tale", legacyId: "laugh-tale", goal: "laugh-tale", bounty: 100_000, emblem: "treasure",
+    title: "Laugh Tale", description: "Reach Laugh Tale (500 points).", detail: "Reach 500 points in a single voyage. Unlocks as soon as the score is saved." },
+  { id: "bounty-perfect-run", legacyId: "perfect-run", goal: "rare-perfect", bounty: 100_000, emblem: "perfect",
+    title: "Perfect Run", description: "Answer all 7 questions correctly with Rare answers or better.", detail: "Every one of the seven answers in a single voyage must be Rare, Epic or One in a Luffillion. Wrong guesses are allowed." },
+  { id: "bounty-no-mistakes", legacyId: "no-mistakes", goal: "no-mistakes", bounty: 50_000, emblem: "no-mistakes",
+    title: "No Mistakes", description: "Complete a voyage without a wrong answer.", detail: "Seven correct answers, zero rejected guesses and no timeouts." },
+  { id: "bounty-daily-dedication", legacyId: "daily-dedication", goal: "daily-dedication", bounty: 300_000, emblem: "dedicated",
+    title: "Daily Dedication", description: "Play 7 days in a row.", detail: "Start a question on seven consecutive daily challenges. Days follow the game's Eastern reset." },
+  { id: "bounty-unstoppable", legacyId: "unstoppable", goal: "unstoppable", bounty: 1_500_000, emblem: "unstoppable",
+    title: "Unstoppable", description: "Play 30 days in a row.", detail: "Start a question on thirty consecutive daily challenges. Earned achievements never reset." },
+  { id: "bounty-grand-line-explorer", legacyId: "grand-line-explorer", goal: "grand-line-explorer", bounty: 500_000, emblem: "explorer",
+    title: "Grand Line Explorer", description: "Complete 25 Daily Voyages.", detail: "Twenty-five completed daily challenges, consecutive or not." },
+  { id: "bounty-the-will-of-d", legacyId: "the-will-of-d", goal: "the-will-of-d", bounty: 3_000_000, emblem: "will",
+    title: "The Will of D.", description: "Complete 100 Daily Voyages.", detail: "One hundred completed daily challenges. Every saved voyage counts once." },
+  { id: "bounty-encyclopedia", legacyId: "encyclopedia", goal: "encyclopedia", bounty: 300_000, emblem: "encyclopedia",
+    title: "Encyclopedia", description: "Answer 100 questions correctly.", detail: "Correct answers accumulate across your saved daily voyages, including the current one." },
+  { id: "bounty-deep-lore", legacyId: "deep-lore", goal: "epic-lore", bounty: 500_000, emblem: "deep-lore",
+    title: "Deep Lore", description: "Correctly answer 50 questions with Epic answers or better.", detail: "Epic and One in a Luffillion answers count. Progress is cumulative." },
+  { id: "bounty-yonko-status", legacyId: "yonko-status", goal: "yonko-status", bounty: 100_000, emblem: "yonko",
+    title: "Yonko Status", description: "Beat 90% of players in a Daily Voyage.", detail: "Score strictly higher than at least 90% of the other players. Awarded after the daily leaderboard closes; ties are not wins." },
+  { id: "bounty-pirate-king", legacyId: "pirate-king", goal: "pirate-king", bounty: 250_000, emblem: "pirate-king",
+    title: "Pirate King", description: "Finish #1 on the Daily Leaderboard.", detail: "Hold the highest score when the daily leaderboard closes. Tied winners share #1. At least one other player must finish." },
 ];
+
+export const ACHIEVEMENTS: AchievementDef[] = UPDATE_LIVE ? BOUNTY_ACHIEVEMENTS : LEGACY_ACHIEVEMENTS;
+
+/** Total bounty (berries) for a set of unlocked achievement ids, counting each achievement once. */
+export function achievementBounty(unlockedIds: Iterable<string>): number {
+  const ids = new Set(unlockedIds);
+  return BOUNTY_ACHIEVEMENTS.reduce((sum, def) => sum + (ids.has(def.id) || (def.legacyId && ids.has(def.legacyId)) ? def.bounty ?? 0 : 0), 0);
+}
+
+export const formatBerries = (n: number) => `฿${n.toLocaleString("en-US")}`;
 
 export const RISING_SUPERNOVA_SCORE = Math.ceil(MAX_POINTS * 0.9);
 export interface Standing {
@@ -106,6 +164,12 @@ export function evaluateAchievements(
   const currentBest = active.reduce((best, p) => Math.max(best, Object.values(p.q).reduce((n, q) => n + (q.status === "solved" ? q.points ?? 0 : 0), 0)), bestScore);
   const flawless = complete.some(r => r.solved === DAILY_QUESTION_COUNT && r.mistakes === 0);
   const hasLuff = successes.some(q => q.tier === "luffillion") || complete.some(r => r.legs?.some(l => l.tier === "luffillion"));
+  const rarePlus = (tier: string | null | undefined) => tier === "rare" || tier === "epic" || tier === "luffillion";
+  const epicPlus = (tier: string | null | undefined) => tier === "epic" || tier === "luffillion";
+  // Only voyages with saved per-answer tiers can prove an all-Rare run or count Epic answers.
+  const bestRareRun = complete.reduce((n, r) => Math.max(n, r.legs ? r.legs.filter(l => rarePlus(l.tier)).length : 0), 0);
+  const totalEpic = complete.reduce((sum, r) => sum + (r.legs ? r.legs.filter(l => epicPlus(l.tier)).length : 0), 0)
+    + successes.filter(q => epicPlus(q.tier)).length;
   const competitive = complete.filter(r => r.standing?.finalized && r.standing.others > 0);
   const bestBeat = competitive.reduce((n, r) => Math.max(n, 100 * r.standing!.beaten / r.standing!.others), 0);
   const king = competitive.some(r => r.score > 0 && r.standing!.rank === 1);
@@ -127,13 +191,17 @@ export function evaluateAchievements(
     "the-will-of-d": { n: complete.length, target: 100, label: `${complete.length} / 100 voyages` },
     "one-in-a-luffillion": { n: hasLuff ? 1 : 0, target: 1, label: hasLuff ? "100-point pull found" : "Find a 100-point answer" },
     "laugh-tale": { n: currentBest, target: LAUGH_TALE_AT, label: `${currentBest} / ${LAUGH_TALE_AT} points in one voyage` },
+    "high-score": { n: currentBest, target: HIGH_SCORE_TARGET, label: `${currentBest} / ${HIGH_SCORE_TARGET} points in one voyage` },
+    "rare-perfect": { n: bestRareRun, target: 7, label: `${bestRareRun} / 7 Rare-or-better answers in your best voyage` },
+    "epic-lore": { n: totalEpic, target: 50, label: `${totalEpic} / 50 Epic-or-better answers` },
   };
+  const recorded = (def: AchievementDef) => existing.get(def.id) ?? (def.legacyId ? existing.get(def.legacyId) : undefined);
   const achievements = ACHIEVEMENTS.map(def => {
-    const goal = goals[def.id];
-    const unlockedAt = existing.get(def.id);
+    const goal = goals[def.goal];
+    const unlockedAt = recorded(def);
     const unlocked = !!unlockedAt || goal.n >= goal.target;
     return { ...def, unlocked, unlockedAt: unlockedAt?.toISOString() ?? null,
       progress: unlocked ? goal.target : Math.min(goal.n, goal.target), target: goal.target, progressLabel: goal.label };
   });
-  return { achievements, newlyUnlocked: achievements.filter(a => a.unlocked && !existing.has(a.id)).map(a => a.id) };
+  return { achievements, newlyUnlocked: achievements.filter(a => a.unlocked && !recorded(a)).map(a => a.id) };
 }

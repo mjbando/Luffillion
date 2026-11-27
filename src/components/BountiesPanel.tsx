@@ -5,6 +5,25 @@ import PixelEmblem from "./pixel-emblems";
 import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
+import { UPDATE_LIVE } from "@/lib/release";
+
+/**
+ * With the treasure update, "bounty" means the berries paid by achievements, so this
+ * daily-voyage board becomes "Top 50 Scores". Until then it keeps its original wording.
+ */
+const COPY = UPDATE_LIVE ? {
+  eyebrow: "DAILY VOYAGE SCORES", title: "Top 50 Scores", subtitle: "Highest daily voyage score totals. Ranked by total.",
+  loadError: "Couldn't load the scoreboard.", loading: "Consulting the scoreboard…", yours: "YOUR SCORE", unit: "points",
+  guest: "Scores are saved for signed-in captains only.", guestHint: "Create a free account to start a streak and stack points.",
+  empty: "No captains on the board yet. Be the first to post a score.",
+  footer: "Correct answers earn 50 points. Bonus points are added for every point traveled, so rarer and higher-distance runs score best. Board refreshes each daily voyage.",
+} : {
+  eyebrow: "DEEP-SEA BOUNTIES", title: "Top 50 bounties", subtitle: "Highest bounties after the daily voyage. Ranked by total.",
+  loadError: "Couldn't load the bounty board.", loading: "Consulting the bounty board…", yours: "YOUR BOUNTY", unit: "berries",
+  guest: "Bounties are earned by signed-in captains only.", guestHint: "Create a free account to start a streak and stack berries.",
+  empty: "No captains on the board yet. Be the first to lay a bounty.",
+  footer: "Correct answers earn 50 berries. Bonus berries are added for every point traveled, so rarer and higher-distance runs pay best. Board refreshes each daily voyage.",
+};
 
 interface BoardRow { rank: number; username: string; total: number; isYou: boolean }
 interface BoardData {
@@ -23,7 +42,7 @@ export default function BountiesPanel({ captain, onSignIn }: { captain: Captain 
     setError("");
     voyageRequest<BoardData>("/api/bounties")
       .then(d => { if (live) setData(d); })
-      .catch(e => { if (live) setError(e instanceof Error ? e.message : "Couldn't load the bounty board."); });
+      .catch(e => { if (live) setError(e instanceof Error ? e.message : COPY.loadError); });
     return () => { live = false; };
   }, [captain?.id, retry]);
 
@@ -36,9 +55,9 @@ export default function BountiesPanel({ captain, onSignIn }: { captain: Captain 
           <PixelEmblem kind="treasure" size={36} />
         </div>
         <div className="flex-1">
-          <p className="text-xs tracking-[.25em] text-amber-300">DEEP-SEA BOUNTIES</p>
-          <h2 className="font-pixel-display text-xl font-bold text-white">Top 50 bounties</h2>
-          <p className="text-sm text-slate-400">Highest bounties after the daily voyage. Ranked by total.</p>
+          <p className="text-xs tracking-[.25em] text-amber-300">{COPY.eyebrow}</p>
+          <h2 className="font-pixel-display text-xl font-bold text-white">{COPY.title}</h2>
+          <p className="text-sm text-slate-400">{COPY.subtitle}</p>
         </div>
       </header>
 
@@ -47,16 +66,16 @@ export default function BountiesPanel({ captain, onSignIn }: { captain: Captain 
           {error} <button type="button" onClick={() => { playClick(); setRetry(n => n + 1); }} className="underline">Retry</button>
         </p>
       )}
-      {!data && !error && <p className="py-6 text-center text-cyan-200">Consulting the bounty board…</p>}
+      {!data && !error && <p className="py-6 text-center text-cyan-200">{COPY.loading}</p>}
 
       {data && (
         <div className="space-y-3">
           {captain ? (
             <div className="border border-cyan-300/25 bg-cyan-300/[.05] p-3">
-              <p className="text-xs tracking-[.2em] text-cyan-200">YOUR BOUNTY</p>
+              <p className="text-xs tracking-[.2em] text-cyan-200">{COPY.yours}</p>
               <p className="font-pixel-display text-4xl text-white">
                 {you?.total ?? 0}
-                <span className="ml-1 text-base text-slate-400">berries</span>
+                <span className="ml-1 text-base text-slate-400">{COPY.unit}</span>
               </p>
               <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
                 {[["RANK", you ? `#${you.rank}` : "—"], ["TODAY +", you && you.today ? `+${you.today}` : "—"], ["CREW", `#${you?.count ?? 0}`]].map(([label, value]) => (
@@ -69,8 +88,8 @@ export default function BountiesPanel({ captain, onSignIn }: { captain: Captain 
             </div>
           ) : (
             <div className="border border-amber-300/30 bg-amber-300/[.07] p-3 text-center">
-              <p className="text-base leading-tight text-slate-200">Bounties are earned by signed-in captains only.</p>
-              <p className="mt-1 text-sm text-slate-400">Create a free account to start a streak and stack berries.</p>
+              <p className="text-base leading-tight text-slate-200">{COPY.guest}</p>
+              <p className="mt-1 text-sm text-slate-400">{COPY.guestHint}</p>
               <button type="button" onClick={() => { playClick(); onSignIn(); }} className="px-btn mt-2 h-9 bg-amber-400 px-5 text-base text-amber-950 hover:bg-amber-300">
                 SIGN IN / CREATE ACCOUNT ▸
               </button>
@@ -92,9 +111,9 @@ export default function BountiesPanel({ captain, onSignIn }: { captain: Captain 
             ))}
           </ol>
           {data.top.length === 0 && (
-            <p className="border border-dashed border-white/15 px-3 py-4 text-center text-base text-slate-400">No captains on the board yet. Be the first to lay a bounty.</p>
+            <p className="border border-dashed border-white/15 px-3 py-4 text-center text-base text-slate-400">{COPY.empty}</p>
           )}
-          <p className="text-xs leading-snug text-slate-500">Correct answers earn 50 berries. Bonus berries are added for every point traveled, so rarer and higher-distance runs pay best. Board refreshes each daily voyage.</p>
+          <p className="text-xs leading-snug text-slate-500">{COPY.footer}</p>
         </div>
       )}
     </div>

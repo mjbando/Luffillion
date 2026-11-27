@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
+import { isFormerAchievementCharacter } from "@/data/roster";
 import { PLAYABLE_CHARACTERS } from "@/data/playable-characters";
 import { isChestCharacterId } from "@/data/chest-characters";
 import { db } from "@/db";
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
     const unlockedCharacterIds = [
       ...PLAYABLE_CHARACTERS
         .filter((character) => character.id !== "gear-6" || account.usernameKey === "luffy")
-        .filter((character) => !character.achievementId || achievementIds.has(character.achievementId))
+        .filter((character) => !character.achievementId || achievementIds.has(character.achievementId)
+          || (isFormerAchievementCharacter(character.id) && chestIds.has(character.id)))
         .map((character) => character.id),
       ...[...chestIds].filter(isChestCharacterId),
     ];

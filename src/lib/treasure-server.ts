@@ -1,8 +1,9 @@
 import { randomInt } from "node:crypto";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { db } from "@/db";
-import { accounts, characterUnlocks, rankedProfiles, rewardChests, treasureChestOpenings } from "@/db/schema";
-import { chestCharacterById } from "@/data/chest-characters";
+import { accounts, achievementUnlocks, characterUnlocks, rankedProfiles, rewardChests, treasureChestOpenings } from "@/db/schema";
+import { characterById } from "@/data/playable-characters";
+import { rosterEntry } from "@/data/roster";
 import { CHARACTER_POOLS, CHEST_PRICES, TREASURE_CHESTS, rollRarity, type ChestRarity, type TreasureRarity } from "./treasure";
 import {
   RANKED_ACHIEVEMENTS,
@@ -32,11 +33,17 @@ export interface ChestRollResult {
 export async function rollChestFor(tx: Tx, accountId: string, chest: ChestRarity, cost: number): Promise<ChestRollResult> {
   const rewardRarity = rollRarity(chest, randomInt(10_000));
   const pool = CHARACTER_POOLS[rewardRarity];
-  const character = chestCharacterById(pool[randomInt(pool.length)])!;
+  const character = characterById(pool[randomInt(pool.length)]);
   const [earned] = await tx.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
     .where(and(eq(characterUnlocks.accountId, accountId), eq(characterUnlocks.characterId, character.id))).limit(1);
-  const duplicateCoins = earned ? Math.floor(CHEST_PRICES[chest] / 2) : 0;
-  if (!earned) {
+  // Former achievement recruits are also owned by anyone who earned them through the old achievement.
+  const legacyAchievementId = rosterEntry(character.id)?.legacyAchievementId;
+  const [earnedLegacy] = !earned && legacyAchievementId
+    ? await tx.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks)
+      .where(and(eq(achievementUnlocks.accountId, accountId), eq(achievementUnlocks.achievementId, legacyAchievementId))).limit(1)
+    : [];
+  const duplicateCoins = earned || earnedLegacy ? Math.floor(CHEST_PRICES[chest] / 2) : 0;
+  if (!duplicateCoins) {
     await tx.insert(characterUnlocks).values({ accountId, characterId: character.id, source: "chest" }).onConflictDoNothing();
   }
   await tx.insert(treasureChestOpenings).values({ accountId, chestRarity: chest, rewardRarity, characterId: character.id, duplicateCoins, cost });

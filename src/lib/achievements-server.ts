@@ -1,9 +1,7 @@
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, checkpoints, runs } from "@/db/schema";
-import { evaluateAchievements, type AchievementReport, type RunLike } from "./achievements";
-import { coinsForAchievement } from "./coins";
-import { creditCoins } from "./currency-server";
+import { achievementBounty, BOUNTY_ACHIEVEMENTS, evaluateAchievements, type AchievementReport, type RunLike } from "./achievements";
 import { todayKey } from "./daily";
 
 type AchievementDB = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -45,7 +43,6 @@ export async function evaluateAchievementsFor(tx: AchievementDB, accountId: stri
   const inserted = report.newlyUnlocked.length ? await tx.insert(achievementUnlocks)
     .values(report.newlyUnlocked.map(id => ({ accountId, achievementId: id })))
     .onConflictDoNothing().returning({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt }) : [];
-  await creditCoins(tx, accountId, inserted.map(row => ({ source: "achievement" as const, ref: row.id, amount: coinsForAchievement(row.id) })));
   for (const row of inserted) existing.set(row.id, row.at);
   const result = evaluateAchievements(rows, existing, active.map(a => a.progress));
   return { ...result, newlyUnlocked: inserted.map(row => row.id) };
@@ -57,4 +54,35 @@ export async function loadAchievements(accountId: string): Promise<AchievementRe
     await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).for("update");
     return evaluateAchievementsFor(tx, accountId);
   });
+}
+
+type Reader = Pick<typeof db, "select">;
+
+/** Treasure update: a captain's bounty is the sum paid by every achievement they've earned. */
+export async function achievementBountyFor(reader: Reader, accountId: string): Promise<number> {
+  const rows = await reader.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks)
+    .where(eq(achievementUnlocks.accountId, accountId));
+  return achievementBounty(rows.map((row) => row.id));
+}
+
+/** Bounty totals for many captains at once (ranked profiles and leaderboards). */
+export async function achievementBountiesFor(reader: Reader, accountIds: string[]): Promise<Map<string, number>> {
+  const ids = [...new Set(accountIds)];
+  const rows = ids.length ? await reader.select({ accountId: achievementUnlocks.accountId, id: achievementUnlocks.achievementId })
+    .from(achievementUnlocks).where(inArray(achievementUnlocks.accountId, ids)) : [];
+  const byAccount = new Map<string, string[]>(ids.map((id) => [id, []]));
+  for (const row of rows) byAccount.get(row.accountId)?.push(row.id);
+  return new Map([...byAccount].map(([id, unlocked]) => [id, achievementBounty(unlocked)]));
+}
+
+const BOUNTY_VALUES = BOUNTY_ACHIEVEMENTS
+  .map((def) => `('${def.id}', ${def.legacyId ? `'${def.legacyId}'` : "NULL"}, ${def.bounty ?? 0})`).join(", ");
+
+/**
+ * SQL column: the achievement bounty of the captain in `accounts.id`, for use inside selects
+ * (each achievement counts once, whether earned under its new id or its pre-update id).
+ */
+export function achievementBountySql() {
+  return sql<number>`(SELECT COALESCE(SUM(b.bounty), 0)::int FROM (VALUES ${sql.raw(BOUNTY_VALUES)}) AS b(id, legacy_id, bounty)
+    WHERE EXISTS (SELECT 1 FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id} AND u.achievement_id IN (b.id, b.legacy_id)))`;
 }

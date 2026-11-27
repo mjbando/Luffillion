@@ -38,7 +38,7 @@ export default function LockedAchievements({ onSignIn, onClose }: { onSignIn: ()
             A captain needs an account
           </h2>
           <p id="locked-description" className="mt-2 text-lg leading-tight text-slate-300">
-            Sign in or create a free account to unlock and save all 15 achievements. Your earned pixel emblems will follow you across devices.
+            Sign in or create a free account to unlock and save every achievement. Your earned pixel emblems will follow you across devices.
           </p>
           <div className="mt-4 flex flex-col gap-2">
             <button

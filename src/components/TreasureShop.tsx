@@ -9,8 +9,8 @@ import PixelChest from "./PixelChest";
 import UnopenedChests, { type RewardOpenResult } from "./UnopenedChests";
 import type { UnopenedChest } from "@/lib/ranked-achievements";
 import { characterById, type CharacterId } from "@/data/playable-characters";
-import { CHEST_CHARACTERS } from "@/data/chest-characters";
-import { ACHIEVEMENT_GRADE_COINS, COINS_PER_ADVENTURE_LEVEL, COINS_PER_DAILY_VOYAGE, COINS_PER_RANKED_WIN } from "@/lib/coins";
+import { TREASURE_ROSTER } from "@/data/roster";
+import { COINS_PER_ADVENTURE_LEVEL, COINS_PER_DAILY_VOYAGE, COINS_PER_RANKED_WIN } from "@/lib/coins";
 import { CHARACTER_POOLS, CHEST_PRICES, chestOdds, TREASURE_CHESTS, TREASURE_RARITIES, TREASURE_RARITY_COLORS, type ChestRarity, type TreasureRarity } from "@/lib/treasure";
 import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
@@ -55,10 +55,6 @@ const EARN_RULES = [
   { label: "Daily Voyage completed", coins: `+${COINS_PER_DAILY_VOYAGE}` },
   { label: "Adventure level beaten", coins: `+${COINS_PER_ADVENTURE_LEVEL}` },
   { label: "Ranked battle won", coins: `+${COINS_PER_RANKED_WIN}` },
-  {
-    label: "Achievements (Crew / Elite / Legendary / Mythic)",
-    coins: `+${ACHIEVEMENT_GRADE_COINS.Crew} / ${ACHIEVEMENT_GRADE_COINS.Elite} / ${ACHIEVEMENT_GRADE_COINS.Legendary} / ${ACHIEVEMENT_GRADE_COINS.Mythic}`,
-  },
 ];
 
 export default function TreasureShop({ captain, onSignIn }: { captain: Captain | null; onSignIn: () => void }) {
@@ -205,7 +201,7 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
           {data && (
             <section className="mt-5 border-t border-white/10 pt-3">
               <h3 className="mb-1 font-pixel-display text-lg text-white">TREASURE RECRUITS</h3>
-              <p className="mb-2 text-xs text-slate-400">A chest-only crew of {CHEST_CHARACTERS.length} characters. Achievement recruits never drop from chests.</p>
+              <p className="mb-2 text-xs text-slate-400">{TREASURE_ROSTER.length} characters, including the Straw Hats and legends that achievements used to award.</p>
               <div className="space-y-1.5">
                 {[...TREASURE_RARITIES].map((rarity) => {
                   const pool = CHARACTER_POOLS[rarity];

@@ -12,7 +12,7 @@ export type MenuTab = "log" | "achievements" | "archive" | "bounties" | "treasur
 const options: readonly { id: MenuTab; title: string }[] = UPDATE_LIVE ? [
   { id: "log", title: "Run Log" },
   { id: "archive", title: "Archive" },
-  { id: "bounties", title: "Bounties" },
+  { id: "bounties", title: "Top 50 Scores" },
 ] : [
   { id: "log", title: "Run Log" },
   { id: "achievements", title: "Achievements" },
