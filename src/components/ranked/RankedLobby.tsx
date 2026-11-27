@@ -568,69 +568,81 @@ export default function RankedLobby({
                 <h2 className="font-pixel-display text-xl text-white">Ranked Leaderboard</h2>
               </div>
             </div>
-            {leaderboard.length === 0 ? (
-              <p className="border border-dashed border-white/15 py-5 text-center text-base text-slate-400">
-                No ranked captains yet. Play the first match!
-              </p>
-            ) : (
-              <>
-                <div className="rk-podium">
-                  {[podium[1], podium[0], podium[2]].map((entry, slot) =>
-                    entry ? (
-                      <button
-                        key={entry.accountId}
-                        type="button"
-                        onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
-                        aria-label={`View ${entry.username}'s player card`}
-                        className={`rk-podium-spot place-${entry.rank} ${entry.isYou ? "is-you" : ""}`}
-                      >
-                        <span className="rk-podium-char">
-                          <CharacterPortrait characterId={entry.characterId} size={slot === 1 ? 64 : 50} />
-                        </span>
-                        <span className="rk-podium-name"><RankedUsername username={entry.username} /></span>
-                        <span className="rk-podium-rp" style={{ color: rankTierFor(entry.rankPoints).color }}>{entry.rankPoints} RP</span>
-                        <span className="rk-podium-block">{entry.rank}</span>
-                      </button>
-                    ) : (
-                      <span key={`empty-${slot}`} className="rk-podium-spot is-empty" />
-                    ),
-                  )}
-                </div>
-                {leaderboard.length > 3 && (
-                  <ol className="mt-3 max-h-[420px] space-y-1.5 overflow-y-auto pr-1">
-                    {leaderboard.slice(3).map((entry) => (
-                      <li key={entry.accountId}>
-                        <button
-                          type="button"
-                          onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
-                          aria-label={`View ${entry.username}'s player card`}
-                          className={`rk-board-row ${entry.isYou ? "is-you" : ""}`}
-                        >
-                          <span className="w-7 text-right font-pixel-display text-base text-slate-400">#{entry.rank}</span>
-                          <CharacterPortrait characterId={entry.characterId} size={30} />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-base text-white">
-                              <RankedUsername username={entry.username} /> {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
-                            </p>
-                            <p className="truncate text-xs text-slate-400">
-                              {entry.title} · {entry.bounty.toLocaleString()} berries
-                            </p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-base font-bold" style={{ color: rankTierFor(entry.rankPoints).color }}>
-                              {entry.rankPoints} RP
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {entry.wins}W-{entry.losses}L
-                            </p>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </>
+            <div className="rk-podium" aria-label="Top 3 captains">
+              {[2, 1, 3].map((place) => {
+                const entry = podium[place - 1];
+                return entry ? (
+                  <button
+                    key={entry.accountId}
+                    type="button"
+                    onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
+                    aria-label={`#${place} ${entry.username}: view player card`}
+                    className={`rk-podium-spot place-${place} ${entry.isYou ? "is-you" : ""}`}
+                  >
+                    <span className="rk-podium-char">
+                      <CharacterPortrait characterId={entry.characterId} size={place === 1 ? 64 : 50} />
+                    </span>
+                    <span className="rk-podium-name"><RankedUsername username={entry.username} /></span>
+                    <span className="rk-podium-rp" style={{ color: rankTierFor(entry.rankPoints).color }}>{entry.rankPoints} RP</span>
+                    <span className="rk-podium-block">{place}</span>
+                  </button>
+                ) : (
+                  <div key={`open-${place}`} className={`rk-podium-spot place-${place} is-open`}>
+                    <span className="rk-podium-ghost" aria-hidden>?</span>
+                    <span className="rk-podium-name">Open</span>
+                    <span className="rk-podium-rp">—</span>
+                    <span className="rk-podium-block">{place}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {leaderboard.length === 0 && (
+              <p className="mt-2 text-center text-sm text-slate-400">No ranked captains yet. Play the first match!</p>
             )}
+            <div className="rk-board-head">
+              <span>4th – 50th</span>
+              <span>{Math.max(0, leaderboard.length - 3)} / 47</span>
+            </div>
+            <ol className="rk-board-list">
+              {Array.from({ length: 47 }, (_, i) => {
+                const place = i + 4;
+                const entry = leaderboard[place - 1];
+                if (!entry) {
+                  return (
+                    <li key={`open-${place}`} className="rk-board-row is-open" aria-label={`#${place} open`}>
+                      <span className="rk-board-place">#{place}</span>
+                      <span className="rk-board-ghost" aria-hidden />
+                      <span className="flex-1 text-sm text-slate-600">Open spot</span>
+                      <span className="text-sm text-slate-700">—</span>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={entry.accountId}>
+                    <button
+                      type="button"
+                      onClick={(event) => void openProfile(entry.accountId, event.currentTarget)}
+                      aria-label={`#${place} ${entry.username}: view player card`}
+                      className={`rk-board-row ${entry.isYou ? "is-you" : ""}`}
+                    >
+                      <span className="rk-board-place">#{place}</span>
+                      <CharacterPortrait characterId={entry.characterId} size={30} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base text-white">
+                          <RankedUsername username={entry.username} /> {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
+                        </p>
+                        <p className="truncate text-xs text-slate-400">
+                          {entry.rankName} · {entry.wins}W-{entry.losses}L
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-base font-bold" style={{ color: rankTierFor(entry.rankPoints).color }}>
+                        {entry.rankPoints} RP
+                      </p>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
           </aside>
         </div>
       </div>
