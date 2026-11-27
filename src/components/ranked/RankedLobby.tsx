@@ -7,7 +7,7 @@ import CharacterPortrait from "../CharacterPortrait";
 import PixelEmblem from "../pixel-emblems";
 import RankedUsername from "./RankedUsername";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
-import { RANK_TIERS, rankTierFor } from "@/lib/ranked";
+import { RANK_TIERS, RANKED_MAX_TIER_GAP, rankTierFor } from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick, playQueueHorn, playSonar } from "@/lib/sound";
@@ -265,7 +265,9 @@ export default function RankedLobby({
               </button>
             )}
             <p className="rk-port-note">
-              {inQueue ? "Looking for a captain near your rank." : "Matchmaking pairs you with a captain near your rank."}
+              {inQueue
+                ? `Looking for the closest-ranked captain (up to ${RANKED_MAX_TIER_GAP} ranks away).`
+                : `Matchmaking pairs you with the closest-ranked captain, at most ${RANKED_MAX_TIER_GAP} ranks away.`}
             </p>
           </div>
         </section>
@@ -410,21 +412,25 @@ export default function RankedLobby({
                 {[...RANK_TIERS].reverse().map((t) => {
                   const idx = RANK_TIERS.findIndex((x) => x.id === t.id);
                   const state = !profile ? "" : idx === tierIndex ? "is-you" : idx < tierIndex ? "is-cleared" : "is-locked";
+                  const reachable = Boolean(profile) && idx !== tierIndex && Math.abs(idx - tierIndex) <= RANKED_MAX_TIER_GAP;
                   return (
                     <li key={t.id} className={`rk-rung ${state}`} style={{ "--tier": t.color } as CSSProperties}>
                       <RankEmblem points={t.min} size={22} />
                       <span className="rk-rung-name">{t.name}</span>
                       {state === "is-you" && <span className="rk-rung-you">YOU ▸</span>}
+                      {reachable && <span className="rk-rung-reach" title="You can be matched with this rank">⚔</span>}
                       <span className="rk-rung-rp">{t.min}+</span>
                     </li>
                   );
                 })}
               </ol>
               <div className="mt-3 space-y-1 text-sm text-slate-400">
-                <p>• Win: +30 RP (more vs higher ranks, less vs lower)</p>
-                <p>• Loss: -15 RP (bigger drop vs lower ranks, 0 floor)</p>
-                <p>• Draw: +10 RP for both players</p>
+                <p>• Win: +30 RP vs an even captain. Upsets pay big (up to +100); beating lower ranks pays less.</p>
+                <p>• Loss: -15 RP vs an even captain. Losing to lower ranks costs more (up to -60); losing to higher ranks costs little.</p>
+                <p>• Draw: +10 RP, more vs stronger captains.</p>
+                <p>• Rank gap and RP gap both count.</p>
                 <p>• Win streaks: +10 (3 wins), +20 (5 wins), +50 (10 wins)</p>
+                <p>• Matchmaking: closest rank first, never more than {RANKED_MAX_TIER_GAP} ranks apart.</p>
               </div>
             </div>
 

@@ -73,6 +73,41 @@ export interface PlayerDeltaBreakdown {
   newTier: RankTierInfo["id"];
 }
 
+/** Ranked matchmaking only pairs captains at most this many rank tiers apart. */
+export const RANKED_MAX_TIER_GAP = 2;
+
+/** Typical swings against an evenly matched opponent (same rank, same RP). */
+export const RP_EVEN_WIN = 30;
+export const RP_EVEN_LOSS = 15;
+export const RP_EVEN_DRAW = 10;
+
+/**
+ * How much stronger the opponent is, in "rank tiers": each tier of difference
+ * counts 0.8, and every 400 RP of difference adds another 1.0 on top, so both
+ * rank and RP matter. Positive = opponent is stronger. Clamped to +/-3.
+ */
+export function strengthGap(playerPoints: number, opponentPoints: number): number {
+  const self = Math.max(0, playerPoints);
+  const opp = Math.max(0, opponentPoints);
+  const tierGap = rankIndexFor(opp) - rankIndexFor(self);
+  const gap = tierGap * 0.8 + (opp - self) / 400;
+  return Math.max(-3, Math.min(3, gap));
+}
+
+/**
+ * Base RP change before streak bonuses. Everything scales smoothly with the
+ * strength gap g:
+ *  - Win:  30 * 2^(0.6g)   upsets pay big (2 ranks up is about +70 to +100), easy wins pay little (min +8)
+ *  - Loss: 15 * 2^(-0.75g) losing to a weaker captain hurts (up to -60), losing to a stronger one barely (min -3)
+ *  - Draw: 10 * 2^(0.5g)   holding a stronger captain to a draw is worth more
+ */
+export function baseRankDelta(playerPoints: number, opponentPoints: number, outcome: "win" | "loss" | "draw"): number {
+  const g = strengthGap(playerPoints, opponentPoints);
+  if (outcome === "win") return Math.max(8, Math.min(100, Math.round(RP_EVEN_WIN * 2 ** (0.6 * g))));
+  if (outcome === "loss") return -Math.max(3, Math.min(60, Math.round(RP_EVEN_LOSS * 2 ** (-0.75 * g))));
+  return Math.max(3, Math.min(25, Math.round(RP_EVEN_DRAW * 2 ** (0.5 * g))));
+}
+
 export function computeSingleDelta(
   playerPoints: number,
   opponentPoints: number,
@@ -80,47 +115,21 @@ export function computeSingleDelta(
   outcome: "win" | "loss" | "draw",
 ): PlayerDeltaBreakdown {
   const oldRp = Math.max(0, playerPoints);
-  const oppRp = Math.max(0, opponentPoints);
-  const gap = oppRp - oldRp; // positive = opponent is higher rated
-  const tierGap = rankIndexFor(oppRp) - rankIndexFor(oldRp);
-
-  let baseDelta = 0;
+  const baseDelta = baseRankDelta(oldRp, opponentPoints, outcome);
   let streakBonus = 0;
   let newStreak = oldStreak;
-
   if (outcome === "win") {
     newStreak = oldStreak + 1;
-    if (gap >= 0) {
-      // Beating same rank = +30; beating higher rank scales smoothly up to +75
-      baseDelta = 30 + Math.round(Math.min(45, gap / 40 + Math.max(0, tierGap) * 4));
-    } else {
-      // Beating a much lower-ranked opponent still awards +12 to +30
-      baseDelta = Math.max(12, 30 - Math.round(Math.min(18, Math.abs(gap) / 100)));
-    }
     streakBonus = streakBonusFor(newStreak);
   } else if (outcome === "loss") {
     newStreak = 0;
-    if (gap <= 0) {
-      // Losing to same rank = -15; losing to a lower-ranked opponent loses more (up to -45)
-      baseDelta = -15 - Math.round(Math.min(30, Math.abs(gap) / 50 + Math.max(0, -tierGap) * 4));
-    } else {
-      // Losing to a higher-ranked opponent softens the penalty (down to -5)
-      baseDelta = -Math.max(5, 15 - Math.round(Math.min(10, gap / 150)));
-    }
-  } else {
-    // Draw = +10; streak stays intact without triggering a win-streak bonus
-    baseDelta = 10;
-    streakBonus = 0;
   }
 
-  const rawNext = oldRp + baseDelta + streakBonus;
-  const newPoints = Math.max(0, rawNext); // Floor at 0 — players at 0 never go negative
-  const delta = newPoints - oldRp;
-
+  const newPoints = Math.max(0, oldRp + baseDelta + streakBonus); // Floor at 0
   return {
     oldPoints: oldRp,
     newPoints,
-    delta,
+    delta: newPoints - oldRp,
     baseDelta,
     streakBonus,
     oldStreak,

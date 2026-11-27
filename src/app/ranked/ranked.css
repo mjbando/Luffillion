@@ -710,3 +710,5 @@
 @media (prefers-reduced-motion: reduce) {
   .rk-lobby *, .rk-lobby *::before, .rk-lobby *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
 }
+.rk-rung-reach { font-size: 14px; color: #fda4af; }
+.rk-rung.is-locked:has(.rk-rung-reach) { opacity: .8; }

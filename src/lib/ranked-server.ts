@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, ilike, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, adventureProgress, bounties, rankedChallenges, rankedMatches, rankedProfiles } from "@/db/schema";
 import { adventureTitle } from "@/data/adventure/levels";
@@ -19,7 +19,10 @@ import {
   RANKED_SECONDS,
   RANKED_STARTING_LIVES,
   RANKED_TIER_BONUS_SECONDS,
+  RANK_TIERS,
+  RANKED_MAX_TIER_GAP,
   computeSingleDelta,
+  rankIndexFor,
   rankTierFor,
 } from "./ranked";
 import type {
@@ -502,6 +505,17 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
 
 async function tryPairFromQueue(tx: Tx, accountId: string): Promise<MatchRow | null> {
   const cutoff = new Date(Date.now() - ONLINE_MS);
+  const [self] = await tx
+    .select({ points: rankedProfiles.points })
+    .from(rankedProfiles)
+    .where(eq(rankedProfiles.accountId, accountId))
+    .limit(1);
+  const selfPoints = self?.points ?? 0;
+  const selfTier = rankIndexFor(selfPoints);
+  // RP window covering every tier within RANKED_MAX_TIER_GAP of ours.
+  const lowTier = RANK_TIERS[Math.max(0, selfTier - RANKED_MAX_TIER_GAP)];
+  const highTier = RANK_TIERS[Math.min(RANK_TIERS.length - 1, selfTier + RANKED_MAX_TIER_GAP)];
+
   const candidates = await tx
     .select({
       accountId: rankedProfiles.accountId,
@@ -515,27 +529,29 @@ async function tryPairFromQueue(tx: Tx, accountId: string): Promise<MatchRow | n
         isNotNull(rankedProfiles.queuedAt),
         gt(rankedProfiles.queuedAt, cutoff),
         gt(rankedProfiles.lastSeenAt, cutoff),
+        gte(rankedProfiles.points, lowTier.min),
+        highTier.nextMin === null ? undefined : lt(rankedProfiles.points, highTier.nextMin),
       ),
     )
+    .orderBy(sql`abs(${rankedProfiles.points} - ${selfPoints})`)
     .limit(20);
 
   if (!candidates.length) return null;
-  const [self] = await tx
-    .select({ points: rankedProfiles.points })
-    .from(rankedProfiles)
-    .where(eq(rankedProfiles.accountId, accountId))
-    .limit(1);
-  const selfPoints = self?.points ?? 0;
 
-  // Prefer closest rank points, breaking ties by longest queue wait
-  candidates.sort((a, b) => {
+  // Only captains within RANKED_MAX_TIER_GAP ranks. Closest rank first, then
+  // closest RP, then whoever has waited longest.
+  const eligible = candidates.filter((c) => Math.abs(rankIndexFor(c.points) - selfTier) <= RANKED_MAX_TIER_GAP);
+  eligible.sort((a, b) => {
+    const ta = Math.abs(rankIndexFor(a.points) - selfTier);
+    const tb = Math.abs(rankIndexFor(b.points) - selfTier);
+    if (ta !== tb) return ta - tb;
     const da = Math.abs(a.points - selfPoints);
     const dbDiff = Math.abs(b.points - selfPoints);
     if (da !== dbDiff) return da - dbDiff;
     return (a.queuedAt?.getTime() ?? 0) - (b.queuedAt?.getTime() ?? 0);
   });
 
-  for (const peer of candidates) {
+  for (const peer of eligible) {
     const [busy] = await tx
       .select({ id: rankedMatches.id })
       .from(rankedMatches)
