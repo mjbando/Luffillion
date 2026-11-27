@@ -1100,7 +1100,7 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
 };
 
 /**
- * A layered glow that hugs the character's own silhouette (floating effects and the crown
+ * A layered glow that hugs the character's own silhouette (floating effects
  * don't distort it, and enclosed gaps stay clear):
  * a bright core ring, a saturated ring, a soft haze, flickering flame licks rising off
  * the shoulders and head. `frame` animates the flames.
@@ -1163,14 +1163,6 @@ function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, 
   return pad;
 }
 
-/** A jewelled crown with outlined spikes. */
-function crown(d: Detail, frame: number) {
-  const c = d.cx, y = d.hy - 13 - (frame === 1 ? 1 : 0);
-  const spikes: Px[] = [[c - 6, y + 1], [c - 6, y + 2], [c - 5, y + 2], [c - 1, y], [c, y], [c - 2, y + 1], [c + 1, y + 1], [c + 5, y + 1], [c + 5, y + 2], [c + 4, y + 2]];
-  d.pts(spikes, gold, true).u(c - 6, y + 3, 12, 3, gold).u(c - 6, y + 3, 12, 1, GOLD_L).u(c - 6, y + 5, 12, 1, GOLD_D);
-  d.u(c - 4, y + 4, 1, 1, "#ff3b6b").u(c - 1, y + 4, 2, 1, "#4ac8ff").u(c + 3, y + 4, 1, 1, "#43e07a").u(c - 1, y - 1, 2, 1, white);
-}
-
 function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {
   const { f, look, accent } = buildFigure(id, pose, true);
   // The aura follows the body alone: same figure without floating effects, doubled.
@@ -1191,7 +1183,6 @@ function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite 
   const d = new Detail(p, f, look, accent, pose, mask, body, m);
   const paint = PAINTERS[id];
   if (paint) paint(d); else d.eyes().mouth();
-  if (look.hat !== "crown" && !FLAT.has(id)) crown(d, frame); // Imu already wears one; silhouettes stay clean
   const top = trimTop(p);
   body.splice(0, top);
   const pad = shapeAura(p, body, accent, frame);

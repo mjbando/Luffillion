@@ -5,7 +5,7 @@ import { Pixels, feet, ink, silver, skin as defaultSkin, white, gold, shade, typ
 // Procedural sprites for the chest-only roster. Every character has a hand-written
 // look (build, hair, outfit, hat, weapon and extras); rarity layers on effects:
 // legendary recruits glow, and mythic recruits get a shimmering double aura,
-// glowing eyes and a floating crown spark so they outshine everything else.
+// and glowing eyes so they outshine everything else.
 
 export const HEAD = 6; // headroom for hats, horns and ears, trimmed afterwards
 
@@ -275,11 +275,6 @@ function drawChest(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprit
     // Two twinkles orbiting the head.
     const twinkle = shade(accent, 0.45);
     p.under(f.hx - 3 + (frame % 2), f.hy - 1, 1, 1, twinkle).under(f.hx + f.hw + 2 - (frame % 2), f.hy + 2, 1, 1, twinkle);
-  }
-  if (rarity === "mythic") {
-    // Floating crown spark above the head.
-    const sy = f.hy - 6 - (frame === 1 ? 1 : 0);
-    p.under(f.cx - 3, sy, 6, 1, gold).under(f.cx - 3, sy - 1, 1, 1, gold).under(f.cx - 1, sy - 2, 2, 2, gold).under(f.cx + 2, sy - 1, 1, 1, gold).under(f.cx - 1, sy, 2, 1, "#ff3b6b");
   }
   let top = trimTop(p);
   let pad = 0;
