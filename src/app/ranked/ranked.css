@@ -56,6 +56,17 @@
 .rk-fighter { border: 1px solid #354a66; border-top: 3px solid #60a5fa; background: #0e1c33; padding: 12px 14px; }
 .rk-vs-badge { display: grid; place-items: center; font-family: "Pixelify Sans", monospace; font-size: 26px; font-weight: 700; color: #fbbf24; padding: 0 4px; }
 .rk-arena { border: 1px solid #384f6e; padding: 24px; max-width: 720px; margin: 0 auto; }
+.rk-tier-bonus-effect {
+  position: fixed; top: 78px; left: 50%; z-index: 40; transform: translateX(-50%);
+  border: 2px solid; background: #081221f2; padding: 8px 18px;
+  font-family: "Pixelify Sans", monospace; font-size: 24px; font-weight: 700;
+  animation: ranked-bonus-in 1.8s ease-out both;
+}
+@keyframes ranked-bonus-in {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(.9); }
+  18%, 72% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -10px) scale(1.04); }
+}
 
 .rk-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px; gap: 12px; }
 .rk-loading h1 { font-family: "Pixelify Sans", monospace; font-size: 30px; }
@@ -65,9 +76,39 @@
   .rk-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
+  .rk-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 8px 14px; }
+  .rk-topbar > .rk-brand { grid-column: 2; grid-row: 1; }
+  .rk-topbar > .flex:last-child { grid-column: 1 / -1; justify-content: space-between; }
   .rk-vs-row { grid-template-columns: minmax(0, 1fr); }
   .rk-vs-badge { display: none; }
   .rk-fighter.is-right .flex { flex-direction: row; text-align: left; }
+  .rk-fighter.is-right .rk-portrait-box { flex-direction: column; }
   .rk-fighter.is-right .flex-wrap, .rk-fighter.is-right .mt-2 { justify-content: flex-start; }
   .rk-arena { padding: 16px; }
 }
+
+/* ---------- Coming soon (shown until the ranked update launches) ---------- */
+.rk-soon { display: flex; flex-direction: column; }
+.rk-soon-card {
+  margin: auto; width: min(560px, calc(100% - 32px)); padding: 32px 28px 26px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+}
+.rk-soon-swords { image-rendering: pixelated; margin-bottom: 10px; animation: rk-soon-bob 2.4s steps(4) infinite; }
+.rk-soon-title {
+  font-family: "Pixelify Sans", monospace; font-weight: 700; font-size: clamp(34px, 7vw, 54px);
+  letter-spacing: 4px; color: #ffd36b; text-shadow: 3px 3px 0 #7a2140, 6px 6px 0 #0006; margin: 2px 0 6px;
+}
+.rk-soon-copy { max-width: 440px; color: #b2c5d6; font-size: 20px; }
+.rk-soon-dots { display: flex; gap: 8px; margin: 14px 0 18px; }
+.rk-soon-dots span { width: 10px; height: 10px; background: #ff7a99; animation: rk-soon-blink 1.2s steps(1) infinite; }
+.rk-soon-dots span:nth-child(2) { animation-delay: .4s; }
+.rk-soon-dots span:nth-child(3) { animation-delay: .8s; }
+.rk-soon-cta {
+  display: inline-block; padding: 10px 22px; background: #fbbf24; color: #451a03; text-decoration: none;
+  font-family: "Pixelify Sans", monospace; font-size: 20px; font-weight: 700; letter-spacing: 2px;
+}
+.rk-soon-cta:hover { background: #fcd34d; }
+.rk-soon-alt { margin-top: 12px; }
+@keyframes rk-soon-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes rk-soon-blink { 0%, 100% { opacity: .25; } 33% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rk-soon-swords, .rk-soon-dots span { animation: none; } }

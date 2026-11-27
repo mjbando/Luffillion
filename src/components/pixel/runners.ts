@@ -1,59 +1,18 @@
-import { PLAYABLE_CHARACTERS, type CharacterId } from "@/data/playable-characters";
+import { PLAYABLE_CHARACTERS, type AchievementCharacterId, type CharacterId } from "@/data/playable-characters";
+import { chestCharacterById, isChestCharacterId } from "@/data/chest-characters";
 import { LUFFY_PAL, luffyFrame } from "./art";
 
-export interface RunnerSprite {
-  width: number;
-  height: number;
-  rows: string[];
-  palette: Record<string, string>;
-  goldHat: { x: number; y: number };
-}
+export type { RunnerSprite } from "./kit";
+import type { RunnerSprite } from "./kit";
+import { Pixels, feet, human, ink, skin, skinShade, cream, white, silver, gold, type Pose } from "./kit";
+import { chestSprite } from "./generated";
+import { mythicHdSprite } from "./mythic-hd";
 
-// All art is assembled on an integer pixel grid, then cached into three frames.
-// Each recruit has its own silhouette/accessories; the canvas and collection share the same sprite.
-class Pixels {
-  cells: string[][];
-  palette: Record<string, string> = {};
-  keys = new Map<string, string>();
-  constructor(public width = 20, public height = 24) {
-    this.cells = Array.from({ length: height }, () => Array<string>(width).fill("."));
-  }
-  r(x: number, y: number, w: number, h: number, color: string) {
-    let key = this.keys.get(color);
-    if (!key) { key = String.fromCharCode(65 + this.keys.size); this.keys.set(color, key); this.palette[key] = color; }
-    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (j >= 0 && j < this.height && i >= 0 && i < this.width) this.cells[j][i] = key;
-    return this;
-  }
-  finish(hatX = 2, hatY = 1): RunnerSprite {
-    return { width: this.width, height: this.height, rows: this.cells.map(row => row.join("")), palette: this.palette, goldHat: { x: hatX, y: hatY } };
-  }
-}
-const ink = "#182035", skin = "#f4c69c", skinShade = "#cb8e69", cream = "#fff4dc", white = "#f7f8fb", silver = "#bfcddd", gold = "#edc05e";
-type Pose = -1 | 0 | 1;
-function feet(p: Pixels, pose: Pose, x: number, y: number, trousers: string, shoes: string, gap = 5, height = 5) {
-  const move = pose === -1 ? 0 : pose === 0 ? -1 : 1;
-  p.r(x + move, y, 4, height, ink).r(x + move + 1, y, 2, height - 1, trousers).r(x + move - 1, y + height - 1, 5, 2, shoes);
-  p.r(x + gap - move, y, 4, height, ink).r(x + gap - move + 1, y, 2, height - 1, trousers).r(x + gap - move, y + height - 1, 5, 2, shoes);
-}
-function human(pose: Pose, hair: string, shirt: string, trousers: string, shoes = ink, face = skin) {
-  const p = new Pixels();
-  const swing = pose === -1 ? 0 : pose === 0 ? -1 : 1;
-  feet(p, pose, 6, 18, trousers, shoes);
-  p.r(4, 11 + swing, 3, 6, ink).r(5, 12 + swing, 2, 3, shirt).r(4, 16 + swing, 3, 2, face);
-  p.r(13, 11 - swing, 3, 6, ink).r(13, 12 - swing, 2, 3, shirt).r(13, 16 - swing, 3, 2, face);
-  p.r(6, 10, 8, 9, ink).r(7, 11, 6, 7, shirt);
-  p.r(8, 9, 4, 2, face);
-  p.r(5, 3, 10, 7, ink).r(6, 4, 8, 6, face).r(7, 10, 6, 1, skinShade);
-  p.r(4, 6, 2, 3, face).r(14, 6, 2, 3, face);
-  p.r(7, 7, 1, 1, ink).r(12, 7, 1, 1, ink).r(9, 9, 2, 1, skinShade);
-  p.r(5, 2, 10, 3, hair).r(4, 4, 2, 2, hair).r(14, 4, 2, 2, hair);
-  return p;
-}
 function katana(p: Pixels, x: number, y: number, grip: string, long = 12) {
   p.r(x, y, 2, long, ink).r(x, y + 1, 1, long - 5, silver).r(x - 2, y + long - 4, 5, 1, gold).r(x, y + long - 3, 2, 4, grip);
 }
 
-function drawRecruit(id: Exclude<CharacterId, "luffy">, pose: Pose): RunnerSprite {
+function drawRecruit(id: Exclude<AchievementCharacterId, "luffy">, pose: Pose): RunnerSprite {
   let p: Pixels;
   switch (id) {
     case "chopper": {
@@ -173,6 +132,18 @@ function drawRecruit(id: Exclude<CharacterId, "luffy">, pose: Pose): RunnerSprit
       p.r(9, 11, 2, 5, skin).r(7, 17, 6, 2, "#a779c2").r(13, 18, 3, 2, "#a779c2").r(15, 19, 2, 2, "#c79bdd");
       return p.finish(2, 1);
     }
+    case "gear-6": {
+      p = human(pose, white, "#d84c56", "#30263b", "#e0b955");
+      // Crowned flame hair, bright eyes, and gold Haki lightning distinguish this creator form from Gear 5.
+      p.r(4, 3, 2, 3, cream).r(5, 1, 3, 4, white).r(8, 0, 3, 5, white);
+      p.r(11, 1, 3, 4, white).r(14, 3, 2, 3, cream).r(7, 1, 1, 2, gold).r(12, 1, 1, 2, gold);
+      p.r(7, 7, 1, 1, "#d84c56").r(12, 7, 1, 1, "#d84c56");
+      p.r(6, 11, 2, 8, "#f2c56b").r(12, 11, 2, 8, "#f2c56b");
+      p.r(7, 12, 6, 2, "#30263b").r(9, 12, 2, 6, gold).r(7, 16, 6, 2, "#a93649");
+      p.r(2, 7, 2, 2, gold).r(1, 9, 2, 2, cream).r(16, 7, 2, 2, gold).r(17, 9, 2, 2, cream);
+      p.r(3, 2, 1, 2, "#e9b84e").r(16, 2, 1, 2, "#e9b84e");
+      return p.finish(2, 1);
+    }
     case "jinbe": {
       p = new Pixels(24, 27);
       feet(p, pose, 7, 22, "#37434f", "#645147", 6, 4);
@@ -217,13 +188,21 @@ function drawRecruit(id: Exclude<CharacterId, "luffy">, pose: Pose): RunnerSprit
 }
 
 const cached = Object.fromEntries(PLAYABLE_CHARACTERS.filter(c => c.id !== "luffy").map(c => [c.id, {
-  idle: drawRecruit(c.id as Exclude<CharacterId, "luffy">, -1),
-  left: drawRecruit(c.id as Exclude<CharacterId, "luffy">, 0),
-  right: drawRecruit(c.id as Exclude<CharacterId, "luffy">, 1),
-}])) as Record<Exclude<CharacterId, "luffy">, { idle: RunnerSprite; left: RunnerSprite; right: RunnerSprite }>;
+  idle: drawRecruit(c.id as Exclude<AchievementCharacterId, "luffy">, -1),
+  left: drawRecruit(c.id as Exclude<AchievementCharacterId, "luffy">, 0),
+  right: drawRecruit(c.id as Exclude<AchievementCharacterId, "luffy">, 1),
+}])) as Record<Exclude<AchievementCharacterId, "luffy">, { idle: RunnerSprite; left: RunnerSprite; right: RunnerSprite }>;
 
 export function runnerSprite(characterId: CharacterId, running = false, time = 0): RunnerSprite {
+  if (isChestCharacterId(characterId)) return chestSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   if (characterId === "luffy") return { width: 16, height: 16, rows: luffyFrame(running, time), palette: LUFFY_PAL, goldHat: { x: 0, y: 0 } };
   const sprites = cached[characterId];
   return running ? Math.floor(time / 110) % 2 === 0 ? sprites.left : sprites.right : sprites.idle;
+}
+
+/** Sprite for SVG portraits: mythic chest recruits use their high-detail (2×) art. */
+export function portraitSprite(characterId: CharacterId, running = false, time = 0): RunnerSprite {
+  if (isChestCharacterId(characterId) && chestCharacterById(characterId)?.rarity === "mythic")
+    return mythicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
+  return runnerSprite(characterId, running, time);
 }

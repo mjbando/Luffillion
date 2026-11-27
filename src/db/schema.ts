@@ -19,6 +19,7 @@ export const accounts = pgTable("captain_accounts", {
   usernameKey: varchar("username_key", { length: 24 }).notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   equippedCharacter: varchar("equipped_character", { length: 32 }).notNull().default("luffy"),
+  coins: integer("coins").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -78,6 +79,40 @@ export const achievementUnlocks = pgTable("achievement_unlocks", {
   achievementId: varchar("achievement_id", { length: 48 }).notNull(),
   unlockedAt: timestamp("unlocked_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [primaryKey({ columns: [t.accountId, t.achievementId] })]);
+
+export const characterUnlocks = pgTable("character_unlocks", {
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  characterId: varchar("character_id", { length: 32 }).notNull(),
+  source: varchar("source", { length: 16 }).notNull().default("chest"),
+  unlockedAt: timestamp("unlocked_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.accountId, t.characterId] })]);
+
+export const treasureChestOpenings = pgTable("treasure_chest_openings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  chestRarity: varchar("chest_rarity", { length: 16 }).notNull(),
+  rewardRarity: varchar("reward_rarity", { length: 16 }).notNull(),
+  characterId: varchar("character_id", { length: 32 }).notNull(),
+  duplicateCoins: integer("duplicate_coins").notNull().default(0),
+  cost: integer("cost").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("treasure_chest_openings_account_created_idx").on(t.accountId, t.createdAt)]);
+
+// One row per coin payout. The primary key guarantees a daily voyage, adventure
+// level, ranked win or achievement is never paid twice — live or via backfill.
+export const coinLedger = pgTable("coin_ledger", {
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  source: varchar("source", { length: 16 }).notNull(),
+  ref: varchar("ref", { length: 64 }).notNull(),
+  amount: integer("amount").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.accountId, t.source, t.ref] })]);
+
+// Records one-time data migrations (e.g. the historical coin backfill).
+export const coinBackfillMigrations = pgTable("coin_backfill_migrations", {
+  migrationKey: varchar("migration_key", { length: 64 }).primaryKey(),
+  appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // Adventure is independent of daily runs, daily ranks, and daily streaks.
 export const adventureProgress = pgTable("adventure_progress", {

@@ -1,28 +1,33 @@
 import { and, desc, eq, gt, ilike, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, adventureProgress, bounties, rankedChallenges, rankedMatches, rankedProfiles } from "@/db/schema";
+import { accounts, achievementUnlocks, adventureProgress, bounties, rankedChallenges, rankedMatches, rankedProfiles } from "@/db/schema";
 import { adventureTitle } from "@/data/adventure/levels";
 import { isCharacterId, DEFAULT_CHARACTER } from "@/data/playable-characters";
 import { ORIGINAL_QUESTIONS, type Question } from "@/data/questions";
+import { ACHIEVEMENTS } from "./achievements";
 import { checkGuess, getQuestionById, suggestGuess } from "./daily";
 import { RequestProblem } from "./account-server";
+import { COINS_PER_RANKED_WIN } from "./coins";
+import { creditCoins } from "./currency-server";
 import {
   RANKED_INTRO_MS,
   RANKED_MAX_ROUNDS,
   RANKED_REVEAL_MS,
   RANKED_SECONDS,
   RANKED_STARTING_LIVES,
+  RANKED_TIER_BONUS_SECONDS,
   computeSingleDelta,
   rankTierFor,
 } from "./ranked";
 import type {
   OnlinePlayerSummary,
-  RankedChallengeView,
+  RankedFriendlyInviteView,
   RankedLeaderboardEntry,
   RankedLobbyResponse,
   RankedMatchState,
   RankedMatchView,
   RankedPlayerCard,
+  RankedPublicProfile,
   RankedRoundReveal,
   RankedRoundState,
 } from "./ranked-types";
@@ -100,7 +105,7 @@ async function buildPlayerCard(tx: Tx, accountId: string, lives = RANKED_STARTIN
   };
 }
 
-async function createMatch(tx: Tx, p1Id: string, p2Id: string): Promise<MatchRow> {
+async function createMatch(tx: Tx, p1Id: string, p2Id: string, mode: "ranked" | "friendly" = "ranked"): Promise<MatchRow> {
   await lockAccounts(tx, [p1Id, p2Id]);
   // Ensure neither captain already entered an active match.
   const [existing] = await tx
@@ -131,6 +136,7 @@ async function createMatch(tx: Tx, p1Id: string, p2Id: string): Promise<MatchRow
   const questions = pickMatchQuestions();
 
   const state: RankedMatchState = {
+    mode,
     p1: p1Card,
     p2: p2Card,
     questionIds: questions.map((q) => q.id),
@@ -142,6 +148,10 @@ async function createMatch(tx: Tx, p1Id: string, p2Id: string): Promise<MatchRow
         questionId: questions[0].id,
         startedAt: roundStartAt,
         endsAt: roundEndAt,
+        p1EndsAt: roundEndAt,
+        p2EndsAt: roundEndAt,
+        p1BonusSeconds: 0,
+        p2BonusSeconds: 0,
         p1: null,
         p2: null,
         p1Attempts: 0,
@@ -198,36 +208,57 @@ async function finalizeMatch(
 
   const p1Outcome = outcome === "draw" ? "draw" : outcome === "p1" ? "win" : "loss";
   const p2Outcome = outcome === "draw" ? "draw" : outcome === "p2" ? "win" : "loss";
+  const friendly = fresh.state.mode === "friendly";
+  const noRankChange = (points: number, streak: number) => {
+    const tier = rankTierFor(points);
+    return {
+      oldPoints: points,
+      newPoints: points,
+      delta: 0,
+      baseDelta: 0,
+      streakBonus: 0,
+      oldStreak: streak,
+      newStreak: streak,
+      oldTier: tier.id,
+      newTier: tier.id,
+    };
+  };
 
-  const p1Delta = computeSingleDelta(rp1.points, rp2.points, rp1.winStreak, p1Outcome);
-  const p2Delta = computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
+  const p1Delta = friendly ? noRankChange(rp1.points, rp1.winStreak) : computeSingleDelta(rp1.points, rp2.points, rp1.winStreak, p1Outcome);
+  const p2Delta = friendly ? noRankChange(rp2.points, rp2.winStreak) : computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
 
   const nowDate = new Date();
-  await tx
-    .update(rankedProfiles)
-    .set({
-      points: p1Delta.newPoints,
-      wins: rp1.wins + (p1Outcome === "win" ? 1 : 0),
-      losses: rp1.losses + (p1Outcome === "loss" ? 1 : 0),
-      draws: rp1.draws + (p1Outcome === "draw" ? 1 : 0),
-      winStreak: p1Delta.newStreak,
-      bestStreak: Math.max(rp1.bestStreak, p1Delta.newStreak),
-      updatedAt: nowDate,
-    })
-    .where(eq(rankedProfiles.accountId, fresh.player1Id));
+  if (!friendly) {
+    await tx
+      .update(rankedProfiles)
+      .set({
+        points: p1Delta.newPoints,
+        wins: rp1.wins + (p1Outcome === "win" ? 1 : 0),
+        losses: rp1.losses + (p1Outcome === "loss" ? 1 : 0),
+        draws: rp1.draws + (p1Outcome === "draw" ? 1 : 0),
+        winStreak: p1Delta.newStreak,
+        bestStreak: Math.max(rp1.bestStreak, p1Delta.newStreak),
+        updatedAt: nowDate,
+      })
+      .where(eq(rankedProfiles.accountId, fresh.player1Id));
 
-  await tx
-    .update(rankedProfiles)
-    .set({
-      points: p2Delta.newPoints,
-      wins: rp2.wins + (p2Outcome === "win" ? 1 : 0),
-      losses: rp2.losses + (p2Outcome === "loss" ? 1 : 0),
-      draws: rp2.draws + (p2Outcome === "draw" ? 1 : 0),
-      winStreak: p2Delta.newStreak,
-      bestStreak: Math.max(rp2.bestStreak, p2Delta.newStreak),
-      updatedAt: nowDate,
-    })
-    .where(eq(rankedProfiles.accountId, fresh.player2Id));
+    await tx
+      .update(rankedProfiles)
+      .set({
+        points: p2Delta.newPoints,
+        wins: rp2.wins + (p2Outcome === "win" ? 1 : 0),
+        losses: rp2.losses + (p2Outcome === "loss" ? 1 : 0),
+        draws: rp2.draws + (p2Outcome === "draw" ? 1 : 0),
+        winStreak: p2Delta.newStreak,
+        bestStreak: Math.max(rp2.bestStreak, p2Delta.newStreak),
+        updatedAt: nowDate,
+      })
+      .where(eq(rankedProfiles.accountId, fresh.player2Id));
+
+    if (outcome !== "draw") {
+      await creditCoins(tx, outcome === "p1" ? fresh.player1Id : fresh.player2Id, { source: "ranked", ref: fresh.id, amount: COINS_PER_RANKED_WIN });
+    }
+  }
 
   const nextState: RankedMatchState = {
     ...fresh.state,
@@ -288,13 +319,13 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
   while (state.roundIndex < state.questionIds.length) {
     const r = state.rounds[state.roundIndex];
     if (!r) break;
-    const bothAnswered = Boolean(r.p1 && r.p2);
-    const expired = now >= r.endsAt;
-    if (!bothAnswered && !expired) break;
+    const p1Done = Boolean(r.p1) || now >= (r.p1EndsAt ?? r.endsAt);
+    const p2Done = Boolean(r.p2) || now >= (r.p2EndsAt ?? r.endsAt);
+    if (!p1Done || !p2Done) break;
 
     // Resolve this round
-    const p1Pts = r.p1?.points ?? 0;
-    const p2Pts = r.p2?.points ?? 0;
+    const p1Pts = r.p1 ? RANKED_TIER_BONUS_SECONDS[r.p1.tier] : 0;
+    const p2Pts = r.p2 ? RANKED_TIER_BONUS_SECONDS[r.p2.tier] : 0;
     let loser: "p1" | "p2" | null = null;
     if (p1Pts < p2Pts) {
       loser = "p1";
@@ -322,7 +353,11 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
     // Prepare next round after a brief reveal pause
     const nextIdx = state.roundIndex + 1;
     const nextStart = now + RANKED_REVEAL_MS;
-    const nextEnd = nextStart + RANKED_SECONDS * 1000;
+    const p1BonusSeconds = r.p1 ? RANKED_TIER_BONUS_SECONDS[r.p1.tier] : 0;
+    const p2BonusSeconds = r.p2 ? RANKED_TIER_BONUS_SECONDS[r.p2.tier] : 0;
+    const p1EndsAt = nextStart + (RANKED_SECONDS + p1BonusSeconds) * 1000;
+    const p2EndsAt = nextStart + (RANKED_SECONDS + p2BonusSeconds) * 1000;
+    const nextEnd = Math.max(p1EndsAt, p2EndsAt);
     state.roundIndex = nextIdx;
     state.roundStartAt = nextStart;
     state.roundEndAt = nextEnd;
@@ -330,6 +365,10 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
       questionId: state.questionIds[nextIdx],
       startedAt: nextStart,
       endsAt: nextEnd,
+      p1EndsAt,
+      p2EndsAt,
+      p1BonusSeconds,
+      p2BonusSeconds,
       p1: null,
       p2: null,
       p1Attempts: 0,
@@ -390,10 +429,11 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
       roundView = {
         roundNumber: state.roundIndex + 1,
         prompt: q?.prompt ?? "Name a One Piece answer.",
-        hint: q?.hint ?? "Rarer answers deal more damage!",
+        hint: q?.hint ?? "A correct answer adds time to your next question.",
         phase,
         startsAt: r.startedAt,
-        endsAt: r.endsAt,
+        endsAt: youRole === "p1" ? (r.p1EndsAt ?? r.endsAt) : (r.p2EndsAt ?? r.endsAt),
+        bonusSeconds: youRole === "p1" ? (r.p1BonusSeconds ?? 0) : (r.p2BonusSeconds ?? 0),
         yourPick,
         opponentLocked: Boolean(oppPick),
       };
@@ -415,6 +455,7 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
   return {
     id: match.id,
     status: match.status as "active" | "finished",
+    mode: state.mode ?? "ranked",
     youRole,
     you,
     opponent,
@@ -519,6 +560,66 @@ async function fetchLeaderboard(tx: Tx, viewerId: string | null): Promise<Ranked
   });
 }
 
+export async function readRankedPublicProfile(accountId: string): Promise<RankedPublicProfile> {
+  const [row] = await db
+    .select({
+      accountId: accounts.id,
+      username: accounts.username,
+      equippedCharacter: accounts.equippedCharacter,
+      points: rankedProfiles.points,
+      wins: rankedProfiles.wins,
+      losses: rankedProfiles.losses,
+      draws: rankedProfiles.draws,
+      winStreak: rankedProfiles.winStreak,
+      bestStreak: rankedProfiles.bestStreak,
+      bounty: bounties.total,
+      advCompleted: adventureProgress.completed,
+    })
+    .from(accounts)
+    .innerJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
+    .leftJoin(bounties, eq(bounties.accountId, accounts.id))
+    .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+
+  if (!row) throw new RequestProblem(404, "Captain profile not found.");
+
+  const unlockedRows = await db
+    .select({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt })
+    .from(achievementUnlocks)
+    .where(eq(achievementUnlocks.accountId, accountId));
+  const unlockedAt = new Map(unlockedRows.map((achievement) => [achievement.id, achievement.at]));
+  const tier = rankTierFor(row.points);
+
+  return {
+    accountId: row.accountId,
+    username: row.username,
+    title: adventureTitle(row.advCompleted ?? 0),
+    bounty: row.bounty ?? 0,
+    rankPoints: row.points,
+    rankTier: tier.id,
+    rankName: tier.name,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    winStreak: row.winStreak,
+    bestStreak: row.bestStreak,
+    characterId: isCharacterId(row.equippedCharacter) ? row.equippedCharacter : DEFAULT_CHARACTER,
+    achievements: ACHIEVEMENTS.flatMap((achievement) => {
+      const unlocked = unlockedAt.get(achievement.id);
+      return unlocked
+        ? [{
+            id: achievement.id,
+            title: achievement.title,
+            description: achievement.description,
+            emblem: achievement.emblem,
+            unlockedAt: unlocked.toISOString(),
+          }]
+        : [];
+    }),
+  };
+}
+
 async function buildLobbyData(
   tx: Tx,
   accountId: string | null,
@@ -592,7 +693,7 @@ async function buildLobbyData(
 
   let profile: RankedPlayerCard | null = null;
   let inQueue = false;
-  let challenges: RankedChallengeView[] = [];
+  let friendlyInvites: RankedFriendlyInviteView[] = [];
   let recentMatches: RankedMatchView[] = [];
 
   if (accountId) {
@@ -638,7 +739,7 @@ async function buildLobbyData(
       for (const r of peerRows) peerMap.set(r.accountId, toOnlineSummary(r));
     }
 
-    challenges = chRows
+    friendlyInvites = chRows
       .map((c) => {
         const peerId = c.fromAccountId === accountId ? c.toAccountId : c.fromAccountId;
         const opponent = peerMap.get(peerId);
@@ -650,7 +751,7 @@ async function buildLobbyData(
           expiresAt: c.expiresAt.getTime(),
         };
       })
-      .filter((c): c is RankedChallengeView => Boolean(c));
+      .filter((c): c is RankedFriendlyInviteView => Boolean(c));
 
     const recentRows = await tx
       .select()
@@ -679,7 +780,7 @@ async function buildLobbyData(
     inQueue,
     onlineCount,
     onlinePlayers,
-    challenges,
+    friendlyInvites,
     activeMatch,
     recentMatches,
     leaderboard,
@@ -804,9 +905,9 @@ export async function rankedAction(
       return { ...(await buildLobbyData(tx, accountId, searchQuery, current)) };
     }
 
-    if (action === "challenge") {
+    if (action === "friendlyInvite") {
       const current = await getLiveMatch();
-      if (current) throw new RequestProblem(409, "Finish your current battle before sending another challenge.");
+      if (current) throw new RequestProblem(409, "Finish your current battle before sending a friendly invite.");
 
       let targetId = isUuid(body.targetId) ? body.targetId : null;
       if (!targetId && typeof body.targetUsername === "string" && body.targetUsername.trim()) {
@@ -819,8 +920,8 @@ export async function rankedAction(
         if (!target) throw new RequestProblem(404, "No captain with that username was found.");
         targetId = target.id;
       }
-      if (!targetId) throw new RequestProblem(400, "Choose an online captain to challenge.");
-      if (targetId === accountId) throw new RequestProblem(400, "You cannot challenge yourself.");
+      if (!targetId) throw new RequestProblem(400, "Choose an online captain to invite.");
+      if (targetId === accountId) throw new RequestProblem(400, "You cannot invite yourself.");
 
       await ensureRankedProfile(tx, targetId);
       const [targetStatus] = await tx
@@ -829,7 +930,7 @@ export async function rankedAction(
         .where(eq(rankedProfiles.accountId, targetId))
         .limit(1);
       if (!targetStatus || targetStatus.lastSeenAt.getTime() < now - ONLINE_MS) {
-        throw new RequestProblem(409, "That captain is not currently online in Ranked mode.");
+        throw new RequestProblem(409, "That captain is not currently online.");
       }
       const [targetBusy] = await tx
         .select({ id: rankedMatches.id })
@@ -841,9 +942,9 @@ export async function rankedAction(
           ),
         )
         .limit(1);
-      if (targetBusy) throw new RequestProblem(409, "That captain is already in a ranked battle.");
+      if (targetBusy) throw new RequestProblem(409, "That captain is already in a battle.");
 
-      // Replace any duplicate pending challenge from this sender to this target
+      // Replace any duplicate pending invite from this sender to this target.
       await tx
         .update(rankedChallenges)
         .set({ status: "cancelled" })
@@ -865,9 +966,9 @@ export async function rankedAction(
       return { ...(await buildLobbyData(tx, accountId, searchQuery, null)) };
     }
 
-    if (action === "accept") {
+    if (action === "acceptInvite") {
       const challengeId = body.challengeId;
-      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid challenge.");
+      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid invite.");
       const [ch] = await tx
         .select()
         .from(rankedChallenges)
@@ -875,9 +976,9 @@ export async function rankedAction(
         .for("update")
         .limit(1);
       if (!ch || ch.status !== "pending" || ch.expiresAt.getTime() < now) {
-        throw new RequestProblem(409, "That challenge has expired.");
+        throw new RequestProblem(409, "That invite has expired.");
       }
-      const match = await createMatch(tx, ch.fromAccountId, ch.toAccountId);
+      const match = await createMatch(tx, ch.fromAccountId, ch.toAccountId, "friendly");
       await tx
         .update(rankedChallenges)
         .set({ status: "accepted", matchId: match.id })
@@ -885,9 +986,9 @@ export async function rankedAction(
       return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
     }
 
-    if (action === "decline") {
+    if (action === "declineInvite") {
       const challengeId = body.challengeId;
-      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid challenge.");
+      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid invite.");
       await tx
         .update(rankedChallenges)
         .set({ status: "declined" })
@@ -895,9 +996,9 @@ export async function rankedAction(
       return { ...(await buildLobbyData(tx, accountId, searchQuery, null)) };
     }
 
-    if (action === "cancel") {
+    if (action === "cancelInvite") {
       const challengeId = body.challengeId;
-      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid challenge.");
+      if (!isUuid(challengeId)) throw new RequestProblem(400, "Invalid invite.");
       await tx
         .update(rankedChallenges)
         .set({ status: "cancelled" })
@@ -935,7 +1036,8 @@ export async function rankedAction(
       if (!r || now < r.startedAt) {
         throw new RequestProblem(409, "Wait for the round timer to start.");
       }
-      if (now >= r.endsAt) {
+      const personalEndsAt = role === "p1" ? (r.p1EndsAt ?? r.endsAt) : (r.p2EndsAt ?? r.endsAt);
+      if (now >= personalEndsAt) {
         match = await advanceMatch(tx, match);
         return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
       }
@@ -967,7 +1069,6 @@ export async function rankedAction(
       const pick = {
         answer: hit.name,
         tier: hit.tier,
-        points: hit.points,
         answeredAt: now,
       };
       if (role === "p1") r.p1 = pick;

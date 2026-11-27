@@ -490,3 +490,99 @@ export function playAchievement(): void {
   });
   playNoise(a.ctx, a.out, t, 0.28, 0.5, 0.04, "bandpass", 2400, 5200);
 }
+
+// =========================================================================
+// Treasure chest sounds
+// =========================================================================
+
+/** Rattle + rising note as the chest's glow climbs one rarity step (0 = common … 5 = mythic). */
+export function playChestCharge(step: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  const scale = [392.0, 440.0, 523.25, 659.25, 783.99, 987.77];
+  const f = scale[Math.max(0, Math.min(scale.length - 1, step))];
+  playNoise(a.ctx, a.out, t, 0, 0.09, 0.07 + step * 0.012, "bandpass", 700 + step * 160, 300);
+  playTone(a.ctx, a.out, t, { freq: f, start: 0.02, dur: 0.2, type: "triangle", vol: 0.16 + step * 0.01 });
+  playTone(a.ctx, a.out, t, { freq: f * 2, start: 0.02, dur: 0.12, type: "sine", vol: 0.05 });
+}
+
+/** Lid-burst fanfare that grows with the reward rarity (0 = common … 5 = mythic). */
+export function playChestBurst(rank: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const { ctx, out } = a;
+  const t = ctx.currentTime;
+  // Lid pop for every chest.
+  playNoise(ctx, out, t, 0, 0.18, 0.12, "lowpass", 2400, 300);
+  playTone(ctx, out, t, { freq: 180, slideTo: 70, dur: 0.18, type: "sine", vol: 0.3 });
+
+  const arp = [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98, 2093.0];
+  const notes = Math.min(arp.length, 2 + rank);
+  for (let i = 0; i < notes; i++) {
+    const last = i === notes - 1;
+    playTone(ctx, out, t, { freq: arp[i], start: 0.05 + i * 0.07, dur: last ? 0.5 + rank * 0.08 : 0.14, type: "triangle", vol: 0.2 });
+    if (rank >= 2) playTone(ctx, out, t, { freq: arp[i] / 2, start: 0.05 + i * 0.07, dur: 0.14, type: "sawtooth", vol: 0.06, filterHz: 1800 });
+  }
+  if (rank >= 3) {
+    // Epic+: sweeping whoosh and a held power chord.
+    playNoise(ctx, out, t, 0.02, 0.5, 0.1, "bandpass", 500, 6000);
+    const hold = 0.05 + notes * 0.07;
+    for (const f of [523.25, 659.25, 783.99]) playTone(ctx, out, t, { freq: f, start: hold, dur: 0.7, type: "triangle", vol: 0.1 });
+  }
+  if (rank >= 4) {
+    // Legendary+: deep impact and sparkling bells.
+    playTone(ctx, out, t, { freq: 110, slideTo: 40, dur: 0.5, type: "sine", vol: 0.42, attack: 0.004 });
+    [1760, 2093, 2637].forEach((f, i) => playTone(ctx, out, t, { freq: f, start: 0.5 + i * 0.09, dur: 0.3, type: "sine", vol: 0.08 }));
+  }
+  if (rank >= 5) {
+    // Mythic: second shockwave and a rising shimmer.
+    playTone(ctx, out, t, { freq: 90, slideTo: 32, start: 0.55, dur: 0.6, type: "sine", vol: 0.4, attack: 0.004 });
+    playTone(ctx, out, t, { freq: 880, slideTo: 3520, start: 0.6, dur: 0.9, type: "sine", vol: 0.07 });
+    playNoise(ctx, out, t, 0.55, 0.9, 0.08, "highpass", 3000, 9000);
+  }
+}
+
+/** Heavy chest landing on the deck. */
+export function playChestThud(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playTone(a.ctx, a.out, t, { freq: 120, slideTo: 45, dur: 0.22, type: "sine", vol: 0.38, attack: 0.003 });
+  playNoise(a.ctx, a.out, t, 0, 0.14, 0.1, "lowpass", 900, 200);
+}
+
+/** Wood straining as light leaks from the seams: a heartbeat that quickens with rarity. */
+export function playChestCrack(rank: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  const beats = 2 + Math.min(3, Math.floor(rank / 2));
+  for (let i = 0; i < beats; i++) {
+    const s = i * Math.max(0.16, 0.34 - rank * 0.03);
+    playTone(a.ctx, a.out, t, { freq: 70, slideTo: 48, start: s, dur: 0.12, type: "sine", vol: 0.32 });
+    playNoise(a.ctx, a.out, t, s + 0.02, 0.05, 0.05, "highpass", 2600, 0);
+  }
+  playNoise(a.ctx, a.out, t, 0, 0.6 + rank * 0.1, 0.04, "bandpass", 300, 4200);
+}
+
+/** A rising shimmer while the recruit's silhouette floats out of the chest. */
+export function playChestRise(rank: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  const dur = 0.9 + rank * 0.15;
+  playTone(a.ctx, a.out, t, { freq: 220, slideTo: 880 + rank * 120, dur, type: "triangle", vol: 0.08 });
+  playTone(a.ctx, a.out, t, { freq: 330, slideTo: 1320 + rank * 160, dur, type: "sine", vol: 0.05 });
+  if (rank >= 4) playNoise(a.ctx, a.out, t, 0, dur, 0.05, "bandpass", 800, 7000);
+}
+
+/** Final reveal sting. */
+export function playChestReveal(rank: number): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  const chord = rank >= 4 ? [523.25, 659.25, 783.99, 1046.5] : [523.25, 659.25, 783.99];
+  chord.forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: i * 0.03, dur: 0.6 + rank * 0.1, type: "triangle", vol: 0.1 }));
+  if (rank >= 5) [1567.98, 2093, 2637, 3135.96].forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: 0.15 + i * 0.08, dur: 0.4, type: "sine", vol: 0.06 }));
+}

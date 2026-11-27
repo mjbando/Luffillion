@@ -3,11 +3,19 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Flag, Heart, Swords, Volume2, VolumeX } from "lucide-react";
 import CharacterPortrait from "../CharacterPortrait";
-import Effects from "../Effects";
-import { TIER_CONFIG, TIER_LABELS, type Tier } from "@/data/tiers";
-import { RANKED_SECONDS, RANKED_STARTING_LIVES, rankTierFor } from "@/lib/ranked";
+import RankedUsername from "./RankedUsername";
+import { TIER_CONFIG, type Tier } from "@/data/tiers";
+import { RANKED_SECONDS, RANKED_STARTING_LIVES, RANKED_TIER_BONUS_SECONDS, rankTierFor } from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPlayerCard } from "@/lib/ranked-types";
 import { playAchievement, playClick, playPull, playSetSail, playSuggest, playTick, playTimeout, playWrong } from "@/lib/sound";
+
+const RANKED_TIER_COLORS: Record<Tier, string> = {
+  common: "#cbd5e1",
+  uncommon: "#34d399",
+  rare: "#60a5fa",
+  epic: "#e879f9",
+  luffillion: "#fbbf24",
+};
 
 function FighterCard({
   player,
@@ -27,37 +35,40 @@ function FighterCard({
       style={{ borderTopColor: tier.color }}
     >
       <div className={`flex items-center gap-3 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
-        <div className="rk-portrait-box">
+        <div className="rk-portrait-box flex flex-col items-center gap-0.5">
+          <div className="flex items-center gap-0.5" aria-label={`${player.lives} of ${RANKED_STARTING_LIVES} lives`}>
+            {Array.from({ length: RANKED_STARTING_LIVES }, (_, i) => (
+              <Heart
+                key={i}
+                size={13}
+                className={i < player.lives ? "fill-rose-500 text-rose-400" : "fill-slate-800 text-slate-700"}
+              />
+            ))}
+            <span className="ml-1 text-[10px] text-slate-400">
+              {player.lives}/{RANKED_STARTING_LIVES}
+            </span>
+          </div>
           <CharacterPortrait characterId={player.characterId} size={60} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="rk-eyebrow">
             {label} {locked ? "· LOCKED IN ✓" : ""}
           </p>
-          <h2 className="truncate font-pixel-display text-xl text-white">{player.username}</h2>
+          <h2 className="truncate font-pixel-display text-xl text-white"><RankedUsername username={player.username} /></h2>
           <p className="truncate text-sm text-amber-200">{player.title}</p>
           <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm ${align === "right" ? "justify-end" : ""}`}>
             <span style={{ color: tier.color }}>
-              {tier.name} ({player.rankPoints} RP)
+              RANK {tier.name} ({player.rankPoints} RP)
             </span>
-            <span className="text-slate-300">{player.bounty.toLocaleString()} berries</span>
+            <span className="text-slate-300">BOUNTY {player.bounty.toLocaleString()} berries</span>
+          </div>
+          <div className={`mt-1 flex flex-wrap gap-x-3 text-sm text-slate-400 ${align === "right" ? "justify-end" : ""}`}>
+            <span>W {player.wins}</span>
+            <span>L {player.losses}</span>
+            <span>D {player.draws}</span>
+            <span>STREAK {player.winStreak}</span>
           </div>
         </div>
-      </div>
-      <div className={`mt-2 flex items-center gap-1.5 ${align === "right" ? "justify-end" : ""}`} aria-label={`${player.lives} of ${RANKED_STARTING_LIVES} lives`}>
-        {Array.from({ length: RANKED_STARTING_LIVES }, (_, i) => {
-          const alive = i < player.lives;
-          return (
-            <Heart
-              key={i}
-              size={18}
-              className={alive ? "fill-rose-500 text-rose-400" : "fill-slate-800 text-slate-700"}
-            />
-          );
-        })}
-        <span className="ml-1 text-xs tracking-wider text-slate-400">
-          {player.lives} {player.lives === 1 ? "LIFE" : "LIVES"}
-        </span>
       </div>
     </div>
   );
@@ -123,7 +134,10 @@ export default function RankedBattle({
       : "answering";
 
   const remainingMs =
-    round && phase === "answering" ? Math.max(0, round.endsAt - currentServerMs) : RANKED_SECONDS * 1000;
+    round && phase === "answering"
+      ? Math.max(0, round.endsAt - currentServerMs)
+      : (RANKED_SECONDS + (round?.bonusSeconds ?? 0)) * 1000;
+  const roundDurationMs = (RANKED_SECONDS + (round?.bonusSeconds ?? 0)) * 1000;
   const remainingSec = Math.ceil(remainingMs / 1000);
   const prepSec = round && phase !== "answering" ? Math.max(1, Math.ceil((round.startsAt - currentServerMs) / 1000)) : 0;
 
@@ -147,7 +161,7 @@ export default function RankedBattle({
     playTick(remainingSec <= 2);
   }, [round, phase, remainingSec]);
 
-  // Trigger rarity effects when your answer succeeds
+  // Show the earned time bonus instead of the standard rarity banner.
   useEffect(() => {
     if (feedback?.kind === "correct" && feedback.pick) {
       const tier = feedback.pick.tier;
@@ -177,7 +191,7 @@ export default function RankedBattle({
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (!guess.trim() || busy || phase !== "answering" || round?.yourPick) return;
+    if (!guess.trim() || busy || phase !== "answering" || remainingMs <= 0 || round?.yourPick) return;
     playClick();
     onGuess(guess.trim());
     setGuess("");
@@ -185,7 +199,16 @@ export default function RankedBattle({
 
   return (
     <main className="ranked-shell">
-      {fx && <Effects key={fx.id} tier={fx.tier} />}
+      {fx && (
+        <div
+          key={fx.id}
+          className="rk-tier-bonus-effect"
+          role="status"
+          style={{ color: RANKED_TIER_COLORS[fx.tier], borderColor: RANKED_TIER_COLORS[fx.tier] }}
+        >
+          +{RANKED_TIER_BONUS_SECONDS[fx.tier]} Second{RANKED_TIER_BONUS_SECONDS[fx.tier] === 1 ? "" : "s"}
+        </div>
+      )}
 
       <header className="rk-topbar">
         <div className="flex items-center gap-3">
@@ -202,7 +225,7 @@ export default function RankedBattle({
         <div className="rk-brand">
           <Swords size={20} />
           <span>
-            RANKED DUEL <small>{round ? `ROUND ${round.roundNumber}` : "FINISHED"}</small>
+            {match.mode === "friendly" ? "FRIENDLY BATTLE" : "RANKED DUEL"} <small>{round ? `ROUND ${round.roundNumber}` : "FINISHED"}</small>
           </span>
         </div>
         <button
@@ -234,7 +257,9 @@ export default function RankedBattle({
           {match.status === "finished" && match.result ? (
             <div className="text-center">
               <p className="rk-eyebrow">
-                {match.result.reason === "forfeit"
+                {match.mode === "friendly"
+                  ? "FRIENDLY BATTLE · NO RANK POINTS"
+                  : match.result.reason === "forfeit"
                   ? "MATCH FORFEITED"
                   : match.result.reason === "knockout"
                     ? "KNOCKOUT"
@@ -252,7 +277,7 @@ export default function RankedBattle({
                 {match.result.outcome === "win" ? "VICTORY!" : match.result.outcome === "loss" ? "DEFEAT" : "DRAW!"}
               </h1>
 
-              <div className="mx-auto mt-4 max-w-md border border-white/15 bg-white/[.04] p-4">
+              {match.mode === "ranked" && <div className="mx-auto mt-4 max-w-md border border-white/15 bg-white/[.04] p-4">
                 <p className="text-sm tracking-[0.25em] text-slate-400">RANKED POINTS</p>
                 <p
                   className={`font-pixel-display text-4xl font-bold ${
@@ -286,7 +311,7 @@ export default function RankedBattle({
                     <span className="text-cyan-200">Bronze 0 RP floor protected</span>
                   )}
                 </div>
-              </div>
+              </div>}
 
               <div className="mt-5 flex flex-wrap justify-center gap-3">
                 <button type="button" onClick={onPlayAgain} className="rk-btn-gold h-11 px-6">
@@ -311,17 +336,17 @@ export default function RankedBattle({
                             You:{" "}
                             {h.yourPick ? (
                               <span className={TIER_CONFIG[h.yourPick.tier].text}>
-                                {h.yourPick.answer} ({h.yourPick.points})
+                                {h.yourPick.answer} (+{RANKED_TIER_BONUS_SECONDS[h.yourPick.tier]}s)
                               </span>
                             ) : (
                               <span className="text-rose-300">No answer (0)</span>
                             )}
                           </span>
                           <span>
-                            {match.opponent.username}:{" "}
+                            <RankedUsername username={match.opponent.username} />:{" "}
                             {h.opponentPick ? (
                               <span className={TIER_CONFIG[h.opponentPick.tier].text}>
-                                {h.opponentPick.answer} ({h.opponentPick.points})
+                                {h.opponentPick.answer} (+{RANKED_TIER_BONUS_SECONDS[h.opponentPick.tier]}s)
                               </span>
                             ) : (
                               <span className="text-rose-300">No answer (0)</span>
@@ -336,14 +361,17 @@ export default function RankedBattle({
             </div>
           ) : phase === "intro" ? (
             <div className="py-6 text-center">
-              <p className="rk-eyebrow">OPPONENT FOUND</p>
+              <p className="rk-eyebrow">PLAYER VS PLAYER · {match.mode === "friendly" ? "FRIENDLY" : "RANKED"}</p>
               <h1 className="mt-1 font-pixel-display text-3xl text-white">
-                {match.you.username} vs {match.opponent.username}
+                <RankedUsername username={match.you.username} /> vs <RankedUsername username={match.opponent.username} />
               </h1>
               <p className="mt-2 text-lg text-slate-300">
-                {RANKED_SECONDS} seconds per round · Deeper pulls win the clash!
+                First question begins in
               </p>
-              <p className="mt-4 font-pixel-display text-5xl text-amber-300">{prepSec}</p>
+              <p className="mt-1 font-pixel-display text-5xl text-amber-300">{prepSec}</p>
+              <p className="mt-2 text-sm text-slate-400">
+                {RANKED_SECONDS} seconds per question · Correct answers boost your next timer.
+              </p>
             </div>
           ) : phase === "reveal" && match.lastReveal ? (
             <div className="py-3 text-center">
@@ -358,7 +386,7 @@ export default function RankedBattle({
                 }`}
               >
                 {match.lastReveal.loser === "opponent"
-                  ? `${match.opponent.username} loses a life!`
+                  ? <><RankedUsername username={match.opponent.username} /> loses a life!</>
                   : match.lastReveal.loser === "you"
                     ? "You lost a life!"
                     : "Round Tied — No life lost!"}
@@ -370,7 +398,7 @@ export default function RankedBattle({
                     <>
                       <p className="mt-1 text-xl text-white">{match.lastReveal.yourPick.answer}</p>
                       <p className={`text-base ${TIER_CONFIG[match.lastReveal.yourPick.tier].text}`}>
-                        {TIER_LABELS[match.lastReveal.yourPick.tier]} · {match.lastReveal.yourPick.points} pts
+                        +{RANKED_TIER_BONUS_SECONDS[match.lastReveal.yourPick.tier]} Seconds next round
                       </p>
                     </>
                   ) : (
@@ -378,12 +406,12 @@ export default function RankedBattle({
                   )}
                 </div>
                 <div className="border border-white/10 bg-white/[.04] p-3">
-                  <p className="text-xs tracking-widest text-slate-400">{match.opponent.username.toUpperCase()}&apos;S PULL</p>
+                  <p className="text-xs tracking-widest text-slate-400"><RankedUsername username={match.opponent.username.toUpperCase()} />&apos;S PULL</p>
                   {match.lastReveal.opponentPick ? (
                     <>
                       <p className="mt-1 text-xl text-white">{match.lastReveal.opponentPick.answer}</p>
                       <p className={`text-base ${TIER_CONFIG[match.lastReveal.opponentPick.tier].text}`}>
-                        {TIER_LABELS[match.lastReveal.opponentPick.tier]} · {match.lastReveal.opponentPick.points} pts
+                        +{RANKED_TIER_BONUS_SECONDS[match.lastReveal.opponentPick.tier]} Seconds next round
                       </p>
                     </>
                   ) : (
@@ -396,7 +424,7 @@ export default function RankedBattle({
           ) : round ? (
             <div>
               <div className="flex items-center justify-between gap-4">
-                <span className="rk-eyebrow">ROUND {round.roundNumber} · {RANKED_SECONDS}S BLITZ</span>
+                <span className="rk-eyebrow">ROUND {round.roundNumber} · {RANKED_SECONDS}{round.bonusSeconds ? ` + ${round.bonusSeconds}` : ""}S BLITZ</span>
                 <span className={`font-mono text-3xl font-bold tabular-nums ${remainingSec <= 3 ? "text-rose-400" : "text-cyan-300"}`}>
                   0:{String(remainingSec).padStart(2, "0")}
                 </span>
@@ -404,7 +432,7 @@ export default function RankedBattle({
               <div className="mt-2 h-2 bg-slate-800">
                 <div
                   className={`h-full transition-[width] duration-75 ${remainingSec <= 3 ? "bg-rose-400" : "bg-cyan-400"}`}
-                  style={{ width: `${(remainingMs / (RANKED_SECONDS * 1000)) * 100}%` }}
+                  style={{ width: `${(remainingMs / roundDurationMs) * 100}%` }}
                 />
               </div>
               <h1 className="mt-4 font-pixel-display text-2xl font-bold text-white sm:text-3xl">{round.prompt}</h1>
@@ -415,12 +443,12 @@ export default function RankedBattle({
                   <p className="text-sm tracking-widest text-emerald-300">LOCKED IN!</p>
                   <p className="mt-1 text-2xl text-white">
                     {round.yourPick.answer}{" "}
-                    <span className={TIER_CONFIG[round.yourPick.tier].text}>
-                      ({TIER_LABELS[round.yourPick.tier]} · {round.yourPick.points} pts)
+                      <span className={TIER_CONFIG[round.yourPick.tier].text}>
+                      (+{RANKED_TIER_BONUS_SECONDS[round.yourPick.tier]} seconds next round)
                     </span>
                   </p>
                   <p className="mt-1 text-base text-slate-300">
-                    {round.opponentLocked ? "Resolving round…" : `Waiting for ${match.opponent.username}…`}
+                    {round.opponentLocked ? "Resolving round…" : <>Waiting for <RankedUsername username={match.opponent.username} />…</>}
                   </p>
                 </div>
               ) : (
@@ -451,13 +479,13 @@ export default function RankedBattle({
                       value={guess}
                       onChange={(e) => setGuess(e.target.value)}
                       maxLength={80}
-                      placeholder="Type a rare answer fast…"
+                      placeholder="Type an answer before time runs out…"
                       aria-label="Ranked answer"
                       className="h-12 flex-1 border-2 border-cyan-400/70 bg-[#091326] px-3 text-xl text-white placeholder:text-slate-500 outline-none focus:border-cyan-300"
                     />
                     <button
                       type="submit"
-                      disabled={busy || !guess.trim()}
+                      disabled={busy || !guess.trim() || remainingMs <= 0}
                       className="rk-btn-gold h-12 px-6"
                     >
                       {busy ? "…" : "SEND ▸"}

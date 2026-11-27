@@ -22,7 +22,6 @@ export interface RankedPlayerCard {
 export interface RankedRoundPick {
   answer: string;
   tier: Tier;
-  points: number;
   answeredAt: number;
 }
 
@@ -30,6 +29,10 @@ export interface RankedRoundState {
   questionId: string;
   startedAt: number;
   endsAt: number;
+  p1EndsAt?: number;
+  p2EndsAt?: number;
+  p1BonusSeconds?: number;
+  p2BonusSeconds?: number;
   p1?: RankedRoundPick | null;
   p2?: RankedRoundPick | null;
   p1Attempts: number;
@@ -46,6 +49,7 @@ export interface RankedMatchResult {
 }
 
 export interface RankedMatchState {
+  mode?: "ranked" | "friendly";
   p1: RankedPlayerCard;
   p2: RankedPlayerCard;
   questionIds: string[];
@@ -63,6 +67,7 @@ export interface RankedRoundView {
   phase: "intro" | "answering" | "reveal";
   startsAt: number;
   endsAt: number;
+  bonusSeconds: number;
   yourPick: RankedRoundPick | null;
   opponentLocked: boolean;
 }
@@ -78,6 +83,7 @@ export interface RankedRoundReveal {
 export interface RankedMatchView {
   id: string;
   status: "active" | "finished";
+  mode: "ranked" | "friendly";
   youRole: "p1" | "p2";
   you: RankedPlayerCard;
   opponent: RankedPlayerCard;
@@ -106,7 +112,7 @@ export interface OnlinePlayerSummary {
   inQueue: boolean;
 }
 
-export interface RankedChallengeView {
+export interface RankedFriendlyInviteView {
   id: string;
   direction: "incoming" | "outgoing";
   opponent: OnlinePlayerSummary;
@@ -130,13 +136,38 @@ export interface RankedLeaderboardEntry {
   isYou: boolean;
 }
 
+export interface RankedPublicAchievement {
+  id: string;
+  title: string;
+  description: string;
+  emblem: import("@/data/achievement-emblems").EmblemKind;
+  unlockedAt: string;
+}
+
+export interface RankedPublicProfile {
+  accountId: string;
+  username: string;
+  title: string;
+  bounty: number;
+  rankPoints: number;
+  rankTier: RankTierInfo["id"];
+  rankName: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  winStreak: number;
+  bestStreak: number;
+  characterId: CharacterId;
+  achievements: RankedPublicAchievement[];
+}
+
 export interface RankedLobbyResponse {
   captain: Captain | null;
   profile: RankedPlayerCard | null;
   inQueue: boolean;
   onlineCount: number;
   onlinePlayers: OnlinePlayerSummary[];
-  challenges: RankedChallengeView[];
+  friendlyInvites: RankedFriendlyInviteView[];
   activeMatch: RankedMatchView | null;
   recentMatches: RankedMatchView[];
   leaderboard: RankedLeaderboardEntry[];

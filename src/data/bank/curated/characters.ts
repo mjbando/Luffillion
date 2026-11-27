@@ -18,6 +18,27 @@ export const CURATED_CHARACTERS: Question[] = [
   ranked("q-warlords", "Name a member of the Seven Warlords of the Sea.", "Anyone who held a Warlord seat before the system was abolished.",
     "Mihawk, Hancock, Doflamingo, Crocodile, Kuma, Moria, Law, Jinbe, Blackbeard, Buggy, Weevil, Hanafuda", C),
 
+  // Hand-tiered (not ranked by position), as supplied for the November 27, 2026 Daily Voyage.
+  {
+    id: "q-warlords-former-current",
+    prompt: "Name a former or current Warlord of the Sea.",
+    hint: "Anyone who has ever held a seat among the Seven Warlords of the Sea.",
+    matchAs: C,
+    tiers: {
+      common: [
+        "Dracule Mihawk|Mihawk|Hawkeye|Hawk-Eyes|Hawk Eyes",
+        "Crocodile|Sir Crocodile|Mr. 0|Mr 0",
+        "Boa Hancock|Hancock|Pirate Empress|Snake Princess",
+        "Donquixote Doflamingo|Doflamingo|Doffy|Joker",
+        "Bartholomew Kuma|Kuma|Tyrant Kuma",
+      ],
+      uncommon: ["Gecko Moria|Moria|Gecko", "Jinbe|Jimbei|Jinbei|Knight of the Sea", "Marshall D. Teach|Blackbeard|Teach"],
+      rare: ["Trafalgar D. Water Law|Trafalgar Law|Law|Surgeon of Death", "Buggy|Buggy the Clown|Captain Buggy"],
+      epic: ["Edward Weevil|Weevil|Whitebeard Jr."],
+      luffillion: ["Hanafuda|King of Lizards"],
+    },
+  },
+
   ranked("q-marines", "Name a character who has been a Marine.", "Current or former Marines of any rank.",
     "Garp, Akainu, Aokiji, Kizaru, Koby, Smoker, Fujitora, Ryokugyu, Sengoku, Tashigi, Helmeppo, Tsuru, Kong, Zephyr, Momonga, Sentomaru, Hina, Corazon, Vergo, Drake, Saul, Bogard, Grus, Kujaku, Hibari, Gion, Tokikake, Doll, Bluegrass, Onigumo, Strawberry, Doberman, Yamakaji, Bastille, Dalmatian, Comil, Lacroix, Ronse, TBone, Fullbody, Morgan, Nezumi, Jango, Brannew, Attach, VeryGood, Bellmere, Dragon, JohnGiant, Stainless, Maynard, Shu, Sharinguru, Mozambia, Cancer, Kadar, Rokkaku, Ripper, PuddingPudding, RedKing, Guillotine, Pomsky, Tosa, Urban, Hound, Ain, Binz, Komei, Grount, Ukki, Lines, Jonathan", C),
 

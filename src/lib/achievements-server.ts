@@ -2,9 +2,11 @@ import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, checkpoints, runs } from "@/db/schema";
 import { evaluateAchievements, type AchievementReport, type RunLike } from "./achievements";
+import { coinsForAchievement } from "./coins";
+import { creditCoins } from "./currency-server";
 import { todayKey } from "./daily";
 
-type AchievementDB = Pick<typeof db, "select" | "insert">;
+type AchievementDB = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Called with the captain row locked by the caller's transaction. */
 export async function evaluateAchievementsFor(tx: AchievementDB, accountId: string): Promise<AchievementReport> {
@@ -43,6 +45,7 @@ export async function evaluateAchievementsFor(tx: AchievementDB, accountId: stri
   const inserted = report.newlyUnlocked.length ? await tx.insert(achievementUnlocks)
     .values(report.newlyUnlocked.map(id => ({ accountId, achievementId: id })))
     .onConflictDoNothing().returning({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt }) : [];
+  await creditCoins(tx, accountId, inserted.map(row => ({ source: "achievement" as const, ref: row.id, amount: coinsForAchievement(row.id) })));
   for (const row of inserted) existing.set(row.id, row.at);
   const result = evaluateAchievements(rows, existing, active.map(a => a.progress));
   return { ...result, newlyUnlocked: inserted.map(row => row.id) };

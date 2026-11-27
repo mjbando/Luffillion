@@ -1,3 +1,5 @@
+import { CHEST_CHARACTERS, chestCharacterById, type ChestCharacter, type ChestCharacterId } from "./chest-characters";
+
 // One unique, permanent cosmetic recruit per achievement. Luffy is always free.
 export const PLAYABLE_CHARACTERS = [
   { id: "luffy", name: "Monkey D. Luffy", shortName: "Luffy", epithet: "Straw Hat Captain", achievementId: null, grade: "Starter", color: "#f49c81", detail: "Your original captain. Always ready to set sail." },
@@ -16,17 +18,28 @@ export const PLAYABLE_CHARACTERS = [
   { id: "kaido", name: "Kaido", shortName: "Kaido", epithet: "The Strongest Creature", achievementId: "unstoppable", grade: "Mythic", color: "#b694f6", detail: "Great horns, a purple sash, and a spiked kanabo. Thirty days of unstoppable resolve." },
   { id: "roger", name: "Gol D. Roger", shortName: "Roger", epithet: "King of the Pirates", achievementId: "pirate-king", grade: "Mythic", color: "#f6c45a", detail: "A red captain's coat, gold epaulettes, and the Pirate King's unmistakable moustache." },
   { id: "gear-5", name: "Luffy · Gear 5", shortName: "Gear 5 Luffy", epithet: "Warrior of Liberation", achievementId: "the-will-of-d", grade: "Mythic", color: "#e5c3ff", detail: "Cloud-white hair, a flowing smoke scarf, and a fearless grin. The ultimate 100-voyage reward." },
+  { id: "gear-6", name: "Monkey D. Luffy · Gear 6", shortName: "Gear 6 Luffy", epithet: "Dawn Emperor", achievementId: null, grade: "Creator", color: "#f2c56b", detail: "A one-of-a-kind form with flame-white hair, a crimson coat, and golden Haki lightning. Exclusive to the creator." },
 ] as const;
 
-export type CharacterId = (typeof PLAYABLE_CHARACTERS)[number]["id"];
-export type PlayableCharacter = (typeof PLAYABLE_CHARACTERS)[number];
+export type AchievementCharacterId = (typeof PLAYABLE_CHARACTERS)[number]["id"];
+/** Every equippable character: achievement recruits plus the chest-only roster. */
+export type CharacterId = AchievementCharacterId | ChestCharacterId;
+export type AchievementCharacter = (typeof PLAYABLE_CHARACTERS)[number];
+export type PlayableCharacter = AchievementCharacter | ChestCharacter;
 export const DEFAULT_CHARACTER: CharacterId = "luffy";
-export function isCharacterId(id: unknown): id is CharacterId {
+const ALL_CHARACTERS: readonly PlayableCharacter[] = [...PLAYABLE_CHARACTERS, ...CHEST_CHARACTERS];
+export function isAchievementCharacterId(id: unknown): id is AchievementCharacterId {
   return typeof id === "string" && PLAYABLE_CHARACTERS.some(character => character.id === id);
 }
-export function characterById(id: string | null | undefined): PlayableCharacter {
-  return PLAYABLE_CHARACTERS.find(character => character.id === id) ?? PLAYABLE_CHARACTERS[0];
+export function isCharacterId(id: unknown): id is CharacterId {
+  return isAchievementCharacterId(id) || Boolean(chestCharacterById(id));
 }
-export function characterReward(achievementId: string): PlayableCharacter | undefined {
+export function isChestCharacter(character: PlayableCharacter): character is ChestCharacter {
+  return "chestOnly" in character;
+}
+export function characterById(id: string | null | undefined): PlayableCharacter {
+  return ALL_CHARACTERS.find(character => character.id === id) ?? PLAYABLE_CHARACTERS[0];
+}
+export function characterReward(achievementId: string): AchievementCharacter | undefined {
   return PLAYABLE_CHARACTERS.find(character => character.achievementId === achievementId);
 }

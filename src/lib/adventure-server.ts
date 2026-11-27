@@ -5,6 +5,8 @@ import { accounts, adventureAttempts, adventureClears, adventureProgress } from 
 import { ADVENTURE_POINTS, ADVENTURE_QUESTIONS, ADVENTURE_SECONDS, ADVENTURE_SAGAS, ARC_NAMES, adventureLevel, adventureTitle, nextAdventureTitle } from "@/data/adventure/levels";
 import { adventureFact, answerAdventure, levelQuestions, suggestAdventure } from "@/data/adventure/questions";
 import { RequestProblem } from "./account-server";
+import { COINS_PER_ADVENTURE_LEVEL } from "./coins";
+import { creditCoins } from "./currency-server";
 import type { AdventureAttemptView, AdventureProfile, AdventureRecap, AdventureResponse, AdventureState } from "./adventure-types";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -57,6 +59,8 @@ async function writeAttempt(tx: Tx, attempt: Attempt): Promise<Attempt> {
       if (attempt.level>completed+1) throw new RequestProblem(403,"Complete the earlier levels first.");
       await tx.insert(adventureClears).values({accountId:attempt.accountId,level:attempt.level,bestScore:adventureScore(attempt.state)})
         .onConflictDoUpdate({target:[adventureClears.accountId,adventureClears.level],set:{bestScore:sql`greatest(${adventureClears.bestScore}, ${adventureScore(attempt.state)})`}});
+      // Keyed by level, so replaying a cleared level never pays out again.
+      await creditCoins(tx, attempt.accountId, { source: "adventure", ref: String(attempt.level), amount: COINS_PER_ADVENTURE_LEVEL });
       await tx.insert(adventureProgress).values({accountId:attempt.accountId,completed:Math.max(completed,attempt.level)})
         .onConflictDoUpdate({target:adventureProgress.accountId,set:{completed:Math.max(completed,attempt.level),updatedAt:new Date()}});
     }
