@@ -5,6 +5,7 @@ import { ArrowLeft, Flag, Swords, Volume2, VolumeX } from "lucide-react";
 import IslandArt from "./IslandArt";
 import PixelEmblem from "../pixel-emblems";
 import { portraitSprite } from "../pixel/runners";
+import { spriteDataUrl } from "../pixel/sprite-image";
 import { ADVENTURE_LEVELS, ADVENTURE_MAX, ADVENTURE_POINTS, ADVENTURE_QUESTIONS, ADVENTURE_SECONDS, ADVENTURE_SAGAS, ADVENTURE_TITLES } from "@/data/adventure/levels";
 import type { AdventureAction, AdventureResponse } from "@/lib/adventure-types";
 import { characterById, type CharacterId } from "@/data/playable-characters";
@@ -15,7 +16,7 @@ function Runner({characterId,moving}:{characterId:CharacterId;moving:boolean}){
   useEffect(()=>{if(!moving)return;const id=setInterval(()=>setTime(t=>t+110),110);return()=>clearInterval(id);},[moving]);
   const sprite=portraitSprite(characterId,moving,time);
   const k=sprite.scale??1,box=32*k;
-  return <svg viewBox={`0 0 ${box} ${box}`} width="100" height="100" shapeRendering="crispEdges" aria-hidden="true" overflow="visible">{sprite.rows.flatMap((row,y)=>[...row].map((p,x)=>sprite.palette[p]?<rect key={`${x}:${y}`} x={Math.floor((box-sprite.width)/2)+x} y={box-k-sprite.height+(sprite.bleed??0)+y} width={1} height={1} fill={sprite.palette[p]}/>:null))}</svg>;
+  return <svg viewBox={`0 0 ${box} ${box}`} width="100" height="100" shapeRendering="crispEdges" aria-hidden="true" overflow="visible"><image href={spriteDataUrl(sprite)} x={Math.floor((box-sprite.width)/2)} y={box-k-sprite.height+(sprite.bleed??0)} width={sprite.width} height={sprite.height} style={{imageRendering:"pixelated"}}/></svg>;
 }
 
 export default function AdventureLevel({data,busy,error,muted,onMute,onMap,onAction,onSelect}:{

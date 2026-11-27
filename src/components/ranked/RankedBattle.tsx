@@ -14,8 +14,8 @@ import {
 } from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPlayerCard, RankedRoundPick } from "@/lib/ranked-types";
 import {
-  duckBattleMusic, playBeam, playClash, playClick, playDefeat, playFight, playHit, playKO, playLunge, playPull, playSetSail,
-  playShowdown, playSuggest, playTick, playVictory, playWrong, setBattleMusicIntensity, startBattleMusic,
+  duckBattleMusic, playBeam, playClash, playClick, playDefeat, playFight, playHit, playKO, playLunge, playPull, playRoundCall,
+  playShowdown, playSuggest, playTick, playVersus, playVictory, playWrong, setBattleMusicIntensity, startBattleMusic,
 } from "@/lib/sound";
 
 const RANKED_TIER_COLORS: Record<Tier, string> = {
@@ -166,6 +166,8 @@ export default function RankedBattle({
   const finishedSoundRef = useRef("");
   const showdownSoundRef = useRef(-1);
   const roundNumRef = useRef(0);
+  const introSoundRef = useRef(new Set<string>());
+  const roundCallRef = useRef("");
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -200,17 +202,27 @@ export default function RankedBattle({
   const prepSec = round && phase !== "answering" ? Math.max(1, Math.ceil((round.startsAt - currentServerMs) / 1000)) : 0;
   const danger = phase === "answering" && !round?.yourPick && remainingSec <= 3;
 
-  // New round goes live: focus the input, sound the gong on round 1.
+  // New round goes live: focus the input.
   useEffect(() => {
     if (!round || phase !== "answering") return;
     if (lastRoundRef.current !== round.roundNumber) {
       lastRoundRef.current = round.roundNumber;
       setGuess("");
-      if (round.roundNumber === 1) playFight();
-      else playSetSail();
       inputRef.current?.focus();
     }
   }, [round, phase]);
+
+  // Intro stingers, in time with the splash: "VS" slam, "ROUND 1" bell, "FIGHT!" boom.
+  const introCue = phase === "intro" ? (prepSec >= 3 ? "vs" : prepSec === 2 ? "round" : "fight") : null;
+  useEffect(() => {
+    if (!introCue) return;
+    const key = `${match.id}:${introCue}`;
+    if (introSoundRef.current.has(key)) return;
+    introSoundRef.current.add(key);
+    if (introCue === "vs") playVersus();
+    else if (introCue === "round") playRoundCall(true);
+    else playFight();
+  }, [introCue, match.id]);
 
   useEffect(() => {
     roundNumRef.current = round?.roundNumber ?? 0;
@@ -264,6 +276,16 @@ export default function RankedBattle({
     duckBattleMusic(1.6);
     playShowdown();
   }, [announcingShowdown, round]);
+
+  // "ROUND N" callout before every later round (Showdowns get their own announcement instead).
+  const roundCallout = phase === "reveal" && Boolean(match.lastReveal) && !announcingShowdown && prepSec <= 1 && round ? round.roundNumber : 0;
+  useEffect(() => {
+    if (!roundCallout) return;
+    const key = `${match.id}:${roundCallout}`;
+    if (roundCallRef.current === key) return;
+    roundCallRef.current = key;
+    playRoundCall(false);
+  }, [roundCallout, match.id]);
 
   // Fight music: starts when round 1 goes live and plays until the match ends (restarts after unmuting).
   const fighting = match.status === "active" && Boolean(round) && phase !== "intro";

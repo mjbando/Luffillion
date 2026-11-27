@@ -206,7 +206,7 @@ export function runnerSprite(characterId: CharacterId, running = false, time = 0
 /** Sprite for SVG portraits: mythic chest recruits use their high-detail (2×) art. */
 export function portraitSprite(characterId: CharacterId, running = false, time = 0): RunnerSprite {
   if (characterId === "gear-6")
-    return running ? gear6StrideSprite(Math.floor(time / 110) % 2 === 1) : gear6IdleSprite(Math.floor(time / 160));
+    return running ? gear6StrideSprite(Math.floor(time / 110) % 2 === 1) : gear6IdleSprite();
   if (isChestCharacterId(characterId) && chestCharacterById(characterId)?.rarity === "mythic")
     return mythicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   return runnerSprite(characterId, running, time);

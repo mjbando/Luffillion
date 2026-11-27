@@ -7,8 +7,7 @@ import { ink, gold, shade, type Pose, type RunnerSprite } from "./kit";
 // mythics, but with its own art direction so it outshines all of them: towering flame-white
 // crowned hair, a gold-trimmed crimson captain's coat that billows, Haki-armoured fists
 // crackling with gold and red lightning, a high emperor's collar, and a "dawn"
-// aura — gold and crimson layered flames, Haki lightning and a rising-sun halo — that
-// animates frame by frame.
+// aura — gold and crimson layered flames, Haki lightning and a rising-sun halo.
 
 type Px = [number, number];
 
@@ -130,7 +129,7 @@ function paint(d: Detail, frame: number) {
 
 /**
  * The Dawn aura: layered gold-to-crimson rings that hug the silhouette, two-tone flame licks,
- * jagged Haki lightning and a rotating rising-sun halo behind the head. `frame` animates it.
+ * jagged Haki lightning and a rising-sun halo behind the head. `frame` varies the flames.
  */
 function dawnAura(p: { cells: string[][]; width: number; height: number; key: (c: string) => string }, body: boolean[][], frame: number, head: Px, pad = 11) {
   const w = p.width + pad * 2, h = p.height + pad * 2;
@@ -252,14 +251,13 @@ function build(pose: Pose, frame: number): RunnerSprite {
   return { ...sprite, scale: S, bleed: pad };
 }
 
-/** Idle frames cycle the flames, lightning and halo; strides add the walking pose. */
-export const CREATOR_IDLE_FRAMES = 4;
-let idle: RunnerSprite[] | null = null;
+/** Gear 6 stands still (a single frame — animating it was too heavy); strides are only for walking. */
+let idle: RunnerSprite | null = null;
 let strides: RunnerSprite[] | null = null;
 
-export function gear6IdleSprite(frame: number): RunnerSprite {
-  idle ??= Array.from({ length: CREATOR_IDLE_FRAMES }, (_, i) => build(-1, i));
-  return idle[((frame % CREATOR_IDLE_FRAMES) + CREATOR_IDLE_FRAMES) % CREATOR_IDLE_FRAMES];
+export function gear6IdleSprite(): RunnerSprite {
+  idle ??= build(-1, 0);
+  return idle;
 }
 
 export function gear6StrideSprite(right: boolean): RunnerSprite {

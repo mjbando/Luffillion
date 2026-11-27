@@ -666,6 +666,39 @@ function metal(ctx: AudioContext, out: AudioNode, t: number, base: number, at: n
   ratios.forEach((r, i) => playTone(ctx, out, t, { freq: base * r, start: at, dur: dur / (1 + i * 0.4), type: i ? "sine" : "triangle", vol: vol / (1 + i * 0.6), attack: 0.001 }));
 }
 
+/** "VS" splash: both name plates whoosh in, then the VS slams down with a metal crash and thunder. */
+export function playVersus(): void {
+  const a = arena();
+  if (!a) return;
+  const { ctx, out, wet, t } = a;
+  whoosh(ctx, out, t, 0, 0.28, 0.13);
+  whoosh(ctx, out, t, 0.1, 0.28, 0.13, false);
+  playTone(ctx, out, t, { freq: 300, slideTo: 2400, start: 0.2, dur: 0.28, type: "sawtooth", vol: 0.035, attack: 0.2, filterHz: 3000 }); // rising shing
+  const slam = 0.48;
+  impact(ctx, out, wet, t, 1.1, slam);
+  metal(ctx, out, t, 440, slam, 0.8, 0.06, [1, 2.4, 3.9, 5.6]);
+  metal(ctx, wet, t, 220, slam, 1.6, 0.08, [1, 1.48, 2.02, 2.74]);
+  playNoise(ctx, out, t, slam, 0.12, 0.22, "highpass", 1800, 700); // thunder crack
+  playNoise(ctx, out, t, slam + 0.05, 0.9, 0.14, "lowpass", 1800, 90); // rumble
+  brass(ctx, out, t, [73.42, 110, 146.83], slam, 0.7, 0.05, 1200, 0.01);
+}
+
+/** "ROUND N" callout: a double boxing-bell ding, a drum hit and a rising brass call. Round 1 gets the full version. */
+export function playRoundCall(first = true): void {
+  const a = arena();
+  if (!a) return;
+  const { ctx, out, wet, t } = a;
+  metal(ctx, out, t, 1568, 0, 0.7, 0.06, [1, 2.76, 5.4]);
+  metal(ctx, wet, t, 1568, 0.16, 0.9, 0.05, [1, 2.76, 5.4]);
+  taiko(ctx, out, t, 0, 0.36, 1);
+  brass(ctx, out, t, [196, 293.66], 0.06, 0.18, 0.04, 2200, 0.01);
+  brass(ctx, out, t, [261.63, 392], 0.24, first ? 0.5 : 0.32, 0.045, 2600, 0.015);
+  if (first) {
+    taiko(ctx, out, t, 0.24, 0.4, 0.8);
+    crash(ctx, out, wet, t, 0.24, 0.07, 1);
+  }
+}
+
 /** "FIGHT!" — a reverse swell slams into a sub boom, crash, gong and a brass power chord. */
 export function playFight(): void {
   const a = arena();
@@ -792,7 +825,7 @@ export function playDefeat(): void {
 
 /* ---------- Ranked battle music ---------- */
 
-interface BattleMusic { ctx: AudioContext; bus: GainNode; tone: BiquadFilterNode; intensity: number }
+interface BattleMusic { ctx: AudioContext; bus: GainNode; tone: BiquadFilterNode; intensity: number; step: number; next: number }
 let battleMusic: BattleMusic | null = null;
 const MUSIC_LEVEL = 0.24;
 
@@ -814,13 +847,62 @@ const HOOK: (number | null)[][] = [
 ];
 const semis = (n: number) => E5 * Math.pow(2, n / 12);
 
+// Showdown theme: 172 BPM in C minor with a Phrygian Db for menace — Cm – Db – Ab – G.
+const SD_BPM = 172, FIGHT_BPM = 144;
+const SD_ROOTS = [65.41, 69.3, 51.91, 49];
+const SD_CHORDS = [
+  [261.63, 311.13, 392],
+  [277.18, 349.23, 415.3],
+  [207.65, 261.63, 311.13],
+  [196, 246.94, 293.66],
+];
+// Alarm riff over the top (semitones from C6): root and flat-two trading like a siren.
+const C6 = 1046.5;
+const SD_RIFF: (number | null)[] = [0, 1, 0, 1, 0, null, 3, null, 1, 0, 1, 0, -1, null, -2, null];
+
+/** The Showdown theme: blast-beat kicks, chugging bass, war drums, siren lead and a choir swell. */
+function showdownStep(m: BattleMusic, step: number, t: number, len: number) {
+  const { ctx, bus } = m;
+  const s = step % 16, bar = Math.floor(step / 16) % 4;
+  const root = SD_ROOTS[bar], chord = SD_CHORDS[bar];
+  // Double-kick 16ths with accents on the beat, a cracking snare, war drums and hats.
+  const accent = s % 4 === 0;
+  playTone(ctx, bus, t, { freq: accent ? 160 : 120, slideTo: 42, dur: accent ? 0.18 : 0.08, type: "sine", vol: accent ? 0.55 : 0.28, attack: 0.002 });
+  if (s === 4 || s === 12) {
+    playNoise(ctx, bus, t, 0, 0.18, 0.26, "bandpass", 2400, 900);
+    playTone(ctx, bus, t, { freq: 240, slideTo: 160, dur: 0.1, type: "triangle", vol: 0.18, attack: 0.001 });
+  }
+  if (s === 0 || s === 6 || s === 10) taikoHit(ctx, bus, t, s === 0 ? 0.42 : 0.32);
+  playNoise(ctx, bus, t, 0, 0.022, s % 2 ? 0.025 : 0.04, "highpass", 8200);
+  if (s === 0) playNoise(ctx, bus, t, 0, 1, 0.09, "highpass", 5600, 3200); // crash every bar
+  // Chugging distorted bass on every 16th, octave jump on the off-beats.
+  playTone(ctx, bus, t, { freq: root * (s % 4 === 3 ? 2 : 1), dur: len * 0.85, type: "sawtooth", vol: 0.12, attack: 0.003, filterHz: 900 });
+  playTone(ctx, bus, t, { freq: root, dur: len * 0.85, type: "square", vol: 0.05, attack: 0.003, filterHz: 500 });
+  // Power stabs and a choir swell every bar.
+  if (s === 0 || s === 8) brass(ctx, bus, t, chord, 0, len * 6, 0.026, 3200, 0.008);
+  if (s === 14) brass(ctx, bus, t, chord.map((f) => f * 2), 0, len * 2, 0.018, 3600, 0.004);
+  if (s === 0) for (const f of chord) {
+    playTone(ctx, bus, t, { freq: f, dur: len * 16, type: "sine", vol: 0.03, attack: len * 6, detune: -12 });
+    playTone(ctx, bus, t, { freq: f * 2, dur: len * 16, type: "triangle", vol: 0.012, attack: len * 8, detune: 10 });
+  }
+  // Siren riff.
+  const n = SD_RIFF[s];
+  if (n !== null) playTone(ctx, bus, t, { freq: C6 * Math.pow(2, n / 12) * (bar === 1 ? Math.pow(2, 1 / 12) : bar >= 2 ? Math.pow(2, -4 / 12) : 1), dur: len * 0.9, type: "square", vol: 0.022, attack: 0.002, filterHz: 4200 });
+  // Riser into the next loop.
+  if (bar === 3 && s === 8) playNoise(ctx, bus, t, 0, len * 8, 0.08, "bandpass", 400, 7000);
+}
+
+function taikoHit(ctx: AudioContext, out: AudioNode, t: number, vol: number) {
+  playTone(ctx, out, t, { freq: 98, slideTo: 48, dur: 0.34, type: "sine", vol, attack: 0.002 });
+  playNoise(ctx, out, t, 0, 0.06, vol * 0.35, "bandpass", 800, 300);
+}
+
 function musicStep(m: BattleMusic, step: number, t: number, len: number) {
-  const { ctx, bus, intensity } = m;
+  const { ctx, bus } = m;
   const s = step % 16, bar = Math.floor(step / 16) % 4, phrase = Math.floor(step / 64) % 2;
   const root = MUSIC_ROOTS[bar], chord = MUSIC_CHORDS[bar];
-  const hot = intensity > 0;
   // Drums: taiko-style kick pattern, snare backbeat, driving hats.
-  const kicks = hot ? [0, 3, 4, 6, 8, 11, 12, 14] : [0, 6, 8, 10];
+  const kicks = [0, 6, 8, 10];
   if (kicks.includes(s)) {
     playTone(ctx, bus, t, { freq: 150, slideTo: 44, dur: 0.2, type: "sine", vol: 0.55, attack: 0.002 });
     playTone(ctx, bus, t, { freq: 900, slideTo: 120, dur: 0.02, type: "square", vol: 0.05, attack: 0.001 });
@@ -829,24 +911,24 @@ function musicStep(m: BattleMusic, step: number, t: number, len: number) {
     playNoise(ctx, bus, t, 0, 0.16, 0.22, "bandpass", 2000, 900);
     playTone(ctx, bus, t, { freq: 220, slideTo: 150, dur: 0.09, type: "triangle", vol: 0.16, attack: 0.001 });
   }
-  if (hot || s % 2 === 0) playNoise(ctx, bus, t, 0, s % 4 === 2 ? 0.06 : 0.025, s % 4 === 2 ? 0.05 : 0.03, "highpass", 7600);
+  if (s % 2 === 0) playNoise(ctx, bus, t, 0, s % 4 === 2 ? 0.06 : 0.025, s % 4 === 2 ? 0.05 : 0.03, "highpass", 7600);
   // Tom fill to close every loop.
   if (bar === 3 && s >= 12) playTone(ctx, bus, t, { freq: 180 - (s - 12) * 26, slideTo: 70, dur: 0.16, type: "sine", vol: 0.3, attack: 0.002 });
-  if (step % 64 === 0) playNoise(ctx, bus, t, 0, 1.1, hot ? 0.08 : 0.05, "highpass", 5600, 3400);
+  if (step % 64 === 0) playNoise(ctx, bus, t, 0, 1.1, 0.05, "highpass", 5600, 3400);
   // Galloping bass ostinato: root-root-root-octave.
   const bassHits = [0, 2, 3, 4, 6, 8, 10, 11, 12, 14];
   if (bassHits.includes(s)) {
-    const octave = s === 4 || s === 12 || (hot && s % 4 === 2);
-    playTone(ctx, bus, t, { freq: root * (octave ? 2 : 1), dur: len * 1.7, type: "sawtooth", vol: 0.13, attack: 0.004, filterHz: hot ? 1100 : 700 });
+    const octave = s === 4 || s === 12;
+    playTone(ctx, bus, t, { freq: root * (octave ? 2 : 1), dur: len * 1.7, type: "sawtooth", vol: 0.13, attack: 0.004, filterHz: 700 });
     if (s === 0 || s === 8) playTone(ctx, bus, t, { freq: root / 2, dur: len * 6, type: "sine", vol: 0.2, attack: 0.01 });
   }
   // Syncopated brass stabs.
   const stabs: Record<number, number> = { 0: 3, 3: 1.2, 6: 1.2, 10: 2, 13: 1.2 };
-  if (stabs[s]) brass(ctx, bus, t, chord, 0, len * stabs[s], 0.022, hot ? 2800 : 2000, 0.006);
+  if (stabs[s]) brass(ctx, bus, t, chord, 0, len * stabs[s], 0.022, 2000, 0.006);
   // 16th-note arpeggio sparkle up top.
   const arp = [0, 1, 2, 1, 0, 2, 1, 2];
-  if (hot || phrase === 0 || s % 2 === 0) playTone(ctx, bus, t, { freq: chord[arp[s % 8]] * 2, dur: len * 0.8, type: "square", vol: hot ? 0.022 : 0.014, attack: 0.002, filterHz: 3400 });
-  // Lead hook on the second phrase; a tremolo string line during a Showdown.
+  if (phrase === 0 || s % 2 === 0) playTone(ctx, bus, t, { freq: chord[arp[s % 8]] * 2, dur: len * 0.8, type: "square", vol: 0.014, attack: 0.002, filterHz: 3400 });
+  // Lead hook on the second phrase.
   if (phrase === 1) {
     const note = HOOK[bar][s];
     if (note !== null) {
@@ -854,7 +936,6 @@ function musicStep(m: BattleMusic, step: number, t: number, len: number) {
       playTone(ctx, bus, t, { freq: semis(note), dur: len * 1.9, type: "square", vol: 0.02, attack: 0.01, filterHz: 2400, detune: 6 });
     }
   }
-  if (hot) playTone(ctx, bus, t, { freq: chord[s % 2 ? 2 : 0] * 2, dur: len * 0.9, type: "sawtooth", vol: 0.016, attack: 0.004, filterHz: 4000 });
 }
 
 /**
@@ -874,18 +955,19 @@ export function startBattleMusic(): () => void {
   tone.frequency.value = 5200;
   bus.connect(tone);
   tone.connect(out);
-  const music: BattleMusic = { ctx, bus, tone, intensity: 0 };
+  const music: BattleMusic = { ctx, bus, tone, intensity: 0, step: 0, next: ctx.currentTime + 0.08 };
   battleMusic = music;
 
-  const len = 60 / 144 / 4;
-  let next = ctx.currentTime + 0.08, step = 0, stopped = false;
+  let stopped = false;
   const timer = window.setInterval(() => {
     if (stopped || ctx.state === "closed") return;
-    if (next < ctx.currentTime) next = ctx.currentTime + 0.02;
-    while (next < ctx.currentTime + 0.16) {
-      musicStep(music, step, next, len);
-      next += len;
-      step++;
+    if (music.next < ctx.currentTime) music.next = ctx.currentTime + 0.02;
+    while (music.next < ctx.currentTime + 0.16) {
+      const len = 60 / (music.intensity ? SD_BPM : FIGHT_BPM) / 4;
+      if (music.intensity) showdownStep(music, music.step, music.next, len);
+      else musicStep(music, music.step, music.next, len);
+      music.next += len;
+      music.step++;
     }
   }, 25);
 
@@ -901,12 +983,19 @@ export function startBattleMusic(): () => void {
   };
 }
 
-/** 0 = normal fight, 1 = Showdown (double-time drums, open filter, tremolo strings). */
+/** 0 = the fight theme, 1 = the Showdown theme (faster, heavier, its own key). Switching restarts the phrase. */
 export function setBattleMusicIntensity(level: 0 | 1): void {
   const m = battleMusic;
   if (!m || m.intensity === level) return;
   m.intensity = level;
-  m.tone.frequency.setTargetAtTime(level ? 9000 : 5200, m.ctx.currentTime, 0.4);
+  m.step = 0;
+  m.tone.frequency.setTargetAtTime(level ? 9000 : 5200, m.ctx.currentTime, 0.2);
+  if (level) {
+    // Slam into the Showdown theme.
+    const t = Math.max(m.next, m.ctx.currentTime);
+    playTone(m.ctx, m.bus, t, { freq: 70, slideTo: 30, dur: 0.9, type: "sine", vol: 0.5, attack: 0.002 });
+    playNoise(m.ctx, m.bus, t, 0, 1.4, 0.12, "highpass", 5000, 2600);
+  }
 }
 
 /** Briefly dips the music so a big moment (KO, Showdown stinger) cuts through. */
