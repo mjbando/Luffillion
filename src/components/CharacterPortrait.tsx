@@ -4,6 +4,7 @@ import { memo } from "react";
 import { portraitSprite } from "./pixel/runners";
 import { spriteDataUrl } from "./pixel/sprite-image";
 import { chestCharacterById } from "@/data/chest-characters";
+import { UPDATE_LIVE } from "@/lib/release";
 import type { CharacterId } from "@/data/playable-characters";
 
 /** Merges horizontal runs of one colour into a single rect (high-detail art has thousands of pixels). */
@@ -28,7 +29,7 @@ function CharacterPortrait({ characterId, size = 64, dim = false, className = ""
   className?: string;
 }) {
   // High-detail art (Gear 6, mythics, legendaries) is drawn as a single cached image: thousands of pixels as rects lag.
-  const creator = characterId === "gear-6";
+  const creator = UPDATE_LIVE && characterId === "gear-6";
   const sprite = portraitSprite(characterId);
   // Aura sprites (legendary/mythic) can be larger than 32px, so the view box grows to fit.
   // High-detail art (scale 2) packs two pixels per world pixel into the same frame.

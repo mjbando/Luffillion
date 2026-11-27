@@ -162,7 +162,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
     <header className="flex items-center gap-3">
       <div className="grid h-14 w-14 shrink-0 place-items-center border border-amber-300/25 bg-amber-300/[.06]"><PixelEmblem kind="seal" size={40}/></div>
       <div className="flex-1"><p className="text-xs tracking-[.25em] text-amber-300">CAPTAIN&apos;S COLLECTION</p><h2 id="achievement-title" className="font-pixel-display text-xl text-white">{heading}</h2><p className="text-base text-slate-400">{!UPDATE_LIVE ? "Earn emblems. Recruit legends." : mode === "voyage" ? "Earn emblems. Raise your bounty." : mode === "ranked" ? "Battle for berries and treasure chests." : "Equip any captain you've recruited."}</p></div>
-      {shown === "badges" && <span className="text-2xl text-amber-200" aria-label={`${earned} of ${total} achievements earned`}>{earned}<small className="text-base text-slate-500">/{total}</small></span>}
+      {(!UPDATE_LIVE || shown === "badges") && <span className="text-2xl text-amber-200" aria-label={`${earned} of ${total} achievements earned`}>{earned}<small className="text-base text-slate-500">/{total}</small></span>}
       {shown === "ranked" && <span className="text-2xl text-amber-200" aria-label={`${rankedEarned} of ${rankedTotal} ranked achievements earned`}>{rankedEarned}<small className="text-base text-slate-500">/{rankedTotal}</small></span>}
     </header>
     {UPDATE_LIVE && mode === "voyage" && <p className="mt-2 flex items-baseline justify-between border border-amber-300/25 bg-amber-300/[.06] px-2.5 py-1" aria-label="Achievement bounty">
@@ -173,9 +173,9 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
       <span className="text-xs tracking-[.25em] text-amber-300">YOUR BERRIES</span>
       <span className="flex items-center gap-1.5 text-2xl tabular-nums text-amber-100"><BerryMark size={18}/>{(report?.berries ?? 0).toLocaleString()}</span>
     </p>}
-    {shown === "badges" && <div className="my-3 h-1 bg-white/10"><div className="h-full bg-amber-300 transition-[width]" style={{ width: `${earned / total * 100}%` }}/></div>}
+    {(!UPDATE_LIVE || shown === "badges") && <div className="my-3 h-1 bg-white/10"><div className="h-full bg-amber-300 transition-[width]" style={{ width: `${earned / total * 100}%` }}/></div>}
 
-    {(!UPDATE_LIVE || mode === "characters") && <div className="crew-equipped mt-3 flex items-center gap-3 border border-white/15 p-2.5" style={{ borderLeftColor: current.color }}>
+    {(!UPDATE_LIVE || mode === "characters") && <div className={`crew-equipped ${UPDATE_LIVE ? "mt-3 " : ""}flex items-center gap-3 border border-white/15 p-2.5`} style={{ borderLeftColor: current.color }}>
       <CharacterPortrait characterId={current.id} size={64} className="shrink-0"/>
       <div className="min-w-0 flex-1"><p className="text-xs tracking-[.2em] text-slate-400">SAILING AS</p><p className="font-pixel-display text-base text-white">{current.name}</p><p className="text-sm" style={{ color: current.color }}>{current.epithet}</p></div>
       <span className="self-start text-sm text-emerald-300">✓ Equipped</span>
