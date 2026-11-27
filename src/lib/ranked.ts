@@ -2,7 +2,10 @@ import type { Tier } from "@/data/tiers";
 
 export const RANKED_SECONDS = 10;
 export const RANKED_STARTING_LIVES = 3;
+/** Regulation rounds. After these, every round is an overtime Showdown until a knockout. */
 export const RANKED_MAX_ROUNDS = 12;
+/** Safety stop for endless Showdown ties; only then is a match decided on lives. */
+export const RANKED_ROUND_CAP = 30;
 export const RANKED_INTRO_MS = 5000;
 export const RANKED_REVEAL_MS = 3200;
 /** Rounds in a row where both players answer before the next round becomes a Showdown. */

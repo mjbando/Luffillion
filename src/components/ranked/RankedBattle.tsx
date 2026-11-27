@@ -107,11 +107,11 @@ function PullCard({ who, pick, side, won }: { who: ReactNode; pick: RankedRoundP
 }
 
 /** Fills one flame per round where both players answer; full = Showdown. */
-function ShowdownMeter({ filled, live, suddenDeath }: { filled: number; live: boolean; suddenDeath: boolean }) {
+function ShowdownMeter({ filled, live, suddenDeath, overtime }: { filled: number; live: boolean; suddenDeath: boolean; overtime: boolean }) {
   return (
     <div className={`rk-meter ${live ? "is-live" : ""} ${filled >= RANKED_SHOWDOWN_STREAK - 1 && !live ? "is-close" : ""}`}
       aria-label={live ? "Showdown round" : `Showdown meter ${filled} of ${RANKED_SHOWDOWN_STREAK}`}>
-      <span className="rk-meter-label">{live ? (suddenDeath ? "⚡ SUDDEN DEATH ⚡" : "⚡ SHOWDOWN ⚡") : "SHOWDOWN"}</span>
+      <span className="rk-meter-label">{live ? (overtime ? "⚡ OVERTIME ⚡" : suddenDeath ? "⚡ SUDDEN DEATH ⚡" : "⚡ SHOWDOWN ⚡") : "SHOWDOWN"}</span>
       <span className="rk-meter-cells">
         {Array.from({ length: RANKED_SHOWDOWN_STREAK }, (_, i) => (
           <i key={i} className={live || i < filled ? "is-on" : ""} />
@@ -148,7 +148,7 @@ export default function RankedBattle({
 }) {
   const [guess, setGuess] = useState("");
   const [now, setNow] = useState(0);
-  const [fx, setFx] = useState<{ id: number; tier: Tier } | null>(null);
+  const [fx, setFx] = useState<{ id: number; tier: Tier; round: number } | null>(null);
   const [clock, setClock] = useState({ server: serverNow, perf: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
   const lastRoundRef = useRef(-1);
@@ -156,6 +156,7 @@ export default function RankedBattle({
   const lastRevealRef = useRef(-1);
   const finishedSoundRef = useRef("");
   const showdownSoundRef = useRef(-1);
+  const roundNumRef = useRef(0);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -202,6 +203,10 @@ export default function RankedBattle({
     }
   }, [round, phase]);
 
+  useEffect(() => {
+    roundNumRef.current = round?.roundNumber ?? 0;
+  }, [round?.roundNumber]);
+
   // Countdown tick in the final 4 seconds
   useEffect(() => {
     if (!round || phase !== "answering" || round.yourPick || remainingSec > 4 || remainingSec < 1) return;
@@ -215,8 +220,9 @@ export default function RankedBattle({
   useEffect(() => {
     if (feedback?.kind === "correct" && feedback.pick) {
       const tier = feedback.pick.tier;
+      const roundNumber = roundNumRef.current;
       playPull(tier);
-      const frame = requestAnimationFrame(() => setFx({ id: Date.now(), tier }));
+      const frame = requestAnimationFrame(() => setFx({ id: Date.now(), tier, round: roundNumber }));
       return () => cancelAnimationFrame(frame);
     } else if (feedback?.kind === "wrong") {
       playWrong();
@@ -279,6 +285,7 @@ export default function RankedBattle({
   const revealIsShowdown = Boolean(showReveal && reveal.showdown);
   const showdownTie = revealIsShowdown && loser === null;
   const showdownLive = Boolean(round?.showdown) && (phase === "answering" || announcingShowdown);
+  const overtime = Boolean(round && round.roundNumber > RANKED_MAX_ROUNDS);
   const stormy = showdownLive || (phase === "reveal" && revealIsShowdown) || (phase === "finished" && revealIsShowdown);
   const beamFrom = revealIsShowdown && loser === "opponent" ? "left" : revealIsShowdown && loser === "you" ? "right" : null;
   const beamPick = beamFrom === "left" ? reveal?.yourPick : beamFrom === "right" ? reveal?.opponentPick : null;
@@ -365,23 +372,23 @@ export default function RankedBattle({
         <section className="rk-hud" aria-label="Battle status">
           <HudSide player={match.you} side="left" breakingKey={youHurt ? revealKey : null} />
           <div className={`rk-medallion ${danger ? "is-danger" : ""} ${phase === "answering" ? "is-live" : ""} ${showdownLive ? "is-showdown" : ""}`} aria-live="off">
-            <small>{showdownLive ? "SHOWDOWN" : round ? `RND ${round.roundNumber}` : "MATCH"}</small>
+            <small>{showdownLive ? (overtime ? "OVERTIME" : "SHOWDOWN") : round ? `RND ${round.roundNumber}` : "MATCH"}</small>
             <strong>{timerText}</strong>
           </div>
           <HudSide player={match.opponent} side="right" breakingKey={oppHurt ? revealKey : null} />
         </section>
         <div className="rk-track" aria-label="Round results">
-          {Array.from({ length: Math.min(RANKED_MAX_ROUNDS, Math.max(match.history.length + (round ? 1 : 0), 1)) }, (_, i) => {
+          {Array.from({ length: Math.max(match.history.length + (round ? 1 : 0), 1) }, (_, i) => {
             const h = match.history.find((x) => x.roundNumber === i + 1);
             const cls = h
               ? h.loser === "opponent" ? "is-won" : h.loser === "you" ? "is-lost" : h.loser === "both" ? "is-double" : "is-tie"
               : round?.roundNumber === i + 1 ? "is-current" : "";
             const sd = h ? h.showdown : round?.roundNumber === i + 1 && round.showdown;
-            return <span key={i} className={`rk-pip ${cls} ${sd ? "is-sd" : ""}`} title={h ? `Round ${i + 1}${h.showdown ? " · Showdown" : ""}` : undefined} />;
+            return <span key={i} className={`rk-pip ${cls} ${sd ? "is-sd" : ""} ${i >= RANKED_MAX_ROUNDS ? "is-ot" : ""}`} title={h ? `Round ${i + 1}${h.showdown ? " · Showdown" : ""}` : undefined} />;
           })}
         </div>
         {match.status === "active" && (
-          <ShowdownMeter filled={match.showdownMeter} live={showdownLive} suddenDeath={showdownLive && Boolean(reveal?.showdown) && reveal?.loser === null} />
+          <ShowdownMeter filled={match.showdownMeter} live={showdownLive} suddenDeath={showdownLive && Boolean(reveal?.showdown) && reveal?.loser === null} overtime={overtime} />
         )}
 
         {/* ---------- Stage ---------- */}
@@ -403,7 +410,7 @@ export default function RankedBattle({
               pose={youPose}
               poseKey={`${youPose}:${revealKey ?? round?.roundNumber ?? "end"}`}
               aura={yourTierColor}
-              shout={fx && phase === "answering" ? { text: `${TIER_SHOUT[fx.tier]} +${RANKED_TIER_BONUS_SECONDS[fx.tier]}s`, color: RANKED_TIER_COLORS[fx.tier], key: String(fx.id) } : null}
+              shout={fx && phase === "answering" && fx.round === round?.roundNumber ? { text: `${TIER_SHOUT[fx.tier]} +${RANKED_TIER_BONUS_SECONDS[fx.tier]}s`, color: RANKED_TIER_COLORS[fx.tier], key: String(fx.id) } : null}
               damage={youHurt && phase === "reveal" ? revealKey : null}
               burning={showdownLive && !round?.yourPick}
             />
@@ -426,8 +433,10 @@ export default function RankedBattle({
             )}
             {announcingShowdown && round && (
               <div key={`sd:${round.roundNumber}`} className="rk-showdown-splash">
-                <div className="rk-showdown-title">{showdownTie ? "SUDDEN DEATH" : "SHOWDOWN"}</div>
-                <div className="rk-showdown-sub">Less niche pull loses a life</div>
+                <div className="rk-showdown-title">
+                  {round.roundNumber === RANKED_MAX_ROUNDS + 1 ? "OVERTIME" : showdownTie ? "SUDDEN DEATH" : overtime ? "OVERTIME" : "SHOWDOWN"}
+                </div>
+                <div className="rk-showdown-sub">{overtime ? "Every round is a Showdown" : "Less niche pull loses a life"}</div>
               </div>
             )}
             {callout && <div key={`${callout.text}:${revealKey ?? ""}`} className={`rk-callout is-${callout.kind}`}>{callout.text}</div>}
@@ -525,6 +534,7 @@ export default function RankedBattle({
               </p>
               <p className="rk-intro-sd">
                 ⚡ Both answer {RANKED_SHOWDOWN_STREAK} in a row → <strong>SHOWDOWN</strong>: the less niche pull loses a life.
+                {" "}Last captain standing wins. After round {RANKED_MAX_ROUNDS}, it&apos;s <strong>OVERTIME</strong>: every round is a Showdown.
               </p>
             </div>
           ) : phase === "reveal" && reveal ? (
@@ -551,7 +561,7 @@ export default function RankedBattle({
                 <PullCard who={<><RankedUsername username={match.opponent.username.toUpperCase()} />&apos;S ATTACK</>} pick={reveal.opponentPick} side="right" won={loser === "you" ? true : loser === "opponent" ? false : null} />
               </div>
               {round?.showdown ? (
-                <p className="rk-sd-next">⚡ {showdownTie ? "SUDDEN DEATH SHOWDOWN" : "SHOWDOWN"} NEXT · LESS NICHE PULL LOSES A LIFE ⚡</p>
+                <p className="rk-sd-next">⚡ {showdownTie ? "SUDDEN DEATH SHOWDOWN" : overtime ? "OVERTIME SHOWDOWN" : "SHOWDOWN"} NEXT · LESS NICHE PULL LOSES A LIFE ⚡</p>
               ) : !loser && !reveal.showdown ? (
                 <p className="mt-3 text-base text-amber-200">Showdown meter {match.showdownMeter}/{RANKED_SHOWDOWN_STREAK}</p>
               ) : null}
@@ -559,7 +569,7 @@ export default function RankedBattle({
             </div>
           ) : round ? (
             <div className={round.showdown ? "rk-sd-panel" : undefined}>
-              {round.showdown && <p className="rk-sd-rule">⚡ SHOWDOWN · Rarest pull wins. Less niche pull loses a life.</p>}
+              {round.showdown && <p className="rk-sd-rule">⚡ {overtime ? "OVERTIME" : "SHOWDOWN"} · Rarest pull wins. Less niche pull loses a life.</p>}
               <div className="flex items-center justify-between gap-4">
                 <span className="rk-eyebrow">ROUND {round.roundNumber} · {RANKED_SECONDS}{round.bonusSeconds ? ` + ${round.bonusSeconds}` : ""}S {round.showdown ? "SHOWDOWN" : "BLITZ"}</span>
                 {round.opponentLocked && !round.yourPick && <span className="rk-pressure">⚡ OPPONENT LOCKED IN</span>}

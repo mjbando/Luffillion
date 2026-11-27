@@ -494,3 +494,8 @@
   .rk-showdown-sub { letter-spacing: 2px; }
   .rk-bolt { width: 18px; }
 }
+
+/* Overtime: the round track can run past regulation, so let it wrap. */
+.rk-track { flex-wrap: wrap; max-width: 520px; margin-left: auto; margin-right: auto; }
+.rk-pip.is-ot:not(.is-sd) { border-color: #f43f5e; }
+@media (max-width: 700px) { .rk-track { gap: 4px; max-width: 300px; } .rk-pip { width: 10px; height: 10px; } }

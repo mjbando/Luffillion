@@ -12,6 +12,7 @@ import { creditCoins } from "./currency-server";
 import {
   RANKED_INTRO_MS,
   RANKED_MAX_ROUNDS,
+  RANKED_ROUND_CAP,
   RANKED_SHOWDOWN_REVEAL_MS,
   RANKED_SHOWDOWN_STREAK,
   RANKED_REVEAL_MS,
@@ -53,6 +54,15 @@ function pickMatchQuestions(): Question[] {
   const rich = pool.filter((q) => Object.values(q.tiers).flat().length >= 12);
   const rest = pool.filter((q) => Object.values(q.tiers).flat().length < 12);
   return [...rich, ...rest].slice(0, RANKED_MAX_ROUNDS);
+}
+
+/** Overtime needs more questions than the regulation set: pick an unused one. */
+function extraQuestionId(used: string[]): string {
+  const seen = new Set(used);
+  const rich = ORIGINAL_QUESTIONS.filter((q) => !seen.has(q.id) && Object.values(q.tiers).flat().length >= 12);
+  const pool = rich.length ? rich : ORIGINAL_QUESTIONS.filter((q) => !seen.has(q.id));
+  const list = pool.length ? pool : ORIGINAL_QUESTIONS;
+  return list[Math.floor(Math.random() * list.length)].id;
 }
 
 async function lockAccounts(tx: Tx, ids: string[]) {
@@ -318,7 +328,7 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
   }
 
   let changed = false;
-  while (state.roundIndex < state.questionIds.length) {
+  while (state.roundIndex < RANKED_ROUND_CAP) {
     const r = state.rounds[state.roundIndex];
     if (!r) break;
     const p1Done = Boolean(r.p1) || now >= (r.p1EndsAt ?? r.endsAt);
@@ -354,7 +364,8 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
     changed = true;
 
     const knockout = state.p1.lives === 0 || state.p2.lives === 0;
-    const lastRound = state.roundIndex + 1 >= state.questionIds.length;
+    // Matches only end on a knockout; the round cap is a safety stop for endless ties.
+    const lastRound = state.roundIndex + 1 >= RANKED_ROUND_CAP;
     if (knockout || lastRound) {
       const outcome = state.p1.lives > state.p2.lives ? "p1" : state.p2.lives > state.p1.lives ? "p2" : "draw";
       const [updated] = await tx
@@ -367,7 +378,9 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
 
     // Prepare next round after a brief reveal pause
     const nextIdx = state.roundIndex + 1;
-    const nextShowdown = state.bothAnsweredStreak >= RANKED_SHOWDOWN_STREAK;
+    // Overtime: past regulation, every round is a Showdown until someone falls.
+    const nextShowdown = state.bothAnsweredStreak >= RANKED_SHOWDOWN_STREAK || nextIdx >= RANKED_MAX_ROUNDS;
+    if (nextIdx >= state.questionIds.length) state.questionIds.push(extraQuestionId(state.questionIds));
     // Longer pause around Showdowns so the announcement and face-off can play.
     const nextStart = now + (r.showdown || nextShowdown ? RANKED_SHOWDOWN_REVEAL_MS : RANKED_REVEAL_MS);
     const p1BonusSeconds = r.p1 ? RANKED_TIER_BONUS_SECONDS[r.p1.tier] : 0;
