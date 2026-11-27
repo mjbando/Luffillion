@@ -589,68 +589,334 @@ export function playChestReveal(rank: number): void {
 
 /* ---------- Ranked battle ---------- */
 
-/** Arena gong + rising brass when a duel starts. */
+let verbCtx: AudioContext | null = null;
+let verbSend: GainNode | null = null;
+
+/** A shared hall reverb (generated impulse) so ranked hits ring out like an arena. */
+function getVerb(ctx: AudioContext, out: AudioNode): AudioNode {
+  if (verbSend && verbCtx === ctx) return verbSend;
+  const seconds = 1.8;
+  const length = Math.floor(ctx.sampleRate * seconds);
+  const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3.2);
+  }
+  const conv = ctx.createConvolver();
+  conv.buffer = impulse;
+  const wet = ctx.createGain();
+  wet.gain.value = 0.5;
+  const tone = ctx.createBiquadFilter();
+  tone.type = "lowpass";
+  tone.frequency.value = 4200;
+  verbSend = ctx.createGain();
+  verbSend.connect(conv);
+  conv.connect(tone);
+  tone.connect(wet);
+  wet.connect(out);
+  verbCtx = ctx;
+  return verbSend;
+}
+
+/** Audio plus a reverb send: `dry` for the punch, `wet` for the arena tail. */
+function arena() {
+  const a = getAudio();
+  if (!a) return null;
+  return { ctx: a.ctx, out: a.out, wet: getVerb(a.ctx, a.out), t: a.ctx.currentTime };
+}
+
+/** A big cinematic impact: sub drop, body thump, transient click and a crunchy noise burst. */
+function impact(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number, size = 1, at = 0) {
+  playTone(ctx, out, t, { freq: 62 * (1.15 - size * 0.15), slideTo: 28, start: at, dur: 0.45 + size * 0.45, type: "sine", vol: 0.5, attack: 0.002 });
+  playTone(ctx, out, t, { freq: 190, slideTo: 52, start: at, dur: 0.16 + size * 0.08, type: "sine", vol: 0.42, attack: 0.001 });
+  playTone(ctx, out, t, { freq: 1600, slideTo: 220, start: at, dur: 0.035, type: "square", vol: 0.1, attack: 0.001, filterHz: 5000 });
+  playNoise(ctx, out, t, at, 0.12 + size * 0.18, 0.22, "lowpass", 5200, 260);
+  playNoise(ctx, wet, t, at, 0.3 + size * 0.3, 0.12 * size, "bandpass", 1400, 300);
+}
+
+/** Air ripping past: a band-passed noise sweep. */
+function whoosh(ctx: AudioContext, out: AudioNode, t: number, at = 0, dur = 0.22, vol = 0.14, up = true) {
+  playNoise(ctx, out, t, at, dur, vol, "bandpass", up ? 400 : 3600, up ? 3600 : 400);
+  playNoise(ctx, out, t, at + dur * 0.3, dur * 0.7, vol * 0.5, "highpass", 2200, 6000);
+}
+
+/** A cymbal crash: long bright noise with a shimmering tail. */
+function crash(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number, at = 0, vol = 0.12, dur = 1.4) {
+  playNoise(ctx, out, t, at, dur, vol, "highpass", 5200, 3200);
+  playNoise(ctx, wet, t, at, dur * 0.8, vol * 0.6, "bandpass", 7000, 2600);
+}
+
+/** Thick detuned brass: two saws per note through a lowpass, swelling in. */
+function brass(ctx: AudioContext, out: AudioNode, t: number, notes: number[], at: number, dur: number, vol = 0.05, filterHz = 2200, attack = 0.03) {
+  for (const f of notes) {
+    playTone(ctx, out, t, { freq: f, start: at, dur, type: "sawtooth", vol, attack, filterHz, detune: -9 });
+    playTone(ctx, out, t, { freq: f, start: at, dur, type: "sawtooth", vol: vol * 0.8, attack, filterHz, detune: 9 });
+  }
+}
+
+/** Taiko drum: deep pitched body with a skin slap. */
+function taiko(ctx: AudioContext, out: AudioNode, t: number, at: number, vol = 0.4, pitch = 1) {
+  playTone(ctx, out, t, { freq: 105 * pitch, slideTo: 52 * pitch, start: at, dur: 0.38, type: "sine", vol, attack: 0.002 });
+  playTone(ctx, out, t, { freq: 210 * pitch, slideTo: 120 * pitch, start: at, dur: 0.08, type: "triangle", vol: vol * 0.35, attack: 0.001 });
+  playNoise(ctx, out, t, at, 0.07, vol * 0.3, "bandpass", 900, 400);
+}
+
+/** Inharmonic bell/metal partials (gongs, blades, the KO bell). */
+function metal(ctx: AudioContext, out: AudioNode, t: number, base: number, at: number, dur: number, vol: number, ratios = [1, 2.76, 5.4, 8.93]) {
+  ratios.forEach((r, i) => playTone(ctx, out, t, { freq: base * r, start: at, dur: dur / (1 + i * 0.4), type: i ? "sine" : "triangle", vol: vol / (1 + i * 0.6), attack: 0.001 }));
+}
+
+/** "FIGHT!" — a reverse swell slams into a sub boom, crash, gong and a brass power chord. */
 export function playFight(): void {
-  const a = getAudio();
+  const a = arena();
   if (!a) return;
-  const t = a.ctx.currentTime;
-  playTone(a.ctx, a.out, t, { freq: 98, slideTo: 82, dur: 0.9, type: "sine", vol: 0.32, attack: 0.004 });
-  playNoise(a.ctx, a.out, t, 0, 0.5, 0.06, "bandpass", 700, 2400);
-  [392, 523.25, 659.25].forEach((f, i) =>
-    playTone(a.ctx, a.out, t, { freq: f, start: 0.08 + i * 0.07, dur: 0.32, type: "sawtooth", vol: 0.08, filterHz: 1800 }));
+  const { ctx, out, wet, t } = a;
+  playNoise(ctx, out, t, 0, 0.42, 0.12, "bandpass", 300, 5200); // rising swell
+  playTone(ctx, out, t, { freq: 110, slideTo: 440, dur: 0.42, type: "sawtooth", vol: 0.04, attack: 0.3, filterHz: 1400 });
+  const hit = 0.42;
+  impact(ctx, out, wet, t, 1.3, hit);
+  crash(ctx, out, wet, t, hit, 0.14, 1.8);
+  metal(ctx, wet, t, 98, hit, 2.2, 0.14, [1, 1.48, 2.02, 2.74, 3.76]); // gong bloom
+  brass(ctx, out, t, [82.41, 123.47, 164.81, 196], hit, 0.9, 0.05, 1800, 0.01);
+  brass(ctx, wet, t, [329.63, 493.88], hit + 0.02, 1.0, 0.03, 2600, 0.02);
 }
 
-/** A heavy punch landing: low thump, crunchy noise burst. */
+/** Lunge: the fighters dash at each other. */
+export function playLunge(): void {
+  const a = arena();
+  if (!a) return;
+  whoosh(a.ctx, a.out, a.t, 0, 0.3, 0.16);
+}
+
+/** A punch landing: whoosh into a layered impact. Heavy = the opponent got hit (more boom, longer tail). */
 export function playHit(heavy = false): void {
-  const a = getAudio();
+  const a = arena();
   if (!a) return;
-  const t = a.ctx.currentTime;
-  playTone(a.ctx, a.out, t, { freq: heavy ? 150 : 190, slideTo: 40, dur: heavy ? 0.32 : 0.2, type: "sine", vol: 0.42, attack: 0.002 });
-  playTone(a.ctx, a.out, t, { freq: 420, slideTo: 90, dur: 0.12, type: "square", vol: 0.08, filterHz: 1400 });
-  playNoise(a.ctx, a.out, t, 0, heavy ? 0.28 : 0.16, 0.16, "lowpass", 2600, 300);
+  const { ctx, out, wet, t } = a;
+  impact(ctx, out, wet, t, heavy ? 1 : 0.65);
+  playTone(ctx, out, t, { freq: heavy ? 520 : 440, slideTo: 120, dur: 0.1, type: "square", vol: 0.06, filterHz: 1800 });
+  if (heavy) {
+    // Rubbery Gomu "boing" snap-back and a shockwave tail.
+    playTone(ctx, out, t, { freq: 180, slideTo: 620, start: 0.06, dur: 0.16, type: "triangle", vol: 0.07 });
+    playNoise(ctx, wet, t, 0.04, 0.5, 0.1, "lowpass", 1800, 120);
+  }
 }
 
-/** Two blades meeting: bright metallic ring. */
+/** Two blades meeting: a ringing metallic clang with flying sparks. */
 export function playClash(): void {
-  const a = getAudio();
+  const a = arena();
   if (!a) return;
-  const t = a.ctx.currentTime;
-  [1318.5, 1760, 2349.3].forEach((f, i) =>
-    playTone(a.ctx, a.out, t, { freq: f, start: i * 0.012, dur: 0.45, type: "triangle", vol: 0.07 }));
-  playNoise(a.ctx, a.out, t, 0, 0.12, 0.12, "highpass", 3500, 8000);
+  const { ctx, out, wet, t } = a;
+  playNoise(ctx, out, t, 0, 0.05, 0.22, "highpass", 2400, 6000);
+  metal(ctx, out, t, 1046.5, 0, 0.7, 0.08);
+  metal(ctx, wet, t, 1174.7, 0.004, 1.1, 0.05);
+  playTone(ctx, out, t, { freq: 2600, slideTo: 4200, start: 0.02, dur: 0.24, type: "sine", vol: 0.03 }); // "shing"
+  for (let i = 0; i < 5; i++) playNoise(ctx, out, t, 0.05 + i * 0.045, 0.03, 0.05 / (1 + i * 0.4), "highpass", 6000 + i * 600, 9000);
+  playTone(ctx, out, t, { freq: 140, slideTo: 60, dur: 0.18, type: "sine", vol: 0.24, attack: 0.002 });
 }
 
-/** Knockout: big slam, then a falling whistle. */
+/** Knockout: a colossal slam, slow-motion sub drop, power-down and the triple KO bell. */
 export function playKO(): void {
-  const a = getAudio();
+  const a = arena();
   if (!a) return;
-  const t = a.ctx.currentTime;
-  playTone(a.ctx, a.out, t, { freq: 120, slideTo: 30, dur: 0.6, type: "sine", vol: 0.5, attack: 0.002 });
-  playNoise(a.ctx, a.out, t, 0, 0.4, 0.2, "lowpass", 3000, 200);
-  playTone(a.ctx, a.out, t, { freq: 1400, slideTo: 300, start: 0.25, dur: 0.7, type: "sine", vol: 0.06 });
+  const { ctx, out, wet, t } = a;
+  impact(ctx, out, wet, t, 1.6);
+  crash(ctx, out, wet, t, 0, 0.16, 2.2);
+  playTone(ctx, out, t, { freq: 90, slideTo: 22, dur: 1.6, type: "sine", vol: 0.38, attack: 0.01 });
+  playTone(ctx, out, t, { freq: 620, slideTo: 55, start: 0.12, dur: 1.1, type: "sawtooth", vol: 0.05, filterHz: 1600 });
+  [0.7, 0.92, 1.14].forEach((at) => metal(ctx, wet, t, 1320, at, 0.9, 0.07));
+  [0.7, 0.92, 1.14].forEach((at) => metal(ctx, out, t, 1320, at, 0.5, 0.05));
 }
 
-/** Showdown announced: thunder crack, war drums, ominous minor stab. */
+/** Showdown announced: thunder rolls, war drums accelerate, a minor brass swell erupts. */
 export function playShowdown(): void {
-  const a = getAudio();
+  const a = arena();
   if (!a) return;
-  const t = a.ctx.currentTime;
-  playNoise(a.ctx, a.out, t, 0, 0.9, 0.16, "lowpass", 5000, 120);
-  [0, 0.22, 0.44, 0.58].forEach((s, i) =>
-    playTone(a.ctx, a.out, t, { freq: i === 3 ? 82 : 65, slideTo: 38, start: s, dur: 0.28, type: "sine", vol: 0.42, attack: 0.002 }));
-  [220, 261.63, 311.13, 440].forEach((f) =>
-    playTone(a.ctx, a.out, t, { freq: f, start: 0.62, dur: 0.9, type: "sawtooth", vol: 0.06, filterHz: 1600 }));
+  const { ctx, out, wet, t } = a;
+  // Thunder: crack, then a long rolling rumble.
+  playNoise(ctx, out, t, 0, 0.18, 0.24, "highpass", 1800, 600);
+  playNoise(ctx, out, t, 0.04, 1.4, 0.2, "lowpass", 2400, 90);
+  playNoise(ctx, wet, t, 0.1, 1.2, 0.12, "lowpass", 900, 80);
+  // War drums speeding up.
+  [0.2, 0.48, 0.7, 0.86, 0.98, 1.08, 1.16, 1.24].forEach((at, i) => taiko(ctx, out, t, at, 0.3 + i * 0.03, i % 2 ? 0.86 : 1));
+  // Eruption.
+  const hit = 1.34;
+  impact(ctx, out, wet, t, 1.2, hit);
+  crash(ctx, out, wet, t, hit, 0.12, 1.6);
+  brass(ctx, out, t, [110, 164.81, 220, 261.63, 329.63], hit, 1.3, 0.04, 2000, 0.04);
+  brass(ctx, wet, t, [440, 523.25, 659.25], hit + 0.04, 1.2, 0.022, 3000, 0.08);
 }
 
-/** Showdown decided: rising power beam, then a blast. */
+/** Showdown decided: a crackling Haki charge-up, then the beam detonates. */
 export function playBeam(): void {
-  const a = getAudio();
+  const a = arena();
   if (!a) return;
-  const t = a.ctx.currentTime;
-  playTone(a.ctx, a.out, t, { freq: 180, slideTo: 1200, dur: 0.38, type: "sawtooth", vol: 0.08, filterHz: 2600 });
-  playNoise(a.ctx, a.out, t, 0, 0.42, 0.08, "bandpass", 600, 4200);
-  playTone(a.ctx, a.out, t, { freq: 140, slideTo: 32, start: 0.36, dur: 0.5, type: "sine", vol: 0.46, attack: 0.002 });
-  playNoise(a.ctx, a.out, t, 0.36, 0.35, 0.18, "lowpass", 3000, 200);
+  const { ctx, out, wet, t } = a;
+  playTone(ctx, out, t, { freq: 140, slideTo: 1400, dur: 0.38, type: "sawtooth", vol: 0.07, attack: 0.2, filterHz: 3200 });
+  playTone(ctx, out, t, { freq: 147, slideTo: 1480, dur: 0.38, type: "square", vol: 0.03, attack: 0.2, filterHz: 2400 });
+  playNoise(ctx, out, t, 0, 0.4, 0.1, "bandpass", 500, 6000);
+  for (let i = 0; i < 6; i++) playNoise(ctx, out, t, 0.04 + i * 0.055, 0.02, 0.09, "highpass", 3000, 7000); // electric crackle
+  impact(ctx, out, wet, t, 1.3, 0.38);
+  crash(ctx, out, wet, t, 0.38, 0.1, 1.2);
+  playNoise(ctx, out, t, 0.38, 0.7, 0.14, "bandpass", 3000, 200); // blast roar
+}
+
+/** Ranked victory: timpani roll into a soaring brass fanfare. */
+export function playVictory(): void {
+  const a = arena();
+  if (!a) return;
+  const { ctx, out, wet, t } = a;
+  for (let i = 0; i < 8; i++) taiko(ctx, out, t, i * 0.045, 0.12 + i * 0.02, 0.9);
+  impact(ctx, out, wet, t, 0.8, 0.38);
+  crash(ctx, out, wet, t, 0.38, 0.1, 2);
+  const line: [number, number, number][] = [[246.94, 0.38, 0.16], [329.63, 0.54, 0.16], [415.3, 0.7, 0.16], [493.88, 0.86, 0.9]];
+  for (const [f, at, d] of line) {
+    brass(ctx, out, t, [f, f / 2], at, d, 0.05, 2600, 0.015);
+    playTone(ctx, wet, t, { freq: f * 2, start: at, dur: d, type: "triangle", vol: 0.05 });
+  }
+  brass(ctx, out, t, [164.81, 246.94, 329.63, 415.3], 0.86, 1.1, 0.03, 2200, 0.05); // E major bed
+  playTone(ctx, wet, t, { freq: 987.77, start: 0.86, dur: 1.2, type: "sine", vol: 0.05 });
+}
+
+/** Ranked defeat: a heavy toll and a sinking minor brass line. */
+export function playDefeat(): void {
+  const a = arena();
+  if (!a) return;
+  const { ctx, out, wet, t } = a;
+  metal(ctx, wet, t, 196, 0, 2.2, 0.1, [1, 1.48, 2.02, 2.74]);
+  taiko(ctx, out, t, 0, 0.42, 0.8);
+  const line: [number, number][] = [[329.63, 0.3], [311.13, 0.62], [293.66, 0.94], [246.94, 1.26]];
+  for (const [f, at] of line) brass(ctx, out, t, [f, f / 2], at, 0.5, 0.04, 1500, 0.04);
+  brass(ctx, out, t, [82.41, 123.47, 164.81, 196], 1.26, 1.4, 0.03, 900, 0.1);
+}
+
+/* ---------- Ranked battle music ---------- */
+
+interface BattleMusic { ctx: AudioContext; bus: GainNode; tone: BiquadFilterNode; intensity: number }
+let battleMusic: BattleMusic | null = null;
+const MUSIC_LEVEL = 0.24;
+
+// E minor, four bars: Em – C – D – B (the B major turn makes it feel like a duel).
+const MUSIC_ROOTS = [82.41, 65.41, 73.42, 61.74];
+const MUSIC_CHORDS = [
+  [329.63, 392, 493.88],
+  [261.63, 329.63, 392],
+  [293.66, 369.99, 440],
+  [246.94, 311.13, 369.99],
+];
+// The lead hook (semitones from E5, null = rest) over the second half of each 8-bar phrase.
+const E5 = 659.25;
+const HOOK: (number | null)[][] = [
+  [0, null, -5, null, 0, 2, 3, null, 2, null, 0, null, -2, null, -5, null],
+  [-4, null, -4, -2, 0, null, -2, null, -4, null, -5, null, -4, null, null, null],
+  [-2, null, -2, 0, 2, null, 3, null, 5, null, 3, 2, 0, null, -2, null],
+  [-1, null, null, -1, 0, null, 2, null, 3, null, 2, null, -1, null, null, null],
+];
+const semis = (n: number) => E5 * Math.pow(2, n / 12);
+
+function musicStep(m: BattleMusic, step: number, t: number, len: number) {
+  const { ctx, bus, intensity } = m;
+  const s = step % 16, bar = Math.floor(step / 16) % 4, phrase = Math.floor(step / 64) % 2;
+  const root = MUSIC_ROOTS[bar], chord = MUSIC_CHORDS[bar];
+  const hot = intensity > 0;
+  // Drums: taiko-style kick pattern, snare backbeat, driving hats.
+  const kicks = hot ? [0, 3, 4, 6, 8, 11, 12, 14] : [0, 6, 8, 10];
+  if (kicks.includes(s)) {
+    playTone(ctx, bus, t, { freq: 150, slideTo: 44, dur: 0.2, type: "sine", vol: 0.55, attack: 0.002 });
+    playTone(ctx, bus, t, { freq: 900, slideTo: 120, dur: 0.02, type: "square", vol: 0.05, attack: 0.001 });
+  }
+  if (s === 4 || s === 12) {
+    playNoise(ctx, bus, t, 0, 0.16, 0.22, "bandpass", 2000, 900);
+    playTone(ctx, bus, t, { freq: 220, slideTo: 150, dur: 0.09, type: "triangle", vol: 0.16, attack: 0.001 });
+  }
+  if (hot || s % 2 === 0) playNoise(ctx, bus, t, 0, s % 4 === 2 ? 0.06 : 0.025, s % 4 === 2 ? 0.05 : 0.03, "highpass", 7600);
+  // Tom fill to close every loop.
+  if (bar === 3 && s >= 12) playTone(ctx, bus, t, { freq: 180 - (s - 12) * 26, slideTo: 70, dur: 0.16, type: "sine", vol: 0.3, attack: 0.002 });
+  if (step % 64 === 0) playNoise(ctx, bus, t, 0, 1.1, hot ? 0.08 : 0.05, "highpass", 5600, 3400);
+  // Galloping bass ostinato: root-root-root-octave.
+  const bassHits = [0, 2, 3, 4, 6, 8, 10, 11, 12, 14];
+  if (bassHits.includes(s)) {
+    const octave = s === 4 || s === 12 || (hot && s % 4 === 2);
+    playTone(ctx, bus, t, { freq: root * (octave ? 2 : 1), dur: len * 1.7, type: "sawtooth", vol: 0.13, attack: 0.004, filterHz: hot ? 1100 : 700 });
+    if (s === 0 || s === 8) playTone(ctx, bus, t, { freq: root / 2, dur: len * 6, type: "sine", vol: 0.2, attack: 0.01 });
+  }
+  // Syncopated brass stabs.
+  const stabs: Record<number, number> = { 0: 3, 3: 1.2, 6: 1.2, 10: 2, 13: 1.2 };
+  if (stabs[s]) brass(ctx, bus, t, chord, 0, len * stabs[s], 0.022, hot ? 2800 : 2000, 0.006);
+  // 16th-note arpeggio sparkle up top.
+  const arp = [0, 1, 2, 1, 0, 2, 1, 2];
+  if (hot || phrase === 0 || s % 2 === 0) playTone(ctx, bus, t, { freq: chord[arp[s % 8]] * 2, dur: len * 0.8, type: "square", vol: hot ? 0.022 : 0.014, attack: 0.002, filterHz: 3400 });
+  // Lead hook on the second phrase; a tremolo string line during a Showdown.
+  if (phrase === 1) {
+    const note = HOOK[bar][s];
+    if (note !== null) {
+      playTone(ctx, bus, t, { freq: semis(note), dur: len * 1.9, type: "sawtooth", vol: 0.04, attack: 0.01, filterHz: 3000, detune: -6 });
+      playTone(ctx, bus, t, { freq: semis(note), dur: len * 1.9, type: "square", vol: 0.02, attack: 0.01, filterHz: 2400, detune: 6 });
+    }
+  }
+  if (hot) playTone(ctx, bus, t, { freq: chord[s % 2 ? 2 : 0] * 2, dur: len * 0.9, type: "sawtooth", vol: 0.016, attack: 0.004, filterHz: 4000 });
+}
+
+/**
+ * Starts the looping ranked fight theme (procedural, 144 BPM). Returns a stop function that fades it out.
+ * The theme runs on its own bus under the master volume, so muting silences it too.
+ */
+export function startBattleMusic(): () => void {
+  const a = getAudio();
+  if (!a) return () => undefined;
+  const { ctx, out } = a;
+  battleMusic?.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.1);
+  const bus = ctx.createGain();
+  bus.gain.setValueAtTime(0.0001, ctx.currentTime);
+  bus.gain.exponentialRampToValueAtTime(MUSIC_LEVEL, ctx.currentTime + 1.4);
+  const tone = ctx.createBiquadFilter();
+  tone.type = "lowpass";
+  tone.frequency.value = 5200;
+  bus.connect(tone);
+  tone.connect(out);
+  const music: BattleMusic = { ctx, bus, tone, intensity: 0 };
+  battleMusic = music;
+
+  const len = 60 / 144 / 4;
+  let next = ctx.currentTime + 0.08, step = 0, stopped = false;
+  const timer = window.setInterval(() => {
+    if (stopped || ctx.state === "closed") return;
+    if (next < ctx.currentTime) next = ctx.currentTime + 0.02;
+    while (next < ctx.currentTime + 0.16) {
+      musicStep(music, step, next, len);
+      next += len;
+      step++;
+    }
+  }, 25);
+
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    window.clearInterval(timer);
+    const now = ctx.currentTime;
+    bus.gain.cancelScheduledValues(now);
+    bus.gain.setTargetAtTime(0.0001, now, 0.35);
+    window.setTimeout(() => bus.disconnect(), 2500);
+    if (battleMusic === music) battleMusic = null;
+  };
+}
+
+/** 0 = normal fight, 1 = Showdown (double-time drums, open filter, tremolo strings). */
+export function setBattleMusicIntensity(level: 0 | 1): void {
+  const m = battleMusic;
+  if (!m || m.intensity === level) return;
+  m.intensity = level;
+  m.tone.frequency.setTargetAtTime(level ? 9000 : 5200, m.ctx.currentTime, 0.4);
+}
+
+/** Briefly dips the music so a big moment (KO, Showdown stinger) cuts through. */
+export function duckBattleMusic(seconds = 1.4): void {
+  const m = battleMusic;
+  if (!m) return;
+  const now = m.ctx.currentTime;
+  m.bus.gain.cancelScheduledValues(now);
+  m.bus.gain.setTargetAtTime(MUSIC_LEVEL * 0.3, now, 0.05);
+  m.bus.gain.setTargetAtTime(MUSIC_LEVEL, now + seconds, 0.3);
 }
 
 /** Matchmaking search: a soft sonar ping with a faint echo. */

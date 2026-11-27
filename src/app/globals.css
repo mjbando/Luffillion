@@ -340,6 +340,19 @@
   0%, 100% { filter: drop-shadow(0 0 3px #fb7185) drop-shadow(0 0 8px #fbbf2466); }
   50% { filter: drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 14px #a78bfa99); transform: translateY(-2px); }
 }
+/* Gear 6 (creator 1/1): flip through the flame frames and pulse a gold-and-crimson glow. */
+.creator-frame { opacity: 0; animation-name: creator-frame; animation-timing-function: steps(1, end); animation-iteration-count: infinite; }
+@keyframes creator-frame { 0%, 24.9% { opacity: 1; } 25%, 100% { opacity: 0; } }
+.portrait-creator:not(.brightness-0) { animation: portrait-creator 1.6s ease-in-out infinite; }
+@keyframes portrait-creator {
+  0%, 100% { filter: drop-shadow(0 0 3px #ffb627) drop-shadow(0 0 9px #ff2d5566); }
+  50% { filter: drop-shadow(0 0 6px #fff1a8) drop-shadow(0 0 16px #ff2d55aa); transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .portrait-creator { animation: none !important; }
+  .creator-frame { animation: none !important; }
+  .creator-frame:first-child { opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) { .portrait-legendary, .portrait-mythic, .chest-card-mythic, .chest-card-mythic .chest-stage::before { animation: none !important; } }
 
 /* Square buttons under the hamburger. */

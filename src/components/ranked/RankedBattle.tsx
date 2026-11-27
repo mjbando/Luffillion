@@ -14,8 +14,8 @@ import {
 } from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPlayerCard, RankedRoundPick } from "@/lib/ranked-types";
 import {
-  playAchievement, playBeam, playClash, playClick, playFight, playHit, playKO, playPull, playSetSail, playShowdown, playSuggest,
-  playTick, playWrong,
+  duckBattleMusic, playBeam, playClash, playClick, playDefeat, playFight, playHit, playKO, playLunge, playPull, playSetSail,
+  playShowdown, playSuggest, playTick, playVictory, playWrong, setBattleMusicIntensity, startBattleMusic,
 } from "@/lib/sound";
 
 const RANKED_TIER_COLORS: Record<Tier, string> = {
@@ -246,10 +246,11 @@ export default function RankedBattle({
     const youDown = (reveal.loser === "you" || reveal.loser === "both") && match.you.lives === 0;
     const oppDown = (reveal.loser === "opponent" || reveal.loser === "both") && match.opponent.lives === 0;
     const beam = reveal.showdown && (reveal.loser === "you" || reveal.loser === "opponent");
-    if (beam) playBeam();
+    if (beam) { playBeam(); duckBattleMusic(1.2); }
+    else playLunge();
     const id = setTimeout(() => {
       if (!reveal.loser) playClash();
-      else if (youDown || oppDown) playKO();
+      else if (youDown || oppDown) { duckBattleMusic(3); playKO(); }
       else if (!beam) playHit(reveal.loser !== "you");
     }, beam ? 380 : 320);
     return () => clearTimeout(id);
@@ -260,16 +261,30 @@ export default function RankedBattle({
   useEffect(() => {
     if (!announcingShowdown || !round || showdownSoundRef.current === round.roundNumber) return;
     showdownSoundRef.current = round.roundNumber;
+    duckBattleMusic(1.6);
     playShowdown();
   }, [announcingShowdown, round]);
+
+  // Fight music: starts when round 1 goes live and plays until the match ends (restarts after unmuting).
+  const fighting = match.status === "active" && Boolean(round) && phase !== "intro";
+  useEffect(() => {
+    if (!fighting || muted) return;
+    return startBattleMusic();
+  }, [fighting, muted]);
+  // Showdown rounds kick the theme into a higher gear.
+  const showdownMusic = fighting && Boolean(round?.showdown);
+  useEffect(() => {
+    setBattleMusicIntensity(showdownMusic ? 1 : 0);
+  }, [showdownMusic]);
 
   // Victory fanfare after the dust settles.
   useEffect(() => {
     if (match.status !== "finished" || !match.result) return;
     if (finishedSoundRef.current === match.id) return;
     finishedSoundRef.current = match.id;
-    if (match.result.outcome === "win") {
-      const id = setTimeout(playAchievement, 900);
+    const outcome = match.result.outcome;
+    if (outcome === "win" || outcome === "loss") {
+      const id = setTimeout(outcome === "win" ? playVictory : playDefeat, 900);
       return () => clearTimeout(id);
     }
   }, [match.status, match.id, match.result]);

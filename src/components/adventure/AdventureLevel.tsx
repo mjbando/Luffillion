@@ -15,7 +15,7 @@ function Runner({characterId,moving}:{characterId:CharacterId;moving:boolean}){
   useEffect(()=>{if(!moving)return;const id=setInterval(()=>setTime(t=>t+110),110);return()=>clearInterval(id);},[moving]);
   const sprite=portraitSprite(characterId,moving,time);
   const k=sprite.scale??1,box=32*k;
-  return <svg viewBox={`0 0 ${box} ${box}`} width="100" height="100" shapeRendering="crispEdges" aria-hidden="true" overflow="visible">{sprite.rows.flatMap((row,y)=>[...row].map((p,x)=>sprite.palette[p]?<rect key={`${x}:${y}`} x={Math.floor((box-sprite.width)/2)+x} y={box-k-sprite.height+y} width={1} height={1} fill={sprite.palette[p]}/>:null))}</svg>;
+  return <svg viewBox={`0 0 ${box} ${box}`} width="100" height="100" shapeRendering="crispEdges" aria-hidden="true" overflow="visible">{sprite.rows.flatMap((row,y)=>[...row].map((p,x)=>sprite.palette[p]?<rect key={`${x}:${y}`} x={Math.floor((box-sprite.width)/2)+x} y={box-k-sprite.height+(sprite.bleed??0)+y} width={1} height={1} fill={sprite.palette[p]}/>:null))}</svg>;
 }
 
 export default function AdventureLevel({data,busy,error,muted,onMute,onMap,onAction,onSelect}:{

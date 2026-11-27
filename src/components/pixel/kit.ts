@@ -6,6 +6,8 @@ export interface RunnerSprite {
   goldHat: { x: number; y: number };
   /** Sprite pixels per world pixel (2 = high-detail art). Defaults to 1. */
   scale?: number;
+  /** Glow pixels on each side that may spill past the portrait frame (so huge auras don't shrink the character). */
+  bleed?: number;
 }
 
 export type Pose = -1 | 0 | 1;

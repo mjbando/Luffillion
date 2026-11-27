@@ -245,8 +245,11 @@ const EFFECT_EXTRAS = new Set(["spark", "smoke", "fire", "legfire", "clouds", "r
 export function buildFigure(id: ChestCharacterId, pose: Pose, slim = false, bodyOnly = false) {
   const look = CHEST_LOOKS[id];
   const character = chestCharacterById(id)!;
-  const rarity: ChestCharacterRarity = character.rarity;
-  const accent = look.fx ?? character.color;
+  return { ...figureFromLook(look, look.fx ?? character.color, pose, slim, bodyOnly), rarity: character.rarity as ChestCharacterRarity };
+}
+
+/** Builds a figure straight from a look (used by one-off art such as the creator's Gear 6). */
+export function figureFromLook(look: Look, accent: string, pose: Pose, slim = false, bodyOnly = false) {
   const f = drawSpecial(look, pose) ?? drawBody(look, pose, slim);
   if (!look.special) {
     drawHair(f, look.hs, look.h);
@@ -261,7 +264,7 @@ export function buildFigure(id: ChestCharacterId, pose: Pose, slim = false, body
       p.under(tx - 2, ty, 3, g.legY + HEAD - ty + 3, look.coat).under(tx + tw - 1, ty, 3, g.legY + HEAD - ty + 3, look.coat);
     }
   }
-  return { f, look, rarity, accent };
+  return { f, look, accent };
 }
 
 function drawChest(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {

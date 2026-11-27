@@ -8,8 +8,9 @@ import { Pixels, ink, white, gold, silver, shade, type Pose, type RunnerSprite }
 // outlines, proper eyes and mouths, and a hand-written detail pass for every character
 // (scars, tattoos, emblems, trims, jewellery, weapons and power effects).
 
-const S = 2;
-const GOLD_D = "#9a6a1c", GOLD_L = "#fff0b0", BLOOD = "#c42a3a", HAKI_RED = "#ff2d55", HAKI_BLACK = "#160d22", SHIRT = "#f4f6fa";
+export const S = 2;
+export const HAKI_RED = "#ff2d55", HAKI_BLACK = "#160d22";
+const GOLD_D = "#9a6a1c", GOLD_L = "#fff0b0", BLOOD = "#c42a3a", SHIRT = "#f4f6fa";
 
 type Px = [number, number];
 
@@ -22,7 +23,7 @@ function lum(hex: string) {
   return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
 }
 
-function upscale(src: Pixels) {
+export function upscale(src: Pixels) {
   const q = new Pixels(src.width * S, src.height * S);
   for (let y = 0; y < src.height; y++) for (let x = 0; x < src.width; x++) {
     const k = src.cells[y][x];
@@ -32,7 +33,7 @@ function upscale(src: Pixels) {
 }
 
 /** Light from the top-left: a highlight along top edges and a shadow along bottom/right edges. */
-function autoShade(p: Pixels) {
+export function autoShade(p: Pixels) {
   const edits: [number, number, string][] = [];
   for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
     const c = colorAt(p, x, y);
@@ -45,7 +46,7 @@ function autoShade(p: Pixels) {
 }
 
 /** Selective outlining: inner outline pixels take a deep shade of the colour they border. */
-function selOut(p: Pixels) {
+export function selOut(p: Pixels) {
   const edits: [number, number, string][] = [];
   for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
     if (colorAt(p, x, y) !== ink) continue;
@@ -64,7 +65,7 @@ function selOut(p: Pixels) {
 type EyeStyle = "stern" | "glare" | "happy" | "ring" | "nika" | "hawk" | "closedLeft" | "shadow" | "none";
 type MouthStyle = "line" | "smile" | "smirk" | "grin" | "gapGrin" | "fangs" | "laugh" | "open" | "none";
 
-class Detail {
+export class Detail {
   readonly hx: number; readonly hy: number; readonly hw: number; readonly hh: number; readonly cx: number;
   readonly tx: number; readonly ty: number; readonly tw: number; readonly th: number; readonly tc: number;
   readonly lx: number; readonly rx: number; readonly lhy: number; readonly rhy: number; readonly aw: number;

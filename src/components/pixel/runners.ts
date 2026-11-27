@@ -7,6 +7,7 @@ import type { RunnerSprite } from "./kit";
 import { Pixels, feet, human, ink, skin, skinShade, cream, white, silver, gold, type Pose } from "./kit";
 import { chestSprite } from "./generated";
 import { mythicHdSprite } from "./mythic-hd";
+import { gear6IdleSprite, gear6StrideSprite } from "./creator-hd";
 
 function katana(p: Pixels, x: number, y: number, grip: string, long = 12) {
   p.r(x, y, 2, long, ink).r(x, y + 1, 1, long - 5, silver).r(x - 2, y + long - 4, 5, 1, gold).r(x, y + long - 3, 2, 4, grip);
@@ -142,7 +143,9 @@ function drawRecruit(id: Exclude<AchievementCharacterId, "luffy">, pose: Pose): 
       p.r(7, 12, 6, 2, "#30263b").r(9, 12, 2, 6, gold).r(7, 16, 6, 2, "#a93649");
       p.r(2, 7, 2, 2, gold).r(1, 9, 2, 2, cream).r(16, 7, 2, 2, gold).r(17, 9, 2, 2, cream);
       p.r(3, 2, 1, 2, "#e9b84e").r(16, 2, 1, 2, "#e9b84e");
-      return p.finish(2, 1);
+      // The creator's one-of-one burns brighter than any mythic: a gold core with a crimson flame halo.
+      const pad = p.aura("#ffd34d", "#ff3b4e", 2);
+      return p.finish(2 + pad, 1 + pad);
     }
     case "jinbe": {
       p = new Pixels(24, 27);
@@ -202,6 +205,8 @@ export function runnerSprite(characterId: CharacterId, running = false, time = 0
 
 /** Sprite for SVG portraits: mythic chest recruits use their high-detail (2×) art. */
 export function portraitSprite(characterId: CharacterId, running = false, time = 0): RunnerSprite {
+  if (characterId === "gear-6")
+    return running ? gear6StrideSprite(Math.floor(time / 110) % 2 === 1) : gear6IdleSprite(Math.floor(time / 160));
   if (isChestCharacterId(characterId) && chestCharacterById(characterId)?.rarity === "mythic")
     return mythicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   return runnerSprite(characterId, running, time);
