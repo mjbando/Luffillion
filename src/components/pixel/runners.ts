@@ -7,6 +7,7 @@ import type { RunnerSprite } from "./kit";
 import { Pixels, feet, human, ink, skin, skinShade, cream, white, silver, gold, type Pose } from "./kit";
 import { chestSprite } from "./generated";
 import { mythicHdSprite } from "./mythic-hd";
+import { isLegendaryArt, legendaryHdSprite } from "./legendary-hd";
 import { gear6IdleSprite, gear6StrideSprite } from "./creator-hd";
 
 function katana(p: Pixels, x: number, y: number, grip: string, long = 12) {
@@ -203,11 +204,13 @@ export function runnerSprite(characterId: CharacterId, running = false, time = 0
   return running ? Math.floor(time / 110) % 2 === 0 ? sprites.left : sprites.right : sprites.idle;
 }
 
-/** Sprite for SVG portraits: mythic chest recruits use their high-detail (2×) art. */
+/** Sprite for SVG portraits: mythic and legendary recruits use their high-detail (2×) art. */
 export function portraitSprite(characterId: CharacterId, running = false, time = 0): RunnerSprite {
   if (characterId === "gear-6")
     return running ? gear6StrideSprite(Math.floor(time / 110) % 2 === 1) : gear6IdleSprite();
   if (isChestCharacterId(characterId) && chestCharacterById(characterId)?.rarity === "mythic")
     return mythicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
+  if (isLegendaryArt(characterId))
+    return legendaryHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   return runnerSprite(characterId, running, time);
 }

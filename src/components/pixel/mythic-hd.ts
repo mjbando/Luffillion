@@ -10,9 +10,10 @@ import { Pixels, ink, white, gold, silver, shade, type Pose, type RunnerSprite }
 
 export const S = 2;
 export const HAKI_RED = "#ff2d55", HAKI_BLACK = "#160d22";
-const GOLD_D = "#9a6a1c", GOLD_L = "#fff0b0", BLOOD = "#c42a3a", SHIRT = "#f4f6fa";
+export const GOLD_D = "#9a6a1c", GOLD_L = "#fff0b0", SHIRT = "#f4f6fa";
+const BLOOD = "#c42a3a";
 
-type Px = [number, number];
+export type Px = [number, number];
 
 function colorAt(p: Pixels, x: number, y: number): string | null {
   return x >= 0 && y >= 0 && x < p.width && y < p.height && p.cells[y][x] !== "." ? p.palette[p.cells[y][x]] : null;
@@ -62,8 +63,8 @@ export function selOut(p: Pixels) {
   for (const [x, y, c] of edits) p.r(x, y, 1, 1, c);
 }
 
-type EyeStyle = "stern" | "glare" | "happy" | "ring" | "nika" | "hawk" | "closedLeft" | "shadow" | "none";
-type MouthStyle = "line" | "smile" | "smirk" | "grin" | "gapGrin" | "fangs" | "laugh" | "open" | "none";
+export type EyeStyle = "stern" | "glare" | "happy" | "ring" | "nika" | "hawk" | "closedLeft" | "shadow" | "none";
+export type MouthStyle = "line" | "smile" | "smirk" | "grin" | "gapGrin" | "fangs" | "laugh" | "open" | "none";
 
 export class Detail {
   readonly hx: number; readonly hy: number; readonly hw: number; readonly hh: number; readonly cx: number;
@@ -288,7 +289,7 @@ export class Detail {
   }
 }
 
-type Painter = (d: Detail) => void;
+export type Painter = (d: Detail) => void;
 
 /** Extra transparent canvas (HD pixels per side) for characters whose gear reaches past the body. */
 const MARGIN: Partial<Record<ChestCharacterId, number>> = {
@@ -375,7 +376,7 @@ const FUR = "#1a1620", FUR_L = "#3a3442";
 
 /** Rocks D. Xebec: towering blue hair streaked black, a manic toothy grin, a cracked scar, braided whiskers and a black fur coat. */
 /** Draws a free-form shape (hair, beard, moustache) as body pixels with an ink outline. */
-function blob(d: Detail, cells: Map<string, string>, front: (x: number, y: number) => boolean = () => true) {
+export function blob(d: Detail, cells: Map<string, string>, front: (x: number, y: number) => boolean = () => true) {
   d.asBody(() => {
     for (const [key, c] of cells) { const [x, y] = key.split(",").map(Number); if (front(x, y)) d.r(x, y, 1, 1, c); else d.u(x, y, 1, 1, c); }
     for (const key of cells.keys()) {
@@ -558,7 +559,7 @@ function garling(d: Detail) {
 // ---------- Upgraded heroes (modelled on the user's reference art) ----------
 
 /** A thick curved stroke: samples a parametric curve and stamps a tapering width. */
-function stroke(cells: Map<string, string>, n: number, at: (t: number) => [number, number], width: (t: number) => number, color: (t: number, j: number, w: number) => string) {
+export function stroke(cells: Map<string, string>, n: number, at: (t: number) => [number, number], width: (t: number) => number, color: (t: number, j: number, w: number) => string) {
   for (let i = 0; i <= n; i++) {
     const t = i / n, [x, y] = at(t), w = Math.max(1, Math.round(width(t)));
     for (let j = 0; j < w; j++) cells.set(`${Math.round(x)},${Math.round(y) - j}`, color(t, j, w));
@@ -566,12 +567,12 @@ function stroke(cells: Map<string, string>, n: number, at: (t: number) => [numbe
   return cells;
 }
 /** Two-tone gold fringe hanging from an epaulette. */
-function fringe(d: Detail, x: number, y: number, w: number, c = gold) {
+export function fringe(d: Detail, x: number, y: number, w: number, c = gold) {
   for (let i = 0; i < w; i += 2) d.r(x + i, y, 1, 3 + (i % 4 === 0 ? 1 : 0), i % 4 === 0 ? c : shade(c, -0.2));
   return d;
 }
 /** A small four-point haki crack / shatter star in the air. */
-function shatter(d: Detail, x: number, y: number, r: number, c: string, glow: string) {
+export function shatter(d: Detail, x: number, y: number, r: number, c: string, glow: string) {
   for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) for (let k = 1; k <= (dx && dy ? r - 1 : r); k++) d.u(x + dx * k + (k > 2 && dy === 0 ? (k % 2) : 0), y + dy * k, 1, 1, k === 1 ? glow : c);
   return d.u(x, y, 1, 1, white);
 }
@@ -1106,7 +1107,7 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
  * a bright core ring, a saturated ring, a soft haze, flickering flame licks rising off
  * the shoulders and head. `frame` animates the flames.
  */
-function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, pad = 5) {
+export function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, pad = 5, legendary = false) {
   const w = p.width + pad * 2, h = p.height + pad * 2;
   p.cells = Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => p.cells[y - pad]?.[x - pad] ?? "."));
   p.width = w; p.height = h;
@@ -1129,13 +1130,24 @@ function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, 
   let edge: Px[] = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
     if (outside[y][x] && N4.some(([dx, dy]) => isBody(x + dx, y + dy))) { ring[y][x] = 1; edge.push([x, y]); }
-  for (let r = 2; r <= 4; r++) {
+  for (let r = 2; r <= (legendary ? 3 : 4); r++) {
     const next: Px[] = [];
     for (const [x, y] of edge) for (const [dx, dy] of N8) {
       const nx = x + dx, ny = y + dy;
       if (outside[ny]?.[nx] && !ring[ny][nx] && !isBody(nx, ny)) { ring[ny][nx] = r; next.push([nx, ny]); }
     }
     edge = next;
+  }
+  if (legendary) {
+    // Legendary glow: a bright core line, a soft ring and a faint dotted haze. No flames.
+    const lCore = p.key(shade(accent, 0.42)), lMid = p.key(`${shade(accent, 0.12)}9a`), lHaze = p.key(`${accent}44`);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const r = ring[y][x];
+      if (r === 1) p.cells[y][x] = lCore;
+      else if (r === 2) p.cells[y][x] = lMid;
+      else if (r === 3 && (x + y) % 2 === 0) p.cells[y][x] = lHaze;
+    }
+    return pad;
   }
   const hash = (x: number, y: number) => (((x * 73856093) ^ (y * 19349663) ^ ((frame + 1) * 83492791)) >>> 0);
   const core = p.key(shade(accent, 0.5)), mid = p.key(`${shade(accent, 0.1)}c8`), haze = p.key(`${accent}66`), mist = p.key(`${accent}30`);
@@ -1163,31 +1175,46 @@ function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, 
   return pad;
 }
 
-function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {
-  const { f, look, accent } = buildFigure(id, pose, true);
+type Figure = ReturnType<typeof buildFigure>;
+export interface HdOptions {
+  /** Transparent HD pixels added on each side for gear that reaches past the body. */
+  margin?: number;
+  /** Skip light/shadow shading (silhouettes). */
+  flat?: boolean;
+  /** Paints the glow around the finished sprite; returns the padding it added. */
+  aura: (p: Pixels, body: boolean[][], accent: string, frame: number) => number;
+}
+
+/** Shared high-detail pipeline: double the low-res figure, shade it, run the painter, add the glow. */
+export function renderHd(fig: Pick<Figure, "f" | "look" | "accent">, bodyFig: Pick<Figure, "f">, paint: Painter | undefined, frame: number, pose: Pose, opts: HdOptions): RunnerSprite {
+  const { f, look, accent } = fig;
   // The aura follows the body alone: same figure without floating effects, doubled.
-  const body = upscale(buildFigure(id, pose, true, true).f.p).cells.map((row) => row.map((k) => k !== "."));
+  const body = upscale(bodyFig.f.p).cells.map((row) => row.map((k) => k !== "."));
   // Remember which low-res cells are face, so features stay on skin.
   const faceColors = new Set([f.sk, shade(f.sk, -0.2), shade(f.sk, -0.25)]);
   const mask = f.p.cells.map((row, y) => row.map((k, x) => k !== "." && (faceColors.has(f.p.palette[k]) ||
     (f.p.palette[k] === ink && x > f.hx && x < f.hx + f.hw - 1 && y > f.hy && y < f.hy + f.hh))));
-  const m = MARGIN[id] ?? 0;
+  const m = opts.margin ?? 0;
   const p = upscale(f.p);
   if (m) {
     p.cells = p.cells.map((row) => [...Array<string>(m).fill("."), ...row, ...Array<string>(m).fill(".")]);
     p.width += m * 2;
     for (let y = 0; y < body.length; y++) body[y] = [...Array<boolean>(m).fill(false), ...body[y], ...Array<boolean>(m).fill(false)];
   }
-  if (!FLAT.has(id)) autoShade(p);
+  if (!opts.flat) autoShade(p);
   selOut(p);
   const d = new Detail(p, f, look, accent, pose, mask, body, m);
-  const paint = PAINTERS[id];
   if (paint) paint(d); else d.eyes().mouth();
   const top = trimTop(p);
   body.splice(0, top);
-  const pad = shapeAura(p, body, accent, frame);
+  const pad = opts.aura(p, body, accent, frame);
   const sprite = p.finish(Math.max(0, d.hx - 6 + pad + 1), Math.max(0, d.hy - 6 - top + pad + 1));
   return { ...sprite, scale: S };
+}
+
+function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {
+  return renderHd(buildFigure(id, pose, true), buildFigure(id, pose, true, true), PAINTERS[id], frame, pose,
+    { margin: MARGIN[id], flat: FLAT.has(id), aura: (p, body, accent, fr) => shapeAura(p, body, accent, fr) });
 }
 
 const cache = new Map<ChestCharacterId, RunnerSprite[]>();

@@ -27,7 +27,7 @@ function CharacterPortrait({ characterId, size = 64, dim = false, className = ""
   dim?: boolean;
   className?: string;
 }) {
-  // The creator's Gear 6 is a still frame drawn as a single cached image (thousands of pixels as rects lag).
+  // High-detail art (Gear 6, mythics, legendaries) is drawn as a single cached image: thousands of pixels as rects lag.
   const creator = characterId === "gear-6";
   const sprite = portraitSprite(characterId);
   // Aura sprites (legendary/mythic) can be larger than 32px, so the view box grows to fit.
@@ -41,7 +41,7 @@ function CharacterPortrait({ characterId, size = 64, dim = false, className = ""
     overflow={bleed ? "visible" : undefined}
     className={`${className}${tier ? ` portrait-${tier}` : ""}`} data-portrait={characterId} data-tier={tier}>
     <g opacity={dim ? 0.5 : 1}>
-      {creator
+      {creator || k >= 2
         ? <image href={spriteDataUrl(sprite)} x={left} y={top} width={sprite.width} height={sprite.height} style={{ imageRendering: "pixelated" }} />
         : runs(sprite.rows, sprite.palette).map(([x, y, w, fill]) =>
           <rect key={`${x}:${y}`} x={left + x} y={top + y} width={w} height={1} fill={fill} />)}
