@@ -2,13 +2,13 @@
 // Every single day has 7 unique original One Piece questions (217 distinct questions, zero repeats).
 export const DAILY_SCHEDULE: Record<string, string[]> = {
   "2026-11-26": ["q-arc-zou","arcs","q-luffy-forms","q-revolutionary","q-d-clan","q-animal-fruit","doctors"],
-  "2026-11-27": ["q-arc-alabasta","locations","techniques","minks","q-glasses-goggles","q-ancient-zoan-fruit","q-emperor-crews"],
+  "2026-11-27": ["q-arc-alabasta","locations","techniques","minks","q-glasses-goggles","q-warlords-former-current","q-emperor-crews"],
   "2026-11-28": ["q-arc-enies-lobby","q-east-blue-loc","swords","q-supernova-crews-allies","q-fought-commander","q-armament","q-arc-fishman"],
   "2026-11-29": ["q-arc-drum-island","q-one-piece-movies","q-ancient-weapons","q-cross-guild","q-former-warlord-bounty","q-substance-fruits","donquixote-family"],
   "2026-11-30": ["q-arc-wci","q-villain-fight-loc","q-seastone-item","q-blackbeard-pirates","q-admirals","q-paramecia-user","q-tattoos"],
   "2026-12-01": ["q-alabasta-combatants","q-destroyed-loc","q-haki-rokushiki-list","q-cp","q-bounty-500m","devil-fruits","q-pirate-captains"],
   "2026-12-02": ["q-arc-elbaph","q-alabasta-saga-loc","q-sanji-moves","q-worst-generation","q-scarred","q-paramecia-fruits","q-sibling"],
-  "2026-12-03": ["q-arc-thriller-bark","q-visited-islands","q-supreme-blades","q-warlords","q-bounty-increased","q-fire","q-germa-66"],
+  "2026-12-03": ["q-arc-thriller-bark","q-visited-islands","q-supreme-blades","q-ancient-zoan-fruit","q-bounty-increased","q-fire","q-germa-66"],
   "2026-12-04": ["q-arc-marineford","q-cover-story-arcs","q-straw-hat-vehicles","q-baroque","q-east-blue-bounties","q-non-human-fruit-users","q-fought-yonko"],
   "2026-12-05": ["q-east-blue-characters","q-prison-loc","q-cursed-black-blades","celestial-dragons","q-animals-creatures","q-logia-user","q-switched-sides"],
   "2026-12-06": ["q-impel-down","q-water7-enies-locations","q-villain-moves","q-red-hair-pirates","q-female","q-ice","q-rocks-pirates"],
