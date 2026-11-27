@@ -198,7 +198,7 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   // ---------------- Mythic ----------------
   "prime-garp": { b: "big", h: "#2a2d3a", hs: "short", t: "#f2f2f2", l: "#3a5aa8", coat: "#f2f4f7", hand: HAKI, fx: "#e8f4ff", x: ["scar:#c08a7a", "spark:#ffffff", "bigfist:#2b2140"] },
   "prime-rayleigh": { h: "#f0e6c0", hs: "long", t: "#f2f2f2", l: "#3a3f52", coat: "#2f6a5a", fx: "#b7ffe9", x: ["glasses:#c8e0e8", "goatee:#f0e6c0", "spark:#b7ffe9"], w: "katana", wc: "#3a3f52" },
-  "rocks-d-xebec": { b: "giant", h: "#1e1e28", hs: "wild", t: "#3a1a2a", l: "#1e1e28", coat: "#5a1a2a", hat: "bicorne", hc: "#1e1e28", fx: "#ff4d6d", x: ["beard:#1e1e28", "grin", "fire:#ff4d6d"], w: "greatsword", wc: "#c0c8d4" },
+  "rocks-d-xebec": { b: "giant", sk: "#d9a072", h: "#3a78d0", hs: "wild", t: "#d9a072", l: "#1e1e28", coat: "#1a1620", fx: "#ff4d6d", x: ["grin", "scar:#c0282c", "fire:#ff4d6d"], w: "greatsword", wc: "#c0c8d4" },
   imu: { sk: "#2a1840", h: "#160c24", hs: "long", t: "#20122f", l: "#160c24", sh: "#160c24", hand: "#2a1840", coat: "#0f0818", hat: "crown", hc: "#c06bff", fx: "#d07bff", x: ["smoke:#5a2a8a", "spider:#3a1a5a"] },
   "joy-boy": { sk: SILHOUETTE, h: SILHOUETTE, hs: "flame", t: SILHOUETTE, l: SILHOUETTE, sh: SILHOUETTE, hand: SILHOUETTE, fx: "#fff3a6", x: ["grin"] },
   "saint-saturn": { b: "big", sk: "#e8dcf0", h: "#e8e8f0", hs: "bald", t: "#2a2d3a", l: "#2a2d3a", fx: "#c9b8ff", x: ["^bighorns:#4a3a6a", "spider:#5a4a7a", "beard:#e8e8f0"], w: "cane", wc: "#c0a060" },

@@ -327,8 +327,20 @@ function gear5(d: Detail) {
   // Ears in front of the hair.
   d.asBody(() => { for (const x of [hx - 3, hx + hw]) d.r(x, hy + 6, 3, 6, ink).r(x + 1, hy + 7, 1, 4, sk).r(x === hx - 3 ? x + 2 : x, hy + 7, 1, 4, shade(sk, -0.15)); });
   // Big round black eyes with a glint, and a little smile.
-  d.eyes("none").mouth("smile");
-  for (const x of [d.L, d.R]) d.f(x, d.ey - 1, 3, 3, ink).f(x, d.ey - 1, 1, 1, white);
+  // Gear 5 face: wide eyes with red-ringed pupils, cocky brows, the scar under his eye and a huge toothy grin.
+  d.eyes("none").mouth("none");
+  for (const [x, m] of [[d.L, false], [d.R, true]] as [number, boolean][]) {
+    d.f(x - 1, d.ey - 1, 5, 3, white).f(x, d.ey - 1, 3, 3, ink).f(x, d.ey - 1, 1, 1, white).f(x + 1, d.ey + 1, 1, 1, "#3a2a5a");
+    d.f(x - 1, d.ey - 4, 5, 1, ink).f(m ? x + 3 : x - 1, d.ey - 3, 1, 1, ink); // raised, cocky brows
+  }
+  d.f(d.R, d.ey + 3, 4, 1, "#b04a3a").f(d.R + 1, d.ey + 2, 1, 3, "#b04a3a").f(d.R + 3, d.ey + 2, 1, 3, "#b04a3a"); // stitched scar
+  const my = hy + 10;
+  // A huge laughing grin: curled-up corners, top teeth, red mouth and tongue.
+  d.r(cx - 7, my - 1, 1, 1, ink).r(cx + 6, my - 1, 1, 1, ink).r(cx - 6, my, 12, 1, ink)
+    .r(cx - 6, my + 1, 1, 1, ink).r(cx + 5, my + 1, 1, 1, ink).r(cx - 5, my + 1, 10, 1, white)
+    .r(cx - 5, my + 2, 1, 1, ink).r(cx + 4, my + 2, 1, 1, ink).r(cx - 4, my + 2, 8, 1, "#7a1424").r(cx - 2, my + 2, 4, 1, "#e0505e")
+    .r(cx - 4, my + 3, 8, 1, ink);
+  for (const x of [cx - 3, cx - 1, cx + 1, cx + 3]) d.d(x, my + 1, "#d0d4e0");
   // Open white vest over the bare chest with the X scar, a purple sash, white shorts and sandals.
   const { tc, ty, th, tx, tw } = d;
   d.r(tc - 3, ty + 2, 6, th - 9, sk).r(tc - 3, ty + 2, 1, th - 9, shade(sk, 0.2)).r(tc + 2, ty + 2, 1, th - 9, shade(sk, -0.18));
@@ -348,6 +360,88 @@ function gear5(d: Detail) {
   d.recolor("#ffffff", 0, d.legY, d.W, 6, (x, y) => (x + y) % 5 === 0 ? LAVENDER : null);
   // Shade the white clothes with lavender instead of grey, as in the anime.
   for (const [grey, lav] of [["#c2c2c2", LAVENDER], ["#737373", "#8f80cf"], ["#575757", "#6f60b0"]]) d.recolor(grey, 0, d.ty - 2, d.W, d.bottom, () => lav);
+}
+
+const ROCKS_BLUE = "#3a78d0", ROCKS_BLUE_L = "#8cc4ff", ROCKS_BLUE_D = "#24508f", ROCKS_STREAK = "#0e1424";
+const FUR = "#1a1620", FUR_L = "#3a3442";
+
+/** Rocks D. Xebec: towering blue hair streaked black, a manic toothy grin, a cracked scar, braided whiskers and a black fur coat. */
+function rocks(d: Detail) {
+  const { cx, hy, hx, hw, hh, sk, tx, tw, ty, tc } = d;
+  // --- Hair: tall flame-like tongues sweeping up and out, each with a highlight edge and a black streak.
+  d.clear(hx - 4, hy - 6, hw + 8, 6);
+  const tongues: [number, number, number, number, number][] = [ // base x, base y, width, height, lean
+    [hx - 2, hy + 10, 7, 9, -8], [hx + 1, hy + 4, 8, 12, -7], [cx - 6, hy + 2, 8, 16, -4], [cx - 1, hy + 1, 8, 19, 0],
+    [cx + 5, hy + 2, 8, 16, 4], [hx + hw - 2, hy + 4, 8, 12, 7], [hx + hw + 1, hy + 10, 7, 9, 8],
+  ];
+  const hair = new Map<string, string>();
+  tongues.forEach(([bx, by, w0, ht, lean], n) => {
+    for (let k = 0; k <= ht; k++) {
+      const t = k / ht, w = Math.max(1, Math.round(w0 * (1 - t))), x0 = bx + Math.round(lean * t * t) - (w >> 1);
+      for (let i = 0; i < w; i++) {
+        const streak = n % 2 === 1 && (i === (w >> 1) || (w > 5 && i === (w >> 1) + 1)) && k > 2 && t < 0.8;
+        hair.set(`${x0 + i},${by - k}`, streak ? ROCKS_STREAK : i === 0 ? ROCKS_BLUE_L : i === w - 1 && w > 2 ? ROCKS_BLUE_D : ROCKS_BLUE);
+      }
+    }
+  });
+  // A solid mass over the scalp, so the tongues grow out of one head of hair.
+  for (let y = hy - 2; y < hy + 3; y++) for (let x = hx - 1; x < hx + hw + 1; x++) if (!hair.has(`${x},${y}`)) hair.set(`${x},${y}`, y === hy - 2 ? ROCKS_BLUE_L : ROCKS_BLUE);
+  const fringe = (x: number) => hy + 3 + ((x - hx) % 4 === 1 ? 1 : 0);
+  const inHead = (x: number) => x >= hx && x < hx + hw;
+  d.asBody(() => {
+    for (const [key, c] of hair) {
+      const [x, y] = key.split(",").map(Number);
+      if (inHead(x) && y >= fringe(x) && y < d.ty) continue; // keep the face clear
+      if (inHead(x) || y < hy) d.r(x, y, 1, 1, c); else d.u(x, y, 1, 1, c);
+    }
+    for (const key of hair.keys()) {
+      const [x, y] = key.split(",").map(Number);
+      if (inHead(x) && y >= fringe(x)) continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!hair.has(`${x + dx},${y + dy}`)) d.u(x + dx, y + dy, 1, 1, ink);
+    }
+  });
+  // --- Face: crazed wide eyes under a heavy brow, a big nose, and the cracked red scar over his left eye.
+  d.wipeScar(["scar"]).eyes("none").mouth("none");
+  for (const [x, m] of [[d.L, false], [d.R, true]] as [number, boolean][]) {
+    d.f(x - 1, d.ey - 1, 5, 4, white).f(m ? x : x + 1, d.ey, 2, 2, ink).f(x - 1, d.ey + 3, 5, 1, shade(sk, -0.3));
+    d.f(x - 2, d.ey - 3, 7, 2, ROCKS_STREAK).f(m ? x - 2 : x + 4, d.ey - 1, 1, 1, ROCKS_STREAK); // furious brow
+  }
+  d.f(cx - 2, hy + 9, 4, 3, shade(sk, 0.15)).f(cx - 2, hy + 11, 4, 1, shade(sk, -0.35)).f(cx - 3, hy + 11, 1, 1, shade(sk, -0.35)).f(cx + 2, hy + 11, 1, 1, shade(sk, -0.35));
+  const scar = "#c0282c";
+  d.line(d.R + 5, hy + 2, d.R + 3, d.ey - 3, scar).line(d.R + 3, d.ey - 3, d.R + 4, d.ey - 1, scar).line(d.R + 4, d.ey - 1, d.R + 2, d.ey + 5, scar);
+  d.d(d.R + 6, hy + 4, scar).d(d.R + 1, d.ey + 2, scar);
+  // --- A huge open grin: top teeth, dark throat, tongue, bottom teeth.
+  const my = hy + 12;
+  d.r(cx - 7, my, 14, 6, ink).r(cx - 6, my + 1, 12, 2, white).r(cx - 5, my + 3, 10, 1, "#5a0c18").r(cx - 3, my + 3, 6, 1, "#d84a5a").r(cx - 6, my + 4, 12, 1, white);
+  for (const x of [cx - 4, cx - 2, cx, cx + 2, cx + 4]) d.d(x, my + 1, "#c8ccd8").d(x - 1, my + 4, "#c8ccd8");
+  d.r(cx - 8, my - 1, 2, 1, ink).r(cx + 6, my - 1, 2, 1, ink); // corners pulled up
+  // --- Bare, scarred chest under a black fur coat with a shaggy collar over the shoulders.
+  d.r(tc - 5, ty + 5, 4, 1, shade(sk, -0.25)).r(tc + 1, ty + 5, 4, 1, shade(sk, -0.25)).r(tc, ty + 3, 1, 6, shade(sk, -0.18));
+  d.line(tc - 6, ty + 9, tc - 2, ty + 13, "#9a5a40").line(tc + 5, ty + 8, tc + 2, ty + 12, "#9a5a40");
+  d.belt("#2a1418", gold);
+  d.asBody(() => {
+    // Shaggy fur mounds piled on each shoulder, rising behind the jaw.
+    for (const side of [-1, 1]) {
+      const ox = side < 0 ? tx : tx + tw, rx = 9, ry = 7;
+      for (let j = -ry; j <= 5; j++) for (let i = -rx; i <= rx; i++) {
+        const x = ox + i, y = ty + 1 + j;
+        if ((side < 0 ? x > tc - 5 : x < tc + 5)) continue;
+        const inside = j <= 0 ? (i * i) / (rx * rx) + (j * j) / (ry * ry) <= 1 : j < 3 + ((x >> 1) % 2) * 2;
+        if (!inside) continue;
+        const c = (x * 2 + y * 3) % 7 === 0 ? FUR_L : (x + y * 2) % 9 === 0 ? "#4e4458" : FUR;
+        if (y < ty) d.u(x, y, 1, 1, c); else d.r(x, y, 1, 1, c);
+      }
+    }
+    for (let y = ty + 6; y < d.legY + 4; y += 3) d.d(tx - 1, y, FUR_L).d(tx + tw, y + 1, FUR_L); // fur trim down the coat
+  });
+  // --- Black chin beard in jagged points, and long braided whiskers trailing down past it.
+  d.asBody(() => {
+    d.r(cx - 6, hy + hh + 1, 12, 2, ROCKS_STREAK);
+    for (const x of [cx - 6, cx - 2, cx + 2]) d.r(x, hy + hh + 3, 3, 1, ROCKS_STREAK).d(x + 1, hy + hh + 4, ROCKS_STREAK);
+    d.line(cx - 3, hy + 11, cx - 8, hy + 13, ROCKS_STREAK).line(cx - 8, hy + 13, cx - 10, hy + 22, ROCKS_STREAK).line(cx - 10, hy + 22, cx - 7, hy + 27, ROCKS_STREAK).d(cx - 6, hy + 26, ROCKS_STREAK);
+    d.line(cx + 2, hy + 11, cx + 7, hy + 13, ROCKS_STREAK).line(cx + 7, hy + 13, cx + 8, hy + 18, ROCKS_STREAK);
+    d.r(hx - 2, hy + 11, 2, 3, gold).d(hx - 2, hy + 12, GOLD_D).r(hx + hw, hy + 11, 2, 3, gold).d(hx + hw + 1, hy + 12, GOLD_D); // gold earrings
+  });
 }
 
 function joyBoy(d: Detail) {
@@ -419,16 +513,7 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
     d.trim("#2f6a5a", gold, d.ty).folds("#2f6a5a", d.legY);
     d.suit("#f4f6fa", undefined, "#d8dce6").buttons("#9aa4b8", 2, d.ty + 11);
   },
-  "rocks-d-xebec": (d) => {
-    d.eyes("glare", "#ff4d6d").mouth("grin");
-    // Skull and crossbones on the bicorne.
-    const sx = d.cx - 2, sy = d.hy - 6;
-    d.r(sx, sy, 4, 3, white).d(sx + 1, sy + 1, ink).d(sx + 2, sy + 1, ink).r(sx + 1, sy + 3, 2, 1, white).d(sx - 2, sy - 1, white).d(sx + 5, sy - 1, white).d(sx - 2, sy + 4, white).d(sx + 5, sy + 4, white);
-    d.trim("#5a1a2a", gold, d.ty).folds("#5a1a2a", d.legY);
-    d.asBody(() => d.r(d.hx - 2, d.hy + 12, 2, 2, gold).r(d.hx + d.hw, d.hy + 12, 2, 2, gold)); // gold hoops
-    d.belt("#2a1418", gold).buttons(gold, 2, d.ty + 4);
-    d.flame(d.lx - 3, d.lhy + 2, 9, ["#ffe680", "#ff9a3a", "#ff4d6d", "#7a1a3a"]).flame(d.rx + d.aw + 3, d.rhy + 2, 9, ["#ffe680", "#ff9a3a", "#ff4d6d", "#7a1a3a"]);
-  },
+  "rocks-d-xebec": rocks,
   imu: (d) => {
     d.eyes("ring").mouth("none");
     d.folds("#0f0818", d.ty + 6, 3).trim("#0f0818", "#6a3aa8", d.ty);
@@ -589,11 +674,12 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
 };
 
 /**
- * A glow that hugs the character's own silhouette: one bright ring and one soft ring
- * traced around the body mask only (floating effects and the crown don't distort it),
- * and never inside enclosed gaps such as between an arm and the body.
+ * A layered glow that hugs the character's own silhouette (floating effects and the crown
+ * don't distort it, and enclosed gaps stay clear):
+ * a bright core ring, a saturated ring, a soft haze, flickering flame licks rising off
+ * the shoulders and head, and a few twinkling sparkles. `frame` animates the flames.
  */
-function shapeAura(p: Pixels, body: boolean[][], inner: string, outer: string, pad = 2) {
+function shapeAura(p: Pixels, body: boolean[][], accent: string, frame: number, pad = 5) {
   const w = p.width + pad * 2, h = p.height + pad * 2;
   p.cells = Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => p.cells[y - pad]?.[x - pad] ?? "."));
   p.width = w; p.height = h;
@@ -609,18 +695,55 @@ function shapeAura(p: Pixels, body: boolean[][], inner: string, outer: string, p
     outside[y][x] = true;
     stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
   }
+  // Ring distance: ring 1 touches the body edge-on; each later ring surrounds the previous one.
   const N4: Px[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const N8: Px[] = [...N4, [1, 1], [1, -1], [-1, 1], [-1, -1]];
-  const first: Px[] = [];
+  const ring = Array.from({ length: h }, () => Array<number>(w).fill(0));
+  let edge: Px[] = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
-    if (outside[y][x] && N4.some(([dx, dy]) => isBody(x + dx, y + dy))) first.push([x, y]);
-  const firstSet = new Set(first.map(([x, y]) => `${x},${y}`));
-  const second: Px[] = [];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
-    if (outside[y][x] && !firstSet.has(`${x},${y}`) && N8.some(([dx, dy]) => firstSet.has(`${x + dx},${y + dy}`))) second.push([x, y]);
-  const a = p.key(inner), b = p.key(outer);
-  for (const [x, y] of first) p.cells[y][x] = a;
-  for (const [x, y] of second) p.cells[y][x] = b;
+    if (outside[y][x] && N4.some(([dx, dy]) => isBody(x + dx, y + dy))) { ring[y][x] = 1; edge.push([x, y]); }
+  for (let r = 2; r <= 4; r++) {
+    const next: Px[] = [];
+    for (const [x, y] of edge) for (const [dx, dy] of N8) {
+      const nx = x + dx, ny = y + dy;
+      if (outside[ny]?.[nx] && !ring[ny][nx] && !isBody(nx, ny)) { ring[ny][nx] = r; next.push([nx, ny]); }
+    }
+    edge = next;
+  }
+  const hash = (x: number, y: number) => (((x * 73856093) ^ (y * 19349663) ^ ((frame + 1) * 83492791)) >>> 0);
+  const shimmer = MYTHIC_SHIMMER[frame];
+  const core = p.key(shade(accent, 0.5)), mid = p.key(`${shade(accent, 0.1)}c8`), haze = p.key(`${accent}66`), mist = p.key(`${accent}30`);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const r = ring[y][x];
+    if (r === 1) p.cells[y][x] = core;
+    else if (r === 2) p.cells[y][x] = mid;
+    else if (r === 3 && (x + y + frame) % 2 === 0) p.cells[y][x] = haze;
+    else if (r === 3 || (r === 4 && (x * 3 + y + frame) % 4 === 0)) p.cells[y][x] = mist;
+  }
+  // Flame licks: on upward-facing edges, thin tongues climb out of the glow and flicker per frame.
+  const tip = p.key(shimmer), lick = p.key(shade(accent, 0.45)), lickSoft = p.key(`${shade(accent, 0.3)}b0`);
+  for (let x = 1; x < w - 1; x++) for (let y = 1; y < h; y++) {
+    if (ring[y][x] !== 1 || !isBody(x, y + 1) || isBody(x, y - 1)) continue;
+    const k = hash(x, 7) % 11;
+    if (k > 2 || ring[y][x - 1] === 9 || ring[y][x - 2] === 9) continue;
+    ring[y][x] = 9; // keep licks apart
+    const len = 3 + k * 2 + ((x + frame) % 2);
+    for (let i = 1; i <= len; i++) {
+      const yy = y - i, xx = x + (i > len / 2 ? ((hash(x, 3) & 1) ? 1 : -1) * ((frame + i) % 3 === 0 ? 1 : 0) : 0);
+      if (yy < 0 || isBody(xx, yy) || !outside[yy]?.[xx]) break;
+      p.cells[yy][xx] = i === len ? tip : i > len - 3 ? lickSoft : lick;
+    }
+  }
+  // Sparkles: a few four-point stars twinkling in the haze, at least 8 px apart.
+  const stars: Px[] = [];
+  const spark = p.key(`${shimmer}d0`), star = p.key("#ffffff");
+  for (let y = 2; y < h - 2 && stars.length < 4; y++) for (let x = 2; x < w - 2 && stars.length < 4; x++) {
+    if (ring[y][x] !== 4 || hash(x, y) % 23 !== 0 || stars.some(([sx, sy]) => Math.abs(sx - x) + Math.abs(sy - y) < 16)) continue;
+    stars.push([x, y]);
+    p.cells[y][x] = star;
+    for (const [dx, dy] of N4) if (!isBody(x + dx, y + dy) && outside[y + dy]?.[x + dx]) p.cells[y + dy][x + dx] = spark;
+  }
+  return pad;
 }
 
 /** A jewelled crown with outlined spikes. */
@@ -648,8 +771,8 @@ function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite 
   if (look.hat !== "crown" && !FLAT.has(id)) crown(d, frame); // Imu already wears one; silhouettes stay clean
   const top = trimTop(p);
   body.splice(0, top);
-  shapeAura(p, body, shade(accent, 0.3), `${MYTHIC_SHIMMER[frame]}99`);
-  const sprite = p.finish(Math.max(0, d.hx - 6 + 3), Math.max(0, d.hy - 6 - top + 3));
+  const pad = shapeAura(p, body, accent, frame);
+  const sprite = p.finish(Math.max(0, d.hx - 6 + pad + 1), Math.max(0, d.hy - 6 - top + pad + 1));
   return { ...sprite, scale: S };
 }
 
