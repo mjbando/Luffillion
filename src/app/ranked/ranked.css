@@ -833,3 +833,38 @@ button.rk-wanted:hover, button.rk-wanted:focus-visible { transform: translate(-2
 }
 /* Pixelify's 5 reads like an 8: berry amounts use VT323 instead */
 .rk-stat-val.is-berries { font-family: "VT323", monospace; font-size: 26px; line-height: 1; }
+
+/* ---------- Ranked menu: Milestones · Shop · Achievements · Characters ---------- */
+.rk-menu { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: -8px 0 20px; }
+.rk-menu-btn {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 58px; padding: 6px 10px; border: 2px solid #2a3a5c; border-top-color: #3d5378;
+  background: linear-gradient(180deg, #1a2742, #111c31); color: #e2e8f0;
+  box-shadow: 0 3px 0 #050a14; transition: transform .12s ease, border-color .12s ease, background .12s ease;
+}
+.rk-menu-btn:hover { transform: translateY(-2px); border-color: #fcd34d; background: linear-gradient(180deg, #243456, #16233c); color: #fde68a; }
+.rk-menu-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #050a14; }
+.rk-menu-btn:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+.rk-menu-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; }
+.rk-menu-icon svg { image-rendering: pixelated; }
+.rk-menu-label { font-family: "Pixelify Sans", "VT323", monospace; font-size: 15px; letter-spacing: .12em; }
+.rk-menu-badge {
+  position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px;
+  display: grid; place-items: center; background: #f43f5e; border: 2px solid #050a14; color: #fff;
+  font-family: "VT323", monospace; font-size: 18px; line-height: 1; animation: rk-menu-badge 1.8s steps(2) infinite;
+}
+@keyframes rk-menu-badge { 0%, 70% { transform: none; } 85% { transform: translateY(-2px); } }
+.rk-menu-dot { position: absolute; top: 6px; right: 10px; width: 8px; height: 8px; background: #f43f5e; border: 1px solid #050a14; }
+.rk-menu-backdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: #02050cb8; backdrop-filter: blur(2px); }
+.rk-menu-dialog {
+  display: flex; flex-direction: column; width: min(34rem, 100%); max-height: min(760px, calc(100dvh - 32px));
+  background-color: #0b1628; filter: drop-shadow(0 18px 36px #000a); font-family: "VT323", monospace;
+}
+.rk-menu-dialog :is(button, summary):focus-visible { outline: 2px solid #67e8f9; outline-offset: -3px; }
+@media (max-width: 700px) {
+  .rk-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: -10px; }
+  .rk-menu-btn { min-height: 50px; justify-content: flex-start; }
+  .rk-menu-label { font-size: 13px; letter-spacing: .08em; }
+  .rk-menu-backdrop { padding: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .rk-menu-badge { animation: none; } .rk-menu-btn { transition: none; } }

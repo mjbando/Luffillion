@@ -123,6 +123,18 @@ export const coinLedger = pgTable("coin_ledger", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.accountId, t.source, t.ref] })]);
 
+// Past daily voyages replayed from the Archive (count toward achievements, never leaderboards).
+export const archiveRuns = pgTable("archive_runs", {
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  dayKey: varchar("day_key", { length: 10 }).notNull(),
+  score: integer("score").notNull(),
+  solved: integer("solved").notNull(),
+  niche: integer("niche").notNull().default(0),
+  mistakes: integer("mistakes"),
+  legs: jsonb("legs").$type<VoyageLeg[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.accountId, t.dayKey] })]);
+
 // Records one-time data migrations (e.g. the historical coin backfill).
 export const coinBackfillMigrations = pgTable("coin_backfill_migrations", {
   migrationKey: varchar("migration_key", { length: 64 }).primaryKey(),
@@ -159,6 +171,8 @@ export const rankedProfiles = pgTable("ranked_profiles", {
   draws: integer("draws").notNull().default(0),
   winStreak: integer("win_streak").notNull().default(0),
   bestStreak: integer("best_streak").notNull().default(0),
+  /** Consecutive Showdowns won in ranked battles (resets on a lost Showdown). */
+  showdownStreak: integer("showdown_streak").notNull().default(0),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   queuedAt: timestamp("queued_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

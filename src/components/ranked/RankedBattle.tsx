@@ -5,7 +5,8 @@ import { Flag, Swords, Volume2, VolumeX } from "lucide-react";
 import CharacterPortrait from "../CharacterPortrait";
 import RankedUsername from "./RankedUsername";
 import PixelChest from "../PixelChest";
-import { RANKED_ACHIEVEMENTS } from "@/lib/ranked-achievements";
+import { RANKED_ACHIEVEMENTS, RANKED_BERRY_ACHIEVEMENTS } from "@/lib/ranked-achievements";
+import BerryMark from "../BerryMark";
 import { TREASURE_RARITY_COLORS } from "@/lib/treasure";
 import { TIER_CONFIG, type Tier } from "@/data/tiers";
 import {
@@ -502,6 +503,17 @@ export default function RankedBattle({
               {match.mode === "ranked" && result.rewards.length > 0 && (
                 <div className="rk-reward-list mx-auto mt-3 max-w-md">
                   {result.rewards.map((id) => {
+                    const berry = RANKED_BERRY_ACHIEVEMENTS.find((a) => a.id === id);
+                    if (berry) return (
+                      <div key={id} className="rk-reward" style={{ "--rk-reward": "#fcd34d" } as CSSProperties}>
+                        <span className="grid h-12 w-12 shrink-0 place-items-center"><BerryMark size={34} /></span>
+                        <div className="min-w-0 flex-1 text-left">
+                          <p className="rk-eyebrow">ACHIEVEMENT UNLOCKED · {berry.title.toUpperCase()}</p>
+                          <p className="text-base text-white">Reward: <span className="text-amber-200">฿{berry.berries.toLocaleString()} berries</span> ready to claim.</p>
+                          <p className="text-sm text-slate-400">Claim it from the Ranked menu › Achievements.</p>
+                        </div>
+                      </div>
+                    );
                     const def = RANKED_ACHIEVEMENTS.find((a) => a.id === id);
                     if (!def) return null;
                     return (
@@ -512,7 +524,7 @@ export default function RankedBattle({
                           <p className="text-base text-white">
                             <span style={{ color: TREASURE_RARITY_COLORS[def.chest] }} className="capitalize">{def.chest} Chest</span> added to your unopened chests.
                           </p>
-                          <p className="text-sm text-slate-400">Open it from the Shop or Achievements › Ranked.</p>
+                          <p className="text-sm text-slate-400">Open it from the Ranked menu › Shop or Achievements.</p>
                         </div>
                       </div>
                     );

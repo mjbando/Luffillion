@@ -84,7 +84,8 @@ export const ACHIEVEMENTS: AchievementDef[] = UPDATE_LIVE ? BOUNTY_ACHIEVEMENTS 
 /** Total bounty (berries) for a set of unlocked achievement ids, counting each achievement once. */
 export function achievementBounty(unlockedIds: Iterable<string>): number {
   const ids = new Set(unlockedIds);
-  return BOUNTY_ACHIEVEMENTS.reduce((sum, def) => sum + (ids.has(def.id) || (def.legacyId && ids.has(def.legacyId)) ? def.bounty ?? 0 : 0), 0);
+  // Only recorded (earned or claimed) treasure-update ids pay; an old unlock pays once it's claimed.
+  return BOUNTY_ACHIEVEMENTS.reduce((sum, def) => sum + (ids.has(def.id) ? def.bounty ?? 0 : 0), 0);
 }
 
 export const formatBerries = (n: number) => `฿${n.toLocaleString("en-US")}`;
@@ -108,6 +109,8 @@ export interface RunLike {
 }
 export interface AchievementStatus extends AchievementDef {
   unlocked: boolean;
+  /** Earned under the old system (kept its character); its new berry reward is waiting to be claimed. */
+  claimable: boolean;
   unlockedAt: string | null;
   progress: number;
   target: number;
@@ -149,12 +152,17 @@ export function evaluateAchievements(
   rows: RunLike[],
   existing: Map<string, Date>,
   checkpoints: Progress[] = [],
+  /** Past voyages replayed from the Archive: they count like voyages, but never for streaks or leaderboards. */
+  archiveRows: RunLike[] = [],
 ): AchievementReport {
-  const complete = [...new Map(rows.map(row => [row.dayKey, row])).values()];
+  const daily = [...new Map(rows.map(row => [row.dayKey, row])).values()];
+  const dailyDays = new Set(daily.map(row => row.dayKey));
+  const complete = [...daily, ...[...new Map(archiveRows.filter(row => !dailyDays.has(row.dayKey)).map(row => [row.dayKey, { ...row, standing: undefined }])).values()]];
   const finishedDays = new Set(complete.map(row => row.dayKey));
   const active = [...new Map(checkpoints.filter(p => !finishedDays.has(p.day)).map(p => [p.day, p])).values()];
   const played = active.filter(p => Object.values(p.q).some(q => q.started || q.status));
-  const streak = bestStreak([...finishedDays, ...played.map(p => p.day)]);
+  // Streaks follow the real calendar: only voyages played on their own day count.
+  const streak = bestStreak([...dailyDays, ...played.map(p => p.day)]);
   const successes = active.flatMap(p => Object.values(p.q).filter(q => q.status === "solved"));
   const totalCorrect = complete.reduce((sum, r) => sum + r.solved, 0) + successes.length;
   const totalNiche = complete.reduce((sum, r) => sum + (r.legs ? r.legs.filter(l => isNiche(l.tier)).length : r.niche ?? 0), 0)
@@ -200,7 +208,8 @@ export function evaluateAchievements(
     const goal = goals[def.goal];
     const unlockedAt = recorded(def);
     const unlocked = !!unlockedAt || goal.n >= goal.target;
-    return { ...def, unlocked, unlockedAt: unlockedAt?.toISOString() ?? null,
+    const claimable = !!def.legacyId && !existing.has(def.id) && existing.has(def.legacyId);
+    return { ...def, unlocked, claimable, unlockedAt: unlockedAt?.toISOString() ?? null,
       progress: unlocked ? goal.target : Math.min(goal.n, goal.target), target: goal.target, progressLabel: goal.label };
   });
   return { achievements, newlyUnlocked: achievements.filter(a => a.unlocked && !recorded(a)).map(a => a.id) };

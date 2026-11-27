@@ -1,8 +1,10 @@
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, achievementUnlocks, checkpoints, runs } from "@/db/schema";
+import { accounts, achievementUnlocks, archiveRuns, checkpoints, runs } from "@/db/schema";
 import { achievementBounty, BOUNTY_ACHIEVEMENTS, evaluateAchievements, type AchievementReport, type RunLike } from "./achievements";
 import { todayKey } from "./daily";
+import { RequestProblem } from "./account-server";
+import { UPDATE_LIVE } from "./release";
 
 type AchievementDB = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -14,6 +16,10 @@ export async function evaluateAchievementsFor(tx: AchievementDB, accountId: stri
   }).from(runs).where(and(eq(runs.accountId, accountId), lte(runs.dayKey, today)));
   const active = await tx.select({ progress: checkpoints.progress }).from(checkpoints)
     .where(and(eq(checkpoints.accountId, accountId), lte(checkpoints.dayKey, today)));
+  // Archive replays exist only once the treasure update (and its migration) is live.
+  const archived: RunLike[] = UPDATE_LIVE ? await tx.select({ dayKey: archiveRuns.dayKey, score: archiveRuns.score, solved: archiveRuns.solved,
+    niche: archiveRuns.niche, mistakes: archiveRuns.mistakes, legs: archiveRuns.legs,
+  }).from(archiveRuns).where(eq(archiveRuns.accountId, accountId)) : [];
   const unlocked = await tx.select({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt })
     .from(achievementUnlocks).where(eq(achievementUnlocks.accountId, accountId));
   const existing = new Map(unlocked.map(u => [u.id, u.at]));
@@ -39,13 +45,30 @@ export async function evaluateAchievementsFor(tx: AchievementDB, accountId: stri
     };
   }
 
-  const report = evaluateAchievements(rows, existing, active.map(a => a.progress));
+  const report = evaluateAchievements(rows, existing, active.map(a => a.progress), archived);
   const inserted = report.newlyUnlocked.length ? await tx.insert(achievementUnlocks)
     .values(report.newlyUnlocked.map(id => ({ accountId, achievementId: id })))
     .onConflictDoNothing().returning({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt }) : [];
   for (const row of inserted) existing.set(row.id, row.at);
-  const result = evaluateAchievements(rows, existing, active.map(a => a.progress));
+  const result = evaluateAchievements(rows, existing, active.map(a => a.progress), archived);
   return { ...result, newlyUnlocked: inserted.map(row => row.id) };
+}
+
+/**
+ * Claim the new berry (bounty) reward of an achievement earned under the old system.
+ * The captain keeps the character it gave them; recording the new id adds its bounty.
+ */
+export async function claimLegacyAchievement(accountId: string, id: unknown): Promise<AchievementReport> {
+  const def = BOUNTY_ACHIEVEMENTS.find((a) => a.id === id);
+  if (!UPDATE_LIVE || !def?.legacyId) throw new RequestProblem(400, "There's nothing to claim for that achievement.");
+  return db.transaction(async tx => {
+    await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).for("update");
+    const [old] = await tx.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks)
+      .where(and(eq(achievementUnlocks.accountId, accountId), eq(achievementUnlocks.achievementId, def.legacyId!))).limit(1);
+    if (!old) throw new RequestProblem(403, "Earn this achievement first.");
+    await tx.insert(achievementUnlocks).values({ accountId, achievementId: def.id }).onConflictDoNothing();
+    return evaluateAchievementsFor(tx, accountId);
+  });
 }
 
 // Opening the collection also backfills eligible old voyages and finalized leaderboards.
@@ -75,14 +98,13 @@ export async function achievementBountiesFor(reader: Reader, accountIds: string[
   return new Map([...byAccount].map(([id, unlocked]) => [id, achievementBounty(unlocked)]));
 }
 
-const BOUNTY_VALUES = BOUNTY_ACHIEVEMENTS
-  .map((def) => `('${def.id}', ${def.legacyId ? `'${def.legacyId}'` : "NULL"}, ${def.bounty ?? 0})`).join(", ");
+const BOUNTY_VALUES = BOUNTY_ACHIEVEMENTS.map((def) => `('${def.id}', ${def.bounty ?? 0})`).join(", ");
 
 /**
- * SQL column: the achievement bounty of the captain in `accounts.id`, for use inside selects
- * (each achievement counts once, whether earned under its new id or its pre-update id).
+ * SQL column: the achievement bounty of the captain in `accounts.id`, for use inside selects.
+ * Matches achievementBounty(): old unlocks only count once their reward has been claimed.
  */
 export function achievementBountySql() {
-  return sql<number>`(SELECT COALESCE(SUM(b.bounty), 0)::int FROM (VALUES ${sql.raw(BOUNTY_VALUES)}) AS b(id, legacy_id, bounty)
-    WHERE EXISTS (SELECT 1 FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id} AND u.achievement_id IN (b.id, b.legacy_id)))`;
+  return sql<number>`(SELECT COALESCE(SUM(b.bounty), 0)::int FROM (VALUES ${sql.raw(BOUNTY_VALUES)}) AS b(id, bounty)
+    WHERE EXISTS (SELECT 1 FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id} AND u.achievement_id = b.id))`;
 }

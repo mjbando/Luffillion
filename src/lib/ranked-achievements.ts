@@ -64,3 +64,63 @@ export function rewardChestLabel(source: string, ref: string): string {
   }
   return "Reward";
 }
+
+/**
+ * Ranked achievements that pay berries (the chest currency). Unlocks are recorded in
+ * achievement_unlocks under these ids; the reward is claimed into the berry ledger
+ * (source "ranked-badge", ref = id), so it can only ever be paid once.
+ */
+export type RankedBerryGoal = "luffillion" | "giant-slayer" | "showdowns" | "crew";
+export interface RankedBerryAchievementDef {
+  id: string;
+  title: string;
+  description: string;
+  detail: string;
+  berries: number;
+  goal: RankedBerryGoal;
+  target: number;
+}
+
+export const RANKED_BERRY_ACHIEVEMENTS: readonly RankedBerryAchievementDef[] = [
+  { id: "ranked-luffillion", goal: "luffillion", target: 1, berries: 300, title: "One in a Luffillion",
+    description: "Land a One in a Luffillion answer in a ranked battle.",
+    detail: "Any 100-point pull in a ranked battle counts. Friendly and bot battles don't." },
+  { id: "ranked-giant-slayer", goal: "giant-slayer", target: 1, berries: 250, title: "Giant Slayer",
+    description: "Win a ranked battle against an opponent in a higher rank.",
+    detail: "Your opponent's rank must be above yours when the battle starts." },
+  { id: "ranked-showdowns-3", goal: "showdowns", target: 3, berries: 100, title: "Showdown King",
+    description: "Win 3 Showdowns in a row.",
+    detail: "Ranked Showdowns only. Losing a Showdown resets the count; a standoff doesn't." },
+  { id: "crew-5", goal: "crew", target: 5, berries: 100, title: "Crew Assembled",
+    description: "Unlock 5 characters.",
+    detail: "Every character you own counts, from chests or old achievements. Your starting Luffy doesn't." },
+  { id: "crew-10", goal: "crew", target: 10, berries: 250, title: "Growing Fleet",
+    description: "Unlock 10 characters.",
+    detail: "Every character you own counts, from chests or old achievements. Your starting Luffy doesn't." },
+  { id: "crew-25", goal: "crew", target: 25, berries: 500, title: "Grand Fleet",
+    description: "Unlock 25 characters.",
+    detail: "Every character you own counts, from chests or old achievements. Your starting Luffy doesn't." },
+];
+
+export interface RankedBerryAchievementStatus extends RankedBerryAchievementDef {
+  unlocked: boolean;
+  unlockedAt: string | null;
+  claimed: boolean;
+  progress: number;
+}
+
+/** Bounty milestones: reaching each bounty total pays berries once (claimed in the Ranked menu). */
+export const BOUNTY_MILESTONES: readonly { bounty: number; berries: number }[] = [
+  { bounty: 50_000, berries: 50 },
+  { bounty: 100_000, berries: 50 },
+  { bounty: 250_000, berries: 100 },
+  { bounty: 500_000, berries: 100 },
+  { bounty: 1_000_000, berries: 250 },
+  { bounty: 1_500_000, berries: 250 },
+  { bounty: 2_000_000, berries: 500 },
+  { bounty: 3_000_000, berries: 500 },
+  { bounty: 5_000_000, berries: 1_000 },
+];
+
+export interface MilestoneStatus { bounty: number; berries: number; reached: boolean; claimed: boolean }
+export interface MilestoneReport { bounty: number; milestones: MilestoneStatus[] }

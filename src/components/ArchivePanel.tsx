@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { voyageRequest, localArchive, type LocalVoyage } from "@/lib/voyage-client";
 import type { FinishedVoyage, VoyageHistory } from "@/lib/voyage";
+import { archiveDays } from "@/lib/archive";
+import { UPDATE_LIVE } from "@/lib/release";
+import { playClick } from "@/lib/sound";
 
 const dateLabel = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -16,7 +19,14 @@ interface Row {
   rank: number | null;
   luffillion: boolean;
   laughtale: boolean;
+  /** Replayed later from the Archive (counts toward achievements, not leaderboards). */
+  replay?: boolean;
+  /** Never sailed: can be played from the Archive. */
+  open?: boolean;
 }
+
+interface ArchiveList { days: string[]; replays: FinishedVoyage[] }
+const emptyRow = (day: string): Row => ({ day, score: 0, solved: 0, niche: 0, beat: null, rank: null, luffillion: false, laughtale: false, open: true });
 
 function fromCaptain(history: VoyageHistory): Row[] {
   return history.voyages.map(v => ({
@@ -38,10 +48,19 @@ function fromLocal(list: LocalVoyage[]): Row[] {
 export default function ArchivePanel({
   captain,
   refreshKey,
+  onPlay,
+  onSignIn,
+  currentDay,
 }: {
   captain: { id: string; username: string } | null;
   refreshKey: string;
+  /** Treasure update: open a past day's voyage. */
+  onPlay?: (day: string) => void;
+  onSignIn?: () => void;
+  /** The day currently loaded in the game. */
+  currentDay?: string;
 }) {
+  const replayable = UPDATE_LIVE && Boolean(onPlay);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -72,11 +91,21 @@ export default function ArchivePanel({
       }
       return accumulated;
     };
-    fetchAll()
-      .then(voyages => {
+    const fetchArchive = (): Promise<ArchiveList | null> => replayable
+      ? voyageRequest<ArchiveList>("/api/archive").catch(() => null)
+      : Promise.resolve(null);
+    Promise.all([fetchAll(), fetchArchive()])
+      .then(([voyages, archive]) => {
         if (!live) return;
-        const local = fromLocal([]); // placeholder kept for potential hybrid path
-        setRows([...fromCaptain({ voyages, nextBefore: null, summary: { count: voyages.length, best: Math.max(0, ...voyages.map(v => v.score)), average: voyages.length ? Math.round(voyages.reduce((n, v) => n + v.score, 0) / voyages.length) : 0 } }), ...local]);
+        const played = fromCaptain({ voyages, nextBefore: null, summary: { count: voyages.length, best: 0, average: 0 } });
+        if (!archive) { setRows(played); return; }
+        // Every replayable day shows up: sailed live, replayed later, or still open to play.
+        const byDay = new Map(played.map(r => [r.day, r]));
+        for (const r of fromCaptain({ voyages: archive.replays, nextBefore: null, summary: { count: 0, best: 0, average: 0 } })) {
+          if (!byDay.has(r.day)) byDay.set(r.day, { ...r, beat: null, rank: null, replay: true });
+        }
+        for (const day of archive.days ?? archiveDays()) if (!byDay.has(day)) byDay.set(day, emptyRow(day));
+        setRows([...byDay.values()].sort((a, b) => b.day.localeCompare(a.day)));
       })
       .catch(e => { if (live) setError(e instanceof Error ? e.message : "Couldn't load your archive."); })
       .finally(() => { if (live) setLoading(false); });
@@ -84,9 +113,11 @@ export default function ArchivePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [captain?.id, refreshKey, retry]);
 
-  const total = rows.length;
-  const best = total ? Math.max(...rows.map(r => r.score)) : 0;
-  const average = total ? Math.round(rows.reduce((n, r) => n + r.score, 0) / total) : 0;
+  const sailed = rows.filter(r => !r.open);
+  const total = sailed.length;
+  const best = total ? Math.max(...sailed.map(r => r.score)) : 0;
+  const average = total ? Math.round(sailed.reduce((n, r) => n + r.score, 0) / total) : 0;
+  const openDays = rows.filter(r => r.open).length;
 
   return (
     <div className="px-3 py-3">
@@ -94,9 +125,13 @@ export default function ArchivePanel({
         <p className="text-base leading-tight tracking-[0.25em] text-cyan-200">ARCHIVE</p>
         <p className="text-sm text-slate-400">
           {captain
-            ? `Every voyage by ${captain.username}. Each new day adds a row.`
+            ? replayable
+              ? `Every voyage by ${captain.username}. Missed a day? Sail it now.`
+              : `Every voyage by ${captain.username}. Each new day adds a row.`
             : "Every voyage played on this device. Each new day adds a row."}
         </p>
+        {replayable && captain && <p className="mt-1 text-xs leading-snug text-slate-500">Archive voyages count toward achievements and bounty, never the daily leaderboard or Top 50 Scores.{openDays ? ` ${openDays} day${openDays === 1 ? "" : "s"} left to sail.` : ""}</p>}
+        {UPDATE_LIVE && !captain && onSignIn && <p className="mt-1 text-sm text-slate-400"><button type="button" onClick={() => { playClick(); onSignIn(); }} className="text-amber-200 underline underline-offset-2">Sign in</button> to replay past voyages from the Archive.</p>}
       </div>
 
       <div className="mb-2 grid grid-cols-3 gap-1.5 text-center">
@@ -121,10 +156,21 @@ export default function ArchivePanel({
         </p>
       ) : (
         <ol className="divide-y divide-white/5">
-          {rows.map(r => (
-            <li key={r.day} className="flex items-center justify-between gap-2 py-2">
+          {rows.map(r => r.open ? (
+            <li key={r.day} className="flex items-center justify-between gap-2 py-2" data-archive-day={r.day}>
               <span className="min-w-0">
-                <span className="block truncate text-base text-white">{dateLabel(r.day)}</span>
+                <span className="block truncate text-base text-slate-300">{dateLabel(r.day)}</span>
+                <span className="block text-xs text-slate-500">{currentDay === r.day ? "Sailing now" : "Not sailed yet"}</span>
+              </span>
+              <button type="button" disabled={currentDay === r.day} onClick={() => { playClick(); onPlay?.(r.day); }}
+                className="px-btn h-8 shrink-0 bg-amber-400 px-3 text-sm tracking-wider text-amber-950 hover:bg-amber-300 disabled:bg-amber-300/20 disabled:text-amber-200">
+                {currentDay === r.day ? "ON DECK" : "PLAY ▸"}
+              </button>
+            </li>
+          ) : (
+            <li key={r.day} className="flex items-center justify-between gap-2 py-2" data-archive-day={r.day}>
+              <span className="min-w-0">
+                <span className="block truncate text-base text-white">{dateLabel(r.day)}{r.replay && <span className="ml-1.5 border border-cyan-300/40 px-1 text-[11px] tracking-wider text-cyan-200">ARCHIVE</span>}</span>
                 <span className="block text-xs text-slate-500">
                   {r.solved}/7 answered
                   {r.niche > 0 ? ` · ${r.niche} niche` : ""}
@@ -134,7 +180,10 @@ export default function ArchivePanel({
                   {r.luffillion ? " · Luffillion" : ""}
                 </span>
               </span>
-              <span className="shrink-0 text-xl text-cyan-300">{r.score}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                {r.replay && onPlay && currentDay !== r.day && <button type="button" onClick={() => { playClick(); onPlay(r.day); }} className="text-sm text-slate-400 underline-offset-2 hover:text-amber-200 hover:underline">Recap</button>}
+                <span className="text-xl text-cyan-300">{r.score}</span>
+              </span>
             </li>
           ))}
         </ol>

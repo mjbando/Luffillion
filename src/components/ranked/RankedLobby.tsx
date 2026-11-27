@@ -7,6 +7,7 @@ import CharacterPortrait from "../CharacterPortrait";
 import PixelEmblem from "../pixel-emblems";
 import RankedUsername from "./RankedUsername";
 import WantedPoster from "./WantedPoster";
+import RankedMenu from "./RankedMenu";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { BOT_RP_FACTOR, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
 
@@ -351,6 +352,8 @@ export default function RankedLobby({
             </p>
           </div>
         </section>
+
+        <RankedMenu captain={captain} onSignIn={onAccount} />
 
         {error && (
           <p role="alert" className="rk-error">
@@ -737,7 +740,7 @@ export default function RankedLobby({
             </p>
             <ul className="rk-bot-offer-rules">
               <li><b>½</b><span>Half RP: win <strong className="text-emerald-300">+{BOT_WIN_RP}</strong> · loss <strong className="text-rose-300">{BOT_LOSS_RP}</strong> · draw <strong>+{BOT_DRAW_RP}</strong></span></li>
-              <li><b>🔥</b><span>Doesn&apos;t change your win streak, record or coins.</span></li>
+              <li><b>🔥</b><span>Doesn&apos;t change your win streak, record or berries.</span></li>
             </ul>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <button type="button" autoFocus disabled={busy} onClick={onPlayBot} className="rk-btn-gold h-11 px-5">

@@ -17,10 +17,7 @@ import PixelWorld, { type RunSignal, type WorldStatus } from "./PixelWorld";
 import Effects from "./Effects";
 import CaptainLog, { LogIcon } from "./CaptainLog";
 import BountiesPanel from "./BountiesPanel";
-import TreasureShop from "./TreasureShop";
-import MenuPanel, { isStandaloneTab, type MenuTab } from "./MenuPanel";
-import PixelChest from "./PixelChest";
-import PixelEmblem from "./pixel-emblems";
+import MenuPanel, { type MenuTab } from "./MenuPanel";
 import PixelSpeaker from "./PixelSpeaker";
 import { UPDATE_LIVE } from "@/lib/release";
 import AchievementsPanel from "./AchievementsPanel";
@@ -55,6 +52,8 @@ interface DailyQuestion {
 
 interface DailyResponse {
   day: string;
+  /** A past day replayed from the Archive (treasure update). */
+  archive?: boolean;
   captain: Captain | null;
   equippedCharacter: CharacterId;
   newlyUnlocked?: string[];
@@ -80,6 +79,17 @@ interface Reveal {
 }
 
 const EMPTY_Q: QState = { attempts: 0, wrong: [] };
+
+/** Keeps ?archive=YYYY-MM-DD in the address bar while replaying a past day, so a refresh resumes it. */
+function syncArchiveUrl(day: string | null) {
+  try {
+    const url = new URL(window.location.href);
+    if (day) url.searchParams.set("archive", day); else url.searchParams.delete("archive");
+    window.history.replaceState(window.history.state, "", url);
+  } catch { /* The replay still works without the URL. */ }
+}
+const archiveDateLabel = (day: string) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 const LIMIT_MS = QUESTION_SECONDS * 1000;
 interface RunStats {
   day: string;
@@ -112,7 +122,10 @@ export default function Game() {
   const [copied, setCopied] = useState(false);
   const [world, setWorld] = useState<WorldStatus>({ pct: 0, arc: "East Blue", saga: 0, running: false });
   const [menuTab, setMenuTab] = useState<MenuTab | null>(null);
-  const hamburgerOpen = menuTab !== null && !isStandaloneTab(menuTab);
+  const hamburgerOpen = menuTab !== null;
+  /** Past day being replayed from the Archive; null = today's daily voyage. */
+  const archiveRequest = useRef<string | null>(null);
+  const archiveUrlRead = useRef(false);
   const [lockedAchievementsOpen, setLockedAchievementsOpen] = useState(false);
   const [unlockedToast, setUnlockedToast] = useState<AchievementDef[]>([]);
   const [achievementRevision, setAchievementRevision] = useState(0);
@@ -159,7 +172,8 @@ export default function Game() {
   // Hydrate the session and its save together, before enabling any timer or write.
   const loadRun = useCallback(async (expectedCaptain?: string | null) => {
     const version = ++scopeVersion.current;
-    const d = await voyageRequest<DailyResponse>("/api/daily");
+    const archiveDay = archiveRequest.current;
+    const d = await voyageRequest<DailyResponse>(archiveDay ? `/api/daily?day=${encodeURIComponent(archiveDay)}` : "/api/daily");
     if (version !== scopeVersion.current) return;
     if (expectedCaptain !== undefined && (d.captain?.id ?? null) !== expectedCaptain) {
       throw new Error("The session cookie wasn't available. Allow site cookies and try again.");
@@ -189,10 +203,31 @@ export default function Game() {
     setAchievementRevision(n => n + 1);
   }, [queueUnlocks]);
 
+  // Switch between today's voyage and a past day from the Archive.
+  async function openVoyageDay(day: string | null) {
+    playClick();
+    const running = progress && !runDone ? progress.q[firstOpen(progress)] : undefined;
+    if (running?.started && !running.status && Date.now() - running.started < LIMIT_MS) {
+      setMenuTab(null);
+      setMessage("Finish the question on deck before changing voyages.");
+      return;
+    }
+    const previous = archiveRequest.current;
+    archiveRequest.current = day;
+    try {
+      await loadRun(daily?.captain?.id ?? null);
+      syncArchiveUrl(day);
+    } catch (e) {
+      archiveRequest.current = previous;
+      setMessage(e instanceof Error ? e.message : "Couldn't open that voyage. Try again.");
+    }
+  }
+
   function openAccount() { playClick(); setMenuTab(null); setAccountOpen(true); }
   function openAccountForMenu(tab: MenuTab) { playClick(); returnToMenu.current = tab; setMenuTab(null); setAccountOpen(true); }
   async function sessionChanged(captain: Captain | null, linkedGuest: boolean) {
     const previous = daily?.captain?.id;
+    if (archiveRequest.current) { archiveRequest.current = null; syncArchiveUrl(null); }
     await loadRun(captain?.id ?? null);
     if (captain && returnToMenu.current) {
       const target = returnToMenu.current;
@@ -209,6 +244,7 @@ export default function Game() {
     const refreshSession = (event: StorageEvent) => {
       if (event.key !== "luffillion:session-changed") return;
       if (activeCaptainId) clearCaptainCache(activeCaptainId);
+      if (archiveRequest.current) { archiveRequest.current = null; syncArchiveUrl(null); }
       setAccountOpen(false); setDaily(null); setProgress(null); setStats(null);
       loadRun().catch(() => setLoadError("Your session changed. Refresh to reopen the game."));
     };
@@ -218,6 +254,12 @@ export default function Game() {
 
   useEffect(() => {
     let cancelled = false;
+    // A shared ?archive=YYYY-MM-DD link (or a refresh mid-replay) reopens that past voyage.
+    if (UPDATE_LIVE && !archiveUrlRead.current) {
+      archiveUrlRead.current = true;
+      const requested = new URLSearchParams(window.location.search).get("archive");
+      if (requested && /^\d{4}-\d{2}-\d{2}$/.test(requested)) archiveRequest.current = requested;
+    }
     const loadWithRetry = async () => {
       let lastError: unknown;
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -227,6 +269,8 @@ export default function Game() {
           return;
         } catch (error) {
           lastError = error;
+          // A replay that can't open (signed out, not in the archive) falls back to today's voyage.
+          if (archiveRequest.current) { archiveRequest.current = null; syncArchiveUrl(null); attempt--; continue; }
           if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
         }
       }
@@ -249,11 +293,11 @@ export default function Game() {
 
   // When the countdown reaches zero, the next day's run loads automatically.
   useEffect(() => {
-    if (nextRunAt && now >= nextRunAt) {
+    if (nextRunAt && now >= nextRunAt && !daily?.archive) {
       setNextRunAt(0);
       loadRun().catch(() => setMessage("Could not load the new run. Please refresh."));
     }
-  }, [now, nextRunAt, loadRun]);
+  }, [now, nextRunAt, loadRun, daily?.archive]);
 
   const runDone = !!daily?.finished || (!!progress && firstOpen(progress) >= DAILY_QUESTION_COUNT);
 
@@ -269,6 +313,17 @@ export default function Game() {
         const accountId = daily.captain?.id ?? null;
         const answers = daily.questions.map((_, i) => progress.q[i]?.answer ?? "");
         const mistakes = countMistakes(progress);
+        if (daily.archive) {
+          // Archive replays are saved apart from the daily runs: no leaderboard, stats or Top 50.
+          if (!daily.finished) {
+            const data = await voyageRequest<{ finished: FinishedVoyage; newlyUnlocked?: string[] }>("/api/run", "POST", { accountId, day: progress.day, answers, mistakes, archive: true });
+            if (!current()) return;
+            queueUnlocks(data.newlyUnlocked ?? []);
+            setAchievementRevision(n => n + 1);
+          }
+          setSaveMessage("✓ Archive voyage saved. It counts toward achievements and bounty.");
+          return;
+        }
         // Backfill old guest score-only recaps if the browser still has the answers.
         const backfill = daily.finished && !daily.finished.legs && firstOpen(progress) === DAILY_QUESTION_COUNT;
         const data = !daily.finished || backfill
@@ -294,7 +349,7 @@ export default function Game() {
   }, [runDone, progress, daily, loadRun, queueUnlocks]);
 
   useEffect(() => {
-    if (!runDone || !showCountdown || !daily) return;
+    if (!runDone || !showCountdown || !daily || daily.archive) return;
     let live = true;
     const refresh = () => voyageRequest<RunStats>(`/api/run?day=${daily.day}`)
       .then(d => { if (live && d.you) setStats(d); }).catch(() => undefined);
@@ -307,7 +362,8 @@ export default function Game() {
     if (!progress || !daily) return;
     const accountId = daily.captain?.id;
     cacheRun(progress, accountId);
-    if (!accountId || runDone || !Object.keys(progress.q).length) return;
+    // Archive replays only keep a browser save; the server copy is written once they finish.
+    if (!accountId || runDone || daily.archive || !Object.keys(progress.q).length) return;
     let live = true;
     let retry: ReturnType<typeof setTimeout>;
     const version = scopeVersion.current;
@@ -379,7 +435,7 @@ export default function Game() {
     for (let i = 0; i < DAILY_QUESTION_COUNT; i++) {
       if (!reveals[i] && !revealLoading.current.has(i)) {
         revealLoading.current.add(i);
-        fetch(`/api/reveal?q=${encodeURIComponent(daily.questions[i].id)}`)
+        fetch(`/api/reveal?q=${encodeURIComponent(daily.questions[i].id)}${daily.archive ? `&day=${daily.day}` : ""}`)
           .then((r) => r.json())
           .then((data: Reveal & { error?: string }) => {
             if (version === scopeVersion.current && !data.error) setReveals((prev) => ({ ...prev, [i]: data }));
@@ -469,7 +525,7 @@ export default function Game() {
       const res = await fetch("/api/guess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: daily.questions[viewIndex].id, guess: text }),
+        body: JSON.stringify({ questionId: daily.questions[viewIndex].id, guess: text, ...(daily.archive ? { day: daily.day } : {}) }),
       });
       const data = await res.json();
       if (version !== scopeVersion.current) return;
@@ -646,7 +702,18 @@ export default function Game() {
         </div>
       )}
       {fx && <Effects key={fx.id} tier={fx.tier} />}
-      {allDone && showCountdown && (
+      {allDone && showCountdown && daily.archive && (
+        <ArchiveDoneScreen
+          day={daily.day}
+          score={totalScore}
+          solved={daily.finished?.solved ?? daily.questions.filter((_, i) => progress.q[i]?.status === "solved").length}
+          saveMessage={saveMessage}
+          onToday={() => void openVoyageDay(null)}
+          onArchive={() => { playClick(); setShowCountdown(false); setMenuTab("archive"); }}
+          onClose={() => { playClick(); setShowCountdown(false); }}
+        />
+      )}
+      {allDone && showCountdown && !daily.archive && (
         <CountdownScreen
           msLeft={nextRunAt - now}
           score={totalScore}
@@ -716,8 +783,9 @@ export default function Game() {
               : `QUESTION ${shownQuestion} OF ${DAILY_QUESTION_COUNT}`}
           </p>
           <p className="font-pixel-display text-[11px] tracking-[0.25em] text-amber-200 [text-shadow:0_1px_0_#000]">
-            LUFFILLION · DAILY · {daily.day}
+            LUFFILLION · {daily.archive ? "ARCHIVE" : "DAILY"} · {daily.day}
           </p>
+
           <button type="button" onClick={openAccount} aria-haspopup="dialog" aria-expanded={accountOpen}
             className="captain-entry px-btn mt-1 inline-flex h-7 max-w-48 items-center gap-1.5 border border-[#415674] bg-[#122039] px-2 text-sm text-cyan-100 hover:border-cyan-300">
             <LogIcon /><span className="truncate">{daily.captain ? `Log · ${daily.captain.username}` : "Sign in / Create account"}</span>
@@ -731,12 +799,12 @@ export default function Game() {
         </div>
       </div>
 
-      {/* ---------- Left rail: hamburger menu, then Shop and Achievements squares ---------- */}
+      {/* ---------- Left: the hamburger menu (Shop, Ranked Achievements and Characters live in the Ranked menu) ---------- */}
       <button
         type="button"
         onClick={() => {
           playClick();
-          setMenuTab((t) => (t && !isStandaloneTab(t) ? null : "log"));
+          setMenuTab((t) => (t ? null : "log"));
         }}
         aria-label={hamburgerOpen ? "Close game menu" : "Open game menu"}
         aria-expanded={hamburgerOpen}
@@ -745,38 +813,6 @@ export default function Game() {
       >
         {hamburgerOpen ? <CloseIcon size={17} aria-hidden="true" /> : <MenuIcon size={17} aria-hidden="true" />}
       </button>
-      {UPDATE_LIVE && <>
-      <button
-        type="button"
-        onClick={() => { playClick(); setMenuTab((t) => (t === "treasure-chests" ? null : "treasure-chests")); }}
-        aria-label={menuTab === "treasure-chests" ? "Close treasure shop" : "Open treasure shop"}
-        aria-expanded={menuTab === "treasure-chests"}
-        aria-controls="panel-treasure-chests"
-        title="Treasure Shop"
-        data-rail="shop"
-        className={`rail-square px-btn fixed left-3 top-[152px] z-[60] ${menuTab === "treasure-chests" ? "is-active" : ""}`}
-      >
-        <PixelChest chest="legendary" size={26} />
-        <span>SHOP</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          playClick();
-          if (!daily.captain) { setMenuTab(null); setLockedAchievementsOpen(true); return; }
-          setMenuTab((t) => (t === "achievements" ? null : "achievements"));
-        }}
-        aria-label={menuTab === "achievements" ? "Close achievements and characters" : "Open achievements and characters"}
-        aria-expanded={menuTab === "achievements"}
-        aria-controls="panel-achievements"
-        title="Achievements & Characters"
-        data-rail="achievements"
-        className={`rail-square px-btn fixed left-3 top-[208px] z-[60] ${menuTab === "achievements" ? "is-active" : ""}`}
-      >
-        <PixelEmblem kind="seal" size={24} />
-        <span>CREW</span>
-      </button>
-      </>}
 
       {UPDATE_LIVE ? (
         <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
@@ -796,7 +832,7 @@ export default function Game() {
 
       {menuTab && (
         <MenuPanel
-          key={isStandaloneTab(menuTab) ? menuTab : "menu"}
+          key="menu"
           tab={menuTab}
           captain={daily.captain}
           onSwitch={(next) => {
@@ -839,9 +875,10 @@ export default function Game() {
             </div>
           )}
           {menuTab === "achievements" && daily.captain && <AchievementsPanel key={daily.captain.id} captain={daily.captain} refreshKey={`${daily.day}:${achievementRevision}`} onUnlock={queueUnlocks} equippedCharacter={equippedCharacter} onEquip={handleEquip} />}
-          {menuTab === "archive" && <ArchivePanel captain={daily.captain} refreshKey={`${daily.day}:${stats?.you?.score ?? "pending"}`} />}
+          {menuTab === "archive" && <ArchivePanel captain={daily.captain} refreshKey={`${daily.day}:${stats?.you?.score ?? "pending"}:${achievementRevision}`}
+            onPlay={UPDATE_LIVE ? (day) => void openVoyageDay(day) : undefined} onSignIn={() => openAccountForMenu("archive")}
+            currentDay={daily.archive ? daily.day : undefined} />}
           {menuTab === "bounties" && <BountiesPanel captain={daily.captain} onSignIn={() => openAccountForMenu("bounties")} />}
-          {UPDATE_LIVE && menuTab === "treasure-chests" && <TreasureShop key={daily.captain?.id ?? "guest"} captain={daily.captain} onSignIn={() => openAccountForMenu("treasure-chests")} />}
         </MenuPanel>
       )}
 
@@ -858,17 +895,23 @@ export default function Game() {
       {daily.captain && unlockedToast.length > 0 && <AchievementToast unlocked={unlockedToast} onDone={dismissUnlock} />}
 
       {/* ---------- Center prompt card ---------- */}
-      <div className={`pointer-events-none fixed inset-x-0 top-[112px] z-10 flex justify-center ${UPDATE_LIVE ? "pl-[60px] pr-3 md:px-3" : "px-3"} sm:top-[120px]`}>
+      <div className="pointer-events-none fixed inset-x-0 top-[112px] z-10 flex justify-center px-3 sm:top-[120px]">
         <div
           className={`px-box px-scan pointer-events-auto max-h-[calc(100vh-260px)] w-full max-w-xl overflow-y-auto px-6 py-5 ${
             nopeOn ? "nope" : ""
           }`}
         >
+          {daily.archive && (
+            <div className="-mt-2 mb-2 flex items-center justify-between gap-2 border-b border-white/10 pb-1.5 text-sm">
+              <span className="tracking-[0.2em] text-cyan-200">ARCHIVE · {archiveDateLabel(daily.day).toUpperCase()}</span>
+              <button type="button" onClick={() => void openVoyageDay(null)} data-archive-back className="text-amber-200 underline-offset-2 hover:underline">◂ Today&apos;s voyage</button>
+            </div>
+          )}
           {waitingToStart ? (
             <div className="text-center">
               <p className="text-base tracking-[0.35em] text-[#ff4f7b]">
                 {activeIndex === 0
-                  ? `DAILY VOYAGE · ${daily.day}`
+                  ? `${daily.archive ? "ARCHIVE VOYAGE" : "DAILY VOYAGE"} · ${daily.day}`
                   : `QUESTION ${activeIndex + 1} OF ${DAILY_QUESTION_COUNT} · READY`}
               </p>
               <h2 className="mt-1 font-pixel-display text-2xl font-bold leading-tight text-white sm:text-3xl">
@@ -1017,7 +1060,7 @@ export default function Game() {
                 }}
                 className="px-btn h-11 bg-amber-400 px-5 text-xl tracking-[0.2em] text-amber-950 hover:bg-amber-300"
               >
-                ⏳ NEXT RUN {formatCountdown(nextRunAt - now)}
+                {daily.archive ? "ARCHIVE RESULT ▸" : `⏳ NEXT RUN ${formatCountdown(nextRunAt - now)}`}
               </button>
               <button
                 type="button"
@@ -1184,7 +1227,7 @@ function Summary({
         {totalScore} <span className="text-lg text-slate-400">/ {MAX_POINTS} pts</span>
       </h2>
       <p className="text-base text-slate-400">
-        {solvedCount} of {DAILY_QUESTION_COUNT} answered. A brand-new run unlocks tomorrow.
+        {solvedCount} of {DAILY_QUESTION_COUNT} answered. {daily.archive ? "Archive voyage: counts toward achievements, not leaderboards." : "A brand-new run unlocks tomorrow."}
       </p>
       <p className="mt-2 text-base tracking-[0.2em] text-amber-200">▼ ALL ANSWERS UNLOCKED · TAP A QUESTION ▼</p>
 
@@ -1375,6 +1418,38 @@ function CountdownScreen({
         <button type="button" aria-haspopup="dialog" onClick={onAccount} className="mt-2 inline-flex items-center justify-center gap-2 py-1.5 text-base text-cyan-200 underline-offset-4 hover:underline">
           <LogIcon />{signedIn ? "Open my Captain's Log" : "Sign in or create an account to keep this voyage"} ▸
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ArchiveDoneScreen({ day, score, solved, saveMessage, onToday, onArchive, onClose }: {
+  day: string;
+  score: number;
+  solved: number;
+  saveMessage: string;
+  onToday: () => void;
+  onArchive: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-[#05070f]/80 px-4 py-6 backdrop-blur-sm">
+      <div className="px-box px-scan countdown-pop w-full max-w-md px-7 py-6 text-center" data-archive-done>
+        <p className="text-base tracking-[0.4em] text-cyan-200">ARCHIVE VOYAGE COMPLETE</p>
+        <p className="text-sm tracking-[0.25em] text-slate-400">{archiveDateLabel(day).toUpperCase()}</p>
+        <p className="mt-2 font-pixel-display text-3xl font-bold text-white">
+          {score} <span className="text-lg text-slate-400">/ {MAX_POINTS} pts</span>
+        </p>
+        <p className="text-base text-slate-400">{solved} of {DAILY_QUESTION_COUNT} answered</p>
+        <p className="mt-3 border-y border-white/10 py-2 text-sm leading-snug text-slate-300">
+          Counts toward your achievements and bounty. Archive voyages never enter the daily leaderboard or Top 50 Scores.
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={onClose} className="px-btn h-11 bg-amber-400 px-5 text-xl tracking-[0.2em] text-amber-950 hover:bg-amber-300">VIEW ANSWERS</button>
+          <button type="button" onClick={onArchive} className="px-btn h-11 bg-[#25415a] px-5 text-xl tracking-[0.15em] text-cyan-100 hover:bg-[#31566e]">ANOTHER DAY</button>
+        </div>
+        <button type="button" onClick={onToday} className="mt-3 text-base text-amber-200 underline-offset-4 hover:underline">◂ Back to today&apos;s voyage</button>
+        {saveMessage && <p role="status" className="mt-2 text-sm text-slate-300">{saveMessage}</p>}
       </div>
     </div>
   );

@@ -290,3 +290,33 @@
 @keyframes uc-wiggle { 0%, 80%, 100% { transform: none; } 85% { transform: rotate(-6deg); } 90% { transform: rotate(6deg); } 95% { transform: rotate(-3deg); } }
 .uc-empty { padding: 10px; border: 1px dashed #ffffff26; text-align: center; font-size: 14px; color: #94a3b8; }
 @media (prefers-reduced-motion: reduce) { .uc-chest { animation: none; } }
+
+/* Berry sign for the chest currency (VT323 keeps the glyph crisp; pixel display fonts mangle it). */
+.berry-mark { font-family: var(--font-pixel); color: #fcd34d; display: inline-block; transform: translateY(1px); }
+
+/* Bounty milestones track (Ranked menu). */
+.ms-stat { display: flex; flex-direction: column; gap: 2px; border: 1px solid #fcd34d40; background: #fcd34d0f; padding: 6px 10px; }
+.ms-stat span { font-size: 12px; letter-spacing: .22em; color: #fcd34d; }
+.ms-stat b { font-family: var(--font-pixel); font-weight: 400; font-size: 26px; line-height: 1; text-align: right; font-variant-numeric: tabular-nums; }
+.ms-track { list-style: none; margin: 0; padding: 0; }
+.ms-row { position: relative; display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 6px 8px 6px 4px; border: 1px solid transparent; }
+.ms-row + .ms-row { margin-top: 2px; }
+.ms-node {
+  position: relative; z-index: 1; display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px;
+  border: 2px solid #3a4b66; background: #0b1426; color: #0b1426; font-family: var(--font-pixel); font-size: 20px; line-height: 1;
+}
+.ms-line { position: absolute; left: 16px; top: -30px; height: 44px; width: 4px; background: #24334a; }
+.ms-row:first-child .ms-line { display: none; }
+.ms-line i { position: absolute; left: 0; bottom: 0; width: 100%; background: #fcd34d; }
+.ms-bounty { font-family: var(--font-pixel); font-size: 24px; line-height: 1; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+.ms-bounty small { font-size: 15px; color: #64748b; letter-spacing: .1em; }
+.ms-reward { margin-top: 2px; display: flex; align-items: center; gap: 4px; font-size: 16px; color: #94a3b8; }
+.ms-status { flex-shrink: 0; font-size: 14px; letter-spacing: .18em; }
+.ms-row.is-ready { border-color: #fcd34d66; background: linear-gradient(90deg, #fcd34d1c, transparent); }
+.ms-row.is-ready .ms-node { border-color: #fcd34d; background: #fcd34d; animation: ms-pulse 1.4s steps(2) infinite; }
+.ms-row.is-ready .ms-reward { color: #fde68a; }
+.ms-row.is-claimed .ms-node { border-color: #34d399; background: #34d399; }
+.ms-row.is-claimed .ms-bounty { color: #a7f3d0; }
+.ms-row.is-locked .ms-bounty { color: #94a3b8; }
+@keyframes ms-pulse { 50% { box-shadow: 0 0 0 4px #fcd34d33; } }
+@media (prefers-reduced-motion: reduce) { .ms-row.is-ready .ms-node { animation: none; } }

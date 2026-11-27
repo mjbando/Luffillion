@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Coins } from "lucide-react";
+import BerryMark from "./BerryMark";
 import CharacterPortrait from "./CharacterPortrait";
 import PixelChest from "./PixelChest";
 import { characterById, type CharacterId } from "@/data/playable-characters";
@@ -277,7 +277,7 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
               <p className="tc-epithet">{character.epithet}</p>
               <p className={reward.duplicateCoins ? "tc-dupe" : "tc-new"}>
                 {reward.duplicateCoins
-                  ? <>Already in your crew · <Coins size={14} aria-hidden="true" /> +{reward.duplicateCoins} {free ? "coins" : "refunded"}</>
+                  ? <>Already in your crew · <BerryMark size={14} /> +{reward.duplicateCoins} {free ? "berries" : "berries refunded"}</>
                   : "NEW RECRUIT · now playable"}
               </p>
             </div>
@@ -315,7 +315,7 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
               <button type="button" className="ts-btn ts-btn-gold" onClick={onAgain}>OPEN NEXT CHEST ▸</button>
             ) : (
               <button type="button" className="ts-btn ts-btn-gold" disabled={!canAfford} onClick={onAgain}>
-                {canAfford ? <>OPEN ANOTHER · <Coins size={14} aria-hidden="true" /> {CHEST_PRICES[chest]}</> : `NEED ${CHEST_PRICES[chest] - coins} MORE`}
+                {canAfford ? <>OPEN ANOTHER · <BerryMark size={14} /> {CHEST_PRICES[chest]}</> : `NEED ${CHEST_PRICES[chest] - coins} MORE BERRIES`}
               </button>
             ))}
           </div>

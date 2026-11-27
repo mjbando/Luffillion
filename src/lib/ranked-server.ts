@@ -14,6 +14,7 @@ import { RequestProblem } from "./account-server";
 import { COINS_PER_RANKED_WIN } from "./coins";
 import { creditCoins } from "./currency-server";
 import { equippedCharacterFor } from "./crew-server";
+import { rankedBerryUnlocksSince, recordShowdownResult, unlockRankedBerryAchievement } from "./berries-server";
 import {
   RANKED_INTRO_MS,
   RANKED_MAX_ROUNDS,
@@ -410,6 +411,13 @@ async function finalizeMatch(
     // Ranked win-streak achievements drop a reward chest into the winner's unopened chests.
     if (p1Outcome === "win") p1Rewards = await grantRankedStreakChests(tx, fresh.player1Id, p1Delta.newStreak);
     if (p2Outcome === "win") p2Rewards = await grantRankedStreakChests(tx, fresh.player2Id, p2Delta.newStreak);
+    // Giant Slayer: beat an opponent whose rank was higher when the battle started.
+    const tierIndex = rankIndexFor;
+    if (p1Outcome === "win" && tierIndex(rp2.points) > tierIndex(rp1.points)) await unlockRankedBerryAchievement(tx, fresh.player1Id, "ranked-giant-slayer");
+    if (p2Outcome === "win" && tierIndex(rp1.points) > tierIndex(rp2.points)) await unlockRankedBerryAchievement(tx, fresh.player2Id, "ranked-giant-slayer");
+    // Every berry achievement earned during this battle shows up on the results screen.
+    p1Rewards = [...p1Rewards, ...await rankedBerryUnlocksSince(tx, fresh.player1Id, fresh.createdAt)];
+    p2Rewards = [...p2Rewards, ...await rankedBerryUnlocksSince(tx, fresh.player2Id, fresh.createdAt)];
   }
 
   const nextState: RankedMatchState = {
@@ -518,6 +526,15 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
     r.resolvedAt = Math.min(now, r.endsAt);
     r.loser = loser;
     r.decidedBy = decidedBy;
+    // Ranked-only achievements: a One in a Luffillion pull, and Showdown win streaks.
+    if (state.mode === "ranked") {
+      if (r.p1?.tier === "luffillion") await unlockRankedBerryAchievement(tx, current.player1Id, "ranked-luffillion");
+      if (r.p2?.tier === "luffillion") await unlockRankedBerryAchievement(tx, current.player2Id, "ranked-luffillion");
+      if (r.showdown && loser === "both") await recordShowdownResult(tx, null, [current.player1Id, current.player2Id]);
+      else if (r.showdown && loser) {
+        await recordShowdownResult(tx, loser === "p1" ? current.player2Id : current.player1Id, [loser === "p1" ? current.player1Id : current.player2Id]);
+      }
+    }
     changed = true;
 
     const knockout = state.p1.lives === 0 || state.p2.lives === 0;

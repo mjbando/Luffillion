@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Coins, PackageOpen } from "lucide-react";
+import { PackageOpen } from "lucide-react";
+import BerryMark from "./BerryMark";
 import "./treasure.css";
 import CharacterPortrait from "./CharacterPortrait";
 import ChestOpening, { type ChestReward } from "./ChestOpening";
@@ -11,6 +12,7 @@ import type { UnopenedChest } from "@/lib/ranked-achievements";
 import { characterById, type CharacterId } from "@/data/playable-characters";
 import { TREASURE_ROSTER } from "@/data/roster";
 import { COINS_PER_ADVENTURE_LEVEL, COINS_PER_DAILY_VOYAGE, COINS_PER_RANKED_WIN } from "@/lib/coins";
+import { BOUNTY_MILESTONES, RANKED_BERRY_ACHIEVEMENTS } from "@/lib/ranked-achievements";
 import { CHARACTER_POOLS, CHEST_PRICES, chestOdds, TREASURE_CHESTS, TREASURE_RARITIES, TREASURE_RARITY_COLORS, type ChestRarity, type TreasureRarity } from "@/lib/treasure";
 import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
@@ -55,6 +57,8 @@ const EARN_RULES = [
   { label: "Daily Voyage completed", coins: `+${COINS_PER_DAILY_VOYAGE}` },
   { label: "Adventure level beaten", coins: `+${COINS_PER_ADVENTURE_LEVEL}` },
   { label: "Ranked battle won", coins: `+${COINS_PER_RANKED_WIN}` },
+  { label: "Bounty milestones (Ranked › Milestones)", coins: `+${BOUNTY_MILESTONES[0].berries} to +${BOUNTY_MILESTONES.at(-1)!.berries.toLocaleString()}` },
+  { label: "Ranked achievements", coins: `+${Math.min(...RANKED_BERRY_ACHIEVEMENTS.map(a => a.berries))} to +${Math.max(...RANKED_BERRY_ACHIEVEMENTS.map(a => a.berries))}` },
 ];
 
 export default function TreasureShop({ captain, onSignIn }: { captain: Captain | null; onSignIn: () => void }) {
@@ -70,7 +74,7 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
     let active = true;
     voyageRequest<ShopData>("/api/treasure")
       .then((response) => { if (active) setData(response); })
-      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Could not load your coin pouch."); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Could not load your berries."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [captainId]);
@@ -122,13 +126,13 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
         <div className="min-w-0 flex-1">
           <p className="text-xs tracking-[.25em] text-amber-300">CAPTAIN&apos;S TREASURE</p>
           <h2 className="font-pixel-display text-xl font-bold text-white">Treasure Chests</h2>
-          <p className="text-sm text-slate-400">Spend coins to recruit new characters.</p>
+          <p className="text-sm text-slate-400">Spend berries to recruit new characters.</p>
         </div>
       </header>
 
       {!captain ? (
         <div className="border border-amber-300/30 bg-amber-300/[.07] p-4 text-center">
-          <p className="text-base text-slate-200">Sign in to earn and spend coins.</p>
+          <p className="text-base text-slate-200">Sign in to earn and spend berries.</p>
           <button type="button" onClick={() => { playClick(); onSignIn(); }} className="px-btn mt-3 h-9 bg-amber-400 px-5 text-base text-amber-950 hover:bg-amber-300">
             SIGN IN / CREATE ACCOUNT ▸
           </button>
@@ -136,14 +140,14 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
       ) : (
         <>
           <div className="mb-3 flex items-center justify-between border border-amber-300/30 bg-amber-300/[.07] px-4 py-3">
-            <span className="text-sm tracking-wider text-amber-100">YOUR COINS</span>
-            <span className="flex items-center gap-2 font-pixel-display text-2xl tabular-nums text-amber-200">
-              <Coins size={20} /> {loading ? "…" : (data?.coins ?? 0).toLocaleString()}
+            <span className="text-sm tracking-wider text-amber-100">YOUR BERRIES</span>
+            <span className="flex items-center gap-2 font-pixel text-3xl tabular-nums text-amber-200">
+              <BerryMark size={20} /> {loading ? "…" : (data?.coins ?? 0).toLocaleString()}
             </span>
           </div>
 
           <details className="mb-4 border border-white/10 bg-white/[.02] px-3 py-2 text-sm text-slate-300">
-            <summary className="cursor-pointer text-amber-100">How to earn coins</summary>
+            <summary className="cursor-pointer text-amber-100">How to earn berries</summary>
             <ul className="mt-2 space-y-1">
               {EARN_RULES.map((rule) => (
                 <li key={rule.label} className="flex justify-between gap-3">
@@ -156,7 +160,7 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
           </details>
 
           {error && <p role="alert" className="ts-error mb-3">{error}</p>}
-          {!data && !error && <p role="status" className="py-4 text-center text-cyan-200">Counting your coins…</p>}
+          {!data && !error && <p role="status" className="py-4 text-center text-cyan-200">Counting your berries…</p>}
 
           {data && <UnopenedChests chests={data.unopenedChests ?? []} coins={data.coins} onOpened={rewardOpened} />}
 
@@ -173,7 +177,7 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
                       <PixelChest chest={chest} size={52} className="ts-card-chest shrink-0" />
                       <div className="min-w-0 flex-1">
                         <h3 className="font-pixel-display text-lg leading-tight" style={{ color }}>{displayRarity(chest)} Chest</h3>
-                        <span className="flex items-center gap-1 text-base text-amber-200"><Coins size={14} /> {price.toLocaleString()}</span>
+                        <span className="flex items-center gap-1 text-base text-amber-200"><BerryMark size={14} /> {price.toLocaleString()}</span>
                       </div>
                     </div>
                     <div className="mb-3 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
@@ -190,7 +194,7 @@ export default function TreasureShop({ captain, onSignIn }: { captain: Captain |
                       onClick={() => void open(chest)}
                       className="ts-btn ts-btn-gold h-9 w-full"
                     >
-                      {canAfford ? "OPEN CHEST" : `NEED ${(price - data.coins).toLocaleString()} MORE COINS`}
+                      {canAfford ? "OPEN CHEST" : `NEED ${(price - data.coins).toLocaleString()} MORE BERRIES`}
                     </button>
                   </article>
                 );

@@ -45,4 +45,8 @@ CREATE TABLE IF NOT EXISTS ranked_matches (
 CREATE INDEX IF NOT EXISTS ranked_matches_p1_idx ON ranked_matches(player1_id, status);
 CREATE INDEX IF NOT EXISTS ranked_matches_p2_idx ON ranked_matches(player2_id, status);
 
+-- Showdown win streak for the "Win 3 Showdowns in a row" ranked achievement.
+ALTER TABLE ranked_profiles
+  ADD COLUMN IF NOT EXISTS showdown_streak integer NOT NULL DEFAULT 0;
+
 COMMIT;

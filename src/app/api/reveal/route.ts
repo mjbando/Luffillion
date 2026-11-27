@@ -2,6 +2,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { solves } from "@/db/schema";
 import { getQuestionById, parseEntries, todayKey } from "@/lib/daily";
+import { isArchiveDay } from "@/lib/archive";
+import { UPDATE_LIVE } from "@/lib/release";
 import { TIER_ORDER, type Tier } from "@/data/tiers";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +12,12 @@ export const dynamic = "force-dynamic";
 // with how many players have found each one. Called after a question is finished.
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const question = getQuestionById(url.searchParams.get("q") ?? "", todayKey());
+  const requested = url.searchParams.get("day");
+  const day = UPDATE_LIVE && isArchiveDay(requested) ? requested : todayKey();
+  const question = getQuestionById(url.searchParams.get("q") ?? "", day);
   if (!question) {
     return Response.json({ error: "Invalid question." }, { status: 400 });
   }
-  const day = todayKey();
 
   const rows = await db
     .select({ answer: solves.answer, found: sql<number>`count(*)::int` })

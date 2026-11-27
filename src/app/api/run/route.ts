@@ -5,7 +5,9 @@ import { runs } from "@/db/schema";
 import { todayKey } from "@/lib/daily";
 import { MAX_POINTS } from "@/data/tiers";
 import { currentCaptain, failure, guestId, privateJson, readMutation, RequestProblem } from "@/lib/account-server";
-import { finishVoyage, ownerOf, ownsRun, validAnswers, type Owner } from "@/lib/voyage-server";
+import { finishArchiveVoyage, finishVoyage, ownerOf, ownsRun, validAnswers, type Owner } from "@/lib/voyage-server";
+import { isArchiveDay } from "@/lib/archive";
+import { UPDATE_LIVE } from "@/lib/release";
 
 export const dynamic = "force-dynamic";
 const BIN_SIZE = 50;
@@ -50,6 +52,15 @@ export async function POST(req: NextRequest) {
     const captain = await currentCaptain(req);
     const accountId = captain?.id ?? null;
     if ((body.accountId ?? null) !== accountId) throw new RequestProblem(401, "Your session changed. Sign in again or reload before saving.");
+    if (body.archive === true) {
+      // Archive replay: saved apart from the daily runs, so it never reaches the leaderboard or Top 50.
+      if (!UPDATE_LIVE) throw new RequestProblem(404, "Coming soon.");
+      if (!accountId) throw new RequestProblem(401, "Sign in to save archive voyages.");
+      if (!isArchiveDay(body.day)) throw new RequestProblem(400, "That voyage isn't in the archive.");
+      if (!validAnswers(body.answers)) throw new RequestProblem(400, "Send one answer or miss for each of the seven questions.");
+      const mistakes = typeof body.mistakes === "number" && Number.isInteger(body.mistakes) && body.mistakes >= 0 ? Math.min(body.mistakes, 1000000) : undefined;
+      return privateJson({ archive: true, ...await finishArchiveVoyage(accountId, body.day, body.answers, { mistakes }) });
+    }
     const owner = ownerOf(accountId, guestId(req));
     if (!owner) throw new RequestProblem(401, "Enable site cookies and reload to save today's voyage.");
     if (!recentDay(body.day)) throw new RequestProblem(400, "That run has expired.");

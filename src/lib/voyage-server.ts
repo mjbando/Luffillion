@@ -1,7 +1,7 @@
 import { and, eq, isNull, notExists } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
-import { accounts, checkpoints, runs } from "@/db/schema";
+import { accounts, archiveRuns, checkpoints, runs } from "@/db/schema";
 import { DAILY_QUESTION_COUNT } from "@/data/tiers";
 import { checkGuess, getDailyRun, todayKey } from "./daily";
 import { RequestProblem } from "./account-server";
@@ -167,4 +167,38 @@ export async function claimGuestVoyages(accountId: string, guest: string, curren
   });
   if (current && Object.keys(current.q).length && firstOpen(current) < DAILY_QUESTION_COUNT) await saveCheckpoint(accountId, current, true);
   return count;
+}
+
+// ---------- Archive replays (past days) ----------
+// They count toward achievements and bounty, never toward the daily leaderboard, Top 50 or daily berries.
+
+export const archiveFields = { day: archiveRuns.dayKey, score: archiveRuns.score, solved: archiveRuns.solved, legs: archiveRuns.legs, niche: archiveRuns.niche, mistakes: archiveRuns.mistakes };
+
+/** The saved state of a past day for this captain: their live run if they played it that day, else their archive replay. */
+export async function archiveSave(day: string, accountId: string) {
+  const [live] = await db.select(runFields).from(runs).where(and(eq(runs.dayKey, day), eq(runs.accountId, accountId))).limit(1);
+  if (live) return { finished: live, replayed: false };
+  const [replay] = await db.select(archiveFields).from(archiveRuns).where(and(eq(archiveRuns.dayKey, day), eq(archiveRuns.accountId, accountId))).limit(1);
+  return { finished: replay ? { ...replay, beat: null, rank: null } : null, replayed: Boolean(replay) };
+}
+
+export async function finishArchiveVoyage(accountId: string, day: string, answers: string[], opts: { mistakes?: number } = {}) {
+  return db.transaction(async tx => {
+    await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).for("update");
+    const [live] = await tx.select({ id: runs.id }).from(runs).where(and(eq(runs.dayKey, day), eq(runs.accountId, accountId))).limit(1);
+    if (live) throw new RequestProblem(409, "You already sailed this voyage on its own day.");
+    const legs: VoyageLeg[] = getDailyRun(day).map((q, i) => {
+      const match = answers[i] ? checkGuess(q, answers[i]) : null;
+      return { questionId: q.id, prompt: q.prompt, answer: match?.name ?? null, tier: match?.tier ?? null, points: match?.points ?? 0 };
+    });
+    const score = legs.reduce((sum, leg) => sum + leg.points, 0);
+    const solved = legs.filter(leg => leg.tier).length;
+    const niche = legs.filter(leg => leg.tier === "rare" || leg.tier === "epic" || leg.tier === "luffillion").length;
+    const mistakes = typeof opts.mistakes === "number" ? opts.mistakes : null;
+    // First completion wins; replaying the same day again can't overwrite it.
+    await tx.insert(archiveRuns).values({ accountId, dayKey: day, score, solved, niche, mistakes, legs }).onConflictDoNothing();
+    const [saved] = await tx.select(archiveFields).from(archiveRuns).where(and(eq(archiveRuns.accountId, accountId), eq(archiveRuns.dayKey, day))).limit(1);
+    const { newlyUnlocked } = await evaluateAchievementsFor(tx, accountId);
+    return { finished: { ...saved, beat: null, rank: null }, newlyUnlocked };
+  });
 }

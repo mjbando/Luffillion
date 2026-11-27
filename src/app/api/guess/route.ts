@@ -1,12 +1,16 @@
 import { db } from "@/db";
 import { solves } from "@/db/schema";
 import { checkGuess, getQuestionById, suggestGuess, todayKey } from "@/lib/daily";
+import { isArchiveDay } from "@/lib/archive";
+import { UPDATE_LIVE } from "@/lib/release";
 
 export const dynamic = "force-dynamic";
 
 interface GuessBody {
   questionId?: unknown;
   guess?: unknown;
+  /** Set when replaying a past day from the Archive. */
+  day?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -19,7 +23,10 @@ export async function POST(request: Request) {
 
   const questionId = typeof body.questionId === "string" ? body.questionId : "";
   const guess = typeof body.guess === "string" ? body.guess.trim().slice(0, 80) : "";
-  const question = getQuestionById(questionId, todayKey());
+  // Archive replays never count toward the day's "found by" stats.
+  const archiveDay = UPDATE_LIVE && body.day != null ? (isArchiveDay(body.day) ? body.day : null) : undefined;
+  if (archiveDay === null) return Response.json({ error: "That voyage isn't in the archive." }, { status: 400 });
+  const question = getQuestionById(questionId, archiveDay ?? todayKey());
   if (!question) return Response.json({ error: "Invalid question." }, { status: 400 });
   if (!guess) return Response.json({ correct: false });
 
@@ -28,6 +35,8 @@ export async function POST(request: Request) {
     // Slightly misspelled? Offer an auto-correct the player can accept.
     return Response.json({ correct: false, suggestion: suggestGuess(question, guess) });
   }
+
+  if (archiveDay) return Response.json({ correct: true, name: match.name, tier: match.tier, points: match.points });
 
   await db.insert(solves).values({
     dayKey: todayKey(),

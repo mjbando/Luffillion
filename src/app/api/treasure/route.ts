@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     const result = await db.transaction(async (tx) => {
       const [account] = await tx.select({ coins: accounts.coins }).from(accounts).where(eq(accounts.id, captain.id)).for("update");
       if (!account) throw new RequestProblem(404, "Captain account not found.");
-      if (account.coins < cost) throw new RequestProblem(409, `You need ${cost} coins to open this chest.`);
+      if (account.coins < cost) throw new RequestProblem(409, `You need ${cost} berries to open this chest.`);
       const rolled = await rollChestFor(tx, captain.id, chest, cost);
       const coins = account.coins - cost + rolled.duplicateCoins;
       await tx.update(accounts).set({ coins }).where(eq(accounts.id, captain.id));
