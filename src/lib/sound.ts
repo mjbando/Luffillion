@@ -586,3 +586,46 @@ export function playChestReveal(rank: number): void {
   chord.forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: i * 0.03, dur: 0.6 + rank * 0.1, type: "triangle", vol: 0.1 }));
   if (rank >= 5) [1567.98, 2093, 2637, 3135.96].forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: 0.15 + i * 0.08, dur: 0.4, type: "sine", vol: 0.06 }));
 }
+
+/* ---------- Ranked battle ---------- */
+
+/** Arena gong + rising brass when a duel starts. */
+export function playFight(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playTone(a.ctx, a.out, t, { freq: 98, slideTo: 82, dur: 0.9, type: "sine", vol: 0.32, attack: 0.004 });
+  playNoise(a.ctx, a.out, t, 0, 0.5, 0.06, "bandpass", 700, 2400);
+  [392, 523.25, 659.25].forEach((f, i) =>
+    playTone(a.ctx, a.out, t, { freq: f, start: 0.08 + i * 0.07, dur: 0.32, type: "sawtooth", vol: 0.08, filterHz: 1800 }));
+}
+
+/** A heavy punch landing: low thump, crunchy noise burst. */
+export function playHit(heavy = false): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playTone(a.ctx, a.out, t, { freq: heavy ? 150 : 190, slideTo: 40, dur: heavy ? 0.32 : 0.2, type: "sine", vol: 0.42, attack: 0.002 });
+  playTone(a.ctx, a.out, t, { freq: 420, slideTo: 90, dur: 0.12, type: "square", vol: 0.08, filterHz: 1400 });
+  playNoise(a.ctx, a.out, t, 0, heavy ? 0.28 : 0.16, 0.16, "lowpass", 2600, 300);
+}
+
+/** Two blades meeting: bright metallic ring. */
+export function playClash(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  [1318.5, 1760, 2349.3].forEach((f, i) =>
+    playTone(a.ctx, a.out, t, { freq: f, start: i * 0.012, dur: 0.45, type: "triangle", vol: 0.07 }));
+  playNoise(a.ctx, a.out, t, 0, 0.12, 0.12, "highpass", 3500, 8000);
+}
+
+/** Knockout: big slam, then a falling whistle. */
+export function playKO(): void {
+  const a = getAudio();
+  if (!a) return;
+  const t = a.ctx.currentTime;
+  playTone(a.ctx, a.out, t, { freq: 120, slideTo: 30, dur: 0.6, type: "sine", vol: 0.5, attack: 0.002 });
+  playNoise(a.ctx, a.out, t, 0, 0.4, 0.2, "lowpass", 3000, 200);
+  playTone(a.ctx, a.out, t, { freq: 1400, slideTo: 300, start: 0.25, dur: 0.7, type: "sine", vol: 0.06 });
+}
