@@ -78,7 +78,7 @@ export const RANKED_MAX_TIER_GAP = 2;
 
 /** Typical swings against an evenly matched opponent (same rank, same RP). */
 export const RP_EVEN_WIN = 30;
-export const RP_EVEN_LOSS = 15;
+export const RP_EVEN_LOSS = 20;
 export const RP_EVEN_DRAW = 10;
 
 /**
@@ -98,13 +98,13 @@ export function strengthGap(playerPoints: number, opponentPoints: number): numbe
  * Base RP change before streak bonuses. Everything scales smoothly with the
  * strength gap g:
  *  - Win:  30 * 2^(0.6g)   upsets pay big (2 ranks up is about +70 to +100), easy wins pay little (min +8)
- *  - Loss: 15 * 2^(-0.75g) losing to a weaker captain hurts (up to -60), losing to a stronger one barely (min -3)
+ *  - Loss: 20 * 2^(-0.75g) losing to a weaker captain hurts (up to -80), losing to a stronger one barely (min -4)
  *  - Draw: 10 * 2^(0.5g)   holding a stronger captain to a draw is worth more
  */
 export function baseRankDelta(playerPoints: number, opponentPoints: number, outcome: "win" | "loss" | "draw"): number {
   const g = strengthGap(playerPoints, opponentPoints);
   if (outcome === "win") return Math.max(8, Math.min(100, Math.round(RP_EVEN_WIN * 2 ** (0.6 * g))));
-  if (outcome === "loss") return -Math.max(3, Math.min(60, Math.round(RP_EVEN_LOSS * 2 ** (-0.75 * g))));
+  if (outcome === "loss") return -Math.max(4, Math.min(80, Math.round(RP_EVEN_LOSS * 2 ** (-0.75 * g))));
   return Math.max(3, Math.min(25, Math.round(RP_EVEN_DRAW * 2 ** (0.5 * g))));
 }
 
