@@ -327,20 +327,9 @@ function gear5(d: Detail) {
   // Ears in front of the hair.
   d.asBody(() => { for (const x of [hx - 3, hx + hw]) d.r(x, hy + 6, 3, 6, ink).r(x + 1, hy + 7, 1, 4, sk).r(x === hx - 3 ? x + 2 : x, hy + 7, 1, 4, shade(sk, -0.15)); });
   // Big round black eyes with a glint, and a little smile.
-  // Gear 5 face: wide eyes with red-ringed pupils, cocky brows, the scar under his eye and a huge toothy grin.
-  d.eyes("none").mouth("none");
-  for (const [x, m] of [[d.L, false], [d.R, true]] as [number, boolean][]) {
-    d.f(x - 1, d.ey - 1, 5, 3, white).f(x, d.ey - 1, 3, 3, ink).f(x, d.ey - 1, 1, 1, white).f(x + 1, d.ey + 1, 1, 1, "#3a2a5a");
-    d.f(x - 1, d.ey - 4, 5, 1, ink).f(m ? x + 3 : x - 1, d.ey - 3, 1, 1, ink); // raised, cocky brows
-  }
-  d.f(d.R, d.ey + 3, 4, 1, "#b04a3a").f(d.R + 1, d.ey + 2, 1, 3, "#b04a3a").f(d.R + 3, d.ey + 2, 1, 3, "#b04a3a"); // stitched scar
-  const my = hy + 10;
-  // A huge laughing grin: curled-up corners, top teeth, red mouth and tongue.
-  d.r(cx - 7, my - 1, 1, 1, ink).r(cx + 6, my - 1, 1, 1, ink).r(cx - 6, my, 12, 1, ink)
-    .r(cx - 6, my + 1, 1, 1, ink).r(cx + 5, my + 1, 1, 1, ink).r(cx - 5, my + 1, 10, 1, white)
-    .r(cx - 5, my + 2, 1, 1, ink).r(cx + 4, my + 2, 1, 1, ink).r(cx - 4, my + 2, 8, 1, "#7a1424").r(cx - 2, my + 2, 4, 1, "#e0505e")
-    .r(cx - 4, my + 3, 8, 1, ink);
-  for (const x of [cx - 3, cx - 1, cx + 1, cx + 3]) d.d(x, my + 1, "#d0d4e0");
+  // Gear 5 face in the shared style: bright eyes, a toothy grin and the stitched scar under his eye.
+  d.eyes("stern", "#2a2040", "#2a2040").mouth("grin");
+  d.f(d.R, d.ey + 3, 3, 1, "#b04a3a").f(d.R + 1, d.ey + 2, 1, 3, "#b04a3a");
   // Open white vest over the bare chest with the X scar, a purple sash, white shorts and sandals.
   const { tc, ty, th, tx, tw } = d;
   d.r(tc - 3, ty + 2, 6, th - 9, sk).r(tc - 3, ty + 2, 1, th - 9, shade(sk, 0.2)).r(tc + 2, ty + 2, 1, th - 9, shade(sk, -0.18));
@@ -366,6 +355,187 @@ const ROCKS_BLUE = "#3a78d0", ROCKS_BLUE_L = "#8cc4ff", ROCKS_BLUE_D = "#24508f"
 const FUR = "#1a1620", FUR_L = "#3a3442";
 
 /** Rocks D. Xebec: towering blue hair streaked black, a manic toothy grin, a cracked scar, braided whiskers and a black fur coat. */
+/** Draws a free-form shape (hair, beard, moustache) as body pixels with an ink outline. */
+function blob(d: Detail, cells: Map<string, string>, front: (x: number, y: number) => boolean = () => true) {
+  d.asBody(() => {
+    for (const [key, c] of cells) { const [x, y] = key.split(",").map(Number); if (front(x, y)) d.r(x, y, 1, 1, c); else d.u(x, y, 1, 1, c); }
+    for (const key of cells.keys()) {
+      const [x, y] = key.split(",").map(Number);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!cells.has(`${x + dx},${y + dy}`)) d.u(x + dx, y + dy, 1, 1, ink);
+    }
+  });
+  return d;
+}
+const SUIT_BLACK = "#1e1e28";
+
+/** Saturn: white barrister curls framing a scarred face, a white beard, black suit, white cape and a twisted cane. */
+function saturn(d: Detail) {
+  const { hx, hy, hw, cx, ty, tc } = d;
+  d.wipeScar(["scar"]).wipeScar(["beard"]).eyes("stern", "#5a4a6a", "#d8d8e0").mouth("none");
+  d.f(d.L - 1, d.ey - 1, 4, 1, shade(d.sk, -0.25)).f(d.R, d.ey - 1, 4, 1, shade(d.sk, -0.25)); // heavy lids
+  d.line(d.R + 4, hy + 2, d.R - 1, d.ey - 2, "#9a5a3a").line(d.R + 4, hy + 3, d.R, d.ey - 2, "#b8704a"); // forehead scar
+  d.suit(SHIRT, SUIT_BLACK).cuffs(SHIRT);
+  // White moustache and a rounded beard.
+  const beard = new Map<string, string>();
+  for (let y = hy + 11; y < hy + d.hh + 4; y++) {
+    const half = y < hy + 13 ? 4 : Math.max(2, 6 - Math.max(0, y - (hy + d.hh)));
+    for (let x = cx - half - 1; x < cx + half + 1; x++) beard.set(`${x},${y}`, (x + y) % 4 === 0 ? "#d8d8e4" : "#f6f6fa");
+  }
+  for (let x = cx - 2; x < cx + 2; x++) beard.delete(`${x},${hy + 13}`);
+  blob(d, beard);
+  d.r(cx - 2, hy + 13, 4, 1, "#7a3a3a");
+  // White barrister curls fanning out from the sides of his head, each with a grey rolled end.
+  const curls = new Map<string, string>();
+  for (const s of [-1, 1]) for (let i = 0; i < 6; i++) {
+    const a = (-10 + i * 16) * Math.PI / 180, len = 4 + (i % 2) + (i > 2 ? 1 : 0), bx = s < 0 ? hx : hx + hw - 1, by = hy + i * 3;
+    for (let t = 0; t <= len; t++) {
+      const x = Math.round(bx + s * t * Math.cos(a)), y = Math.round(by + t * Math.sin(a));
+      const end = t >= len - 1;
+      curls.set(`${x},${y}`, end ? "#a8a8bc" : "#ffffff");
+      curls.set(`${x},${y + 1}`, end ? "#8a8aa0" : "#d8d8e4");
+    }
+  }
+  blob(d, curls, (x) => x < hx || x >= hx + hw);
+  // Black suit, white shirt and tie, white cape over the shoulders.
+  d.recolor("#e8e8f0", 0, ty - 2, d.W, d.p.height, () => "#262630"); // the low-res cape becomes jacket
+  // The white cape draped over both shoulders, hanging outside the arms.
+  d.asBody(() => {
+    for (const [x0, s] of [[d.lx - 4, -1], [d.rx + d.aw, 1]] as Px[]) {
+      for (let y = ty - 2; y < d.legY + 6; y++) {
+        const w = 4 + Math.min(2, (y - ty) >> 3);
+        for (let i = 0; i < w; i++) {
+          const x = s < 0 ? x0 + 4 - w + i : x0 + i, outer = s < 0 ? i === 0 : i === w - 1;
+          d.u(x, y, 1, 1, outer ? "#b8b8cc" : (x + y) % 6 === 0 ? "#dcdce8" : "#f4f4f8");
+        }
+      }
+      d.r(s < 0 ? d.lx - 2 : d.rx, ty - 2, d.aw + 2, 3, "#f4f4f8").r(s < 0 ? d.lx - 2 : d.rx, ty + 1, d.aw + 2, 1, "#c8c8d8");
+    }
+  });
+  d.r(tc - 1, ty, 2, 2, SHIRT);
+}
+
+/** Mars: long white hair down his back, a huge flowing white beard, navy suit. */
+function mars(d: Detail) {
+  const { hx, hy, hw, cx, ty } = d;
+  d.wipeScar(["beard"]).eyes("stern", "#5a5a6a", "#e8e8f0").mouth("none");
+  d.f(d.L - 1, d.ey - 1, 4, 1, shade(d.sk, -0.25)).f(d.R, d.ey - 1, 4, 1, shade(d.sk, -0.25));
+  d.suit("#e8e4f4", SUIT_BLACK, "#2a3060").cuffs(SHIRT);
+  const hair = new Map<string, string>();
+  for (let y = hy - 2; y < ty + 12; y++) for (let x = hx - 3; x < hx + hw + 3; x++) {
+    const side = x < hx || x >= hx + hw;
+    if (!side && y > hy + 1 && !(y < hy + 4 && (x < hx + 3 || x >= hx + hw - 3))) continue;
+    if (side && (x === hx - 3 || x === hx + hw + 2) && y < hy + 1) continue;
+    hair.set(`${x},${y}`, x === cx - 1 && y < hy + 2 ? "#c8c8d4" : (x * 2 + y) % 6 === 0 ? "#d0d0dc" : "#f2f2f6");
+  }
+  blob(d, hair, (x, y) => y < ty || x < hx - 1 || x > hx + hw);
+  // Moustache sweeping out, then a long two-pointed beard over the tie.
+  const beard = new Map<string, string>();
+  for (let y = hy + 11; y < ty + 14; y++) {
+    const t = (y - hy - 11) / (ty + 14 - hy - 11), half = Math.round(6 - 3 * t);
+    for (let x = cx - half; x < cx + half; x++) {
+      if (y > ty + 6 && Math.abs(x - cx + 0.5) < 1 + (y - ty - 6) / 3) continue; // split into two points
+      beard.set(`${x},${y}`, (x + y * 2) % 5 === 0 ? "#d0d0dc" : "#f6f6fa");
+    }
+  }
+  blob(d, beard);
+  d.suit("#e8e4f4", SUIT_BLACK, "#2a3060").cuffs(SHIRT);
+}
+
+/** Warcury: bald, purple birthmark, side tufts, and a gigantic tusk-shaped moustache. */
+function warcury(d: Detail) {
+  const { hx, hy, hw, cx } = d;
+  d.wipeScar(["stache"]).eyes("glare", "#3a2a4a", "#3a2a4a").mouth("none");
+  d.f(cx - 3, hy + 3, 5, 3, "#6a4a7a").f(cx - 2, hy + 2, 3, 1, "#6a4a7a").f(cx - 1, hy + 4, 1, 1, "#8a6a9a").f(cx + 1, hy + 3, 1, 1, "#4a2a5a"); // birthmark
+  d.f(cx - 1, hy + 9, 2, 3, shade(d.sk, -0.18)); // nose
+  for (const x of [hx - 1, hx + hw - 1]) d.asBody(() => d.r(x, hy + 2, 2, 4, "#f2f2f6").d(x, hy + 5, "#c8c8d4")); // white side tufts
+  d.suit("#d8d0ec", "#3a3a5a", "#3a3a5a").cuffs("#d8d0ec");
+  const stache = new Map<string, string>();
+  for (const s of [-1, 1]) for (let i = 0; i <= 40; i++) {
+    const t = i / 40, x = Math.round(cx + s * (1 + 14 * t)) - (s < 0 ? 1 : 0), y = Math.round(hy + 13 + 2 * Math.sin(t * Math.PI) - 7 * t * t * t);
+    const th = Math.max(2, Math.round(5 * (1 - t) + 1.5));
+    for (let j = 0; j < th; j++) stache.set(`${x},${y - j}`, j === th - 1 ? "#ffffff" : t > 0.75 ? "#e8e8f0" : "#f4f4f8");
+  }
+  blob(d, stache);
+  d.r(cx - 2, hy + 16, 4, 1, shade(d.sk, -0.55));
+  d.suit("#d8d0ec", "#3a3a5a", "#3a3a5a").cuffs("#d8d0ec");
+}
+
+/** Nusjuro: bald, round spectacles, an open white kimono over a lean chest, orange obi, katana. */
+function nusjuro(d: Detail) {
+  const { hy, cx, tc, ty, th, tx, tw } = d;
+  d.wipeScar(["glasses"]).eyes("stern", "#3a2a1a", "#7a5a3a").glasses("#4a3a2a", "#e8e0d0").mouth("line");
+  for (const x of [d.L, d.R + 1]) d.d(x + 1, d.ey, ink);
+  d.f(cx - 4, hy + 2, 8, 1, shade(d.sk, -0.2)).f(cx - 3, hy + 4, 6, 1, shade(d.sk, -0.2)); // wrinkles
+  d.f(cx - 3, hy + 13, 1, 1, shade(d.sk, -0.3)).f(cx + 2, hy + 13, 1, 1, shade(d.sk, -0.3)); // stern frown
+  // Open kimono: bare chest in a deep V with muscle lines.
+  for (let i = 0; i < th - 7; i++) {
+    const half = Math.max(1, 5 - Math.floor(i / 3));
+    d.r(tc - half, ty + 1 + i, half * 2, 1, d.sk).d(tc - half - 1, ty + 1 + i, "#d8d8e0").d(tc + half, ty + 1 + i, "#d8d8e0");
+  }
+  const mus = shade(d.sk, -0.22);
+  d.r(tc - 4, ty + 4, 3, 1, mus).r(tc + 1, ty + 4, 3, 1, mus).r(tc, ty + 3, 1, 8, mus).r(tc - 2, ty + 7, 1, 1, mus).r(tc + 1, ty + 7, 1, 1, mus);
+  // Orange obi with diagonal stripes.
+  const oy = ty + th - 7;
+  d.r(tx + 1, oy, tw - 2, 4, "#e0901a").r(tx + 1, oy, tw - 2, 1, "#f4b04a").r(tx + 1, oy + 3, tw - 2, 1, "#a8640a");
+  for (let x = tx + 2; x < tx + tw - 2; x += 3) d.d(x, oy + 2, "#b8700e").d(x + 1, oy + 1, "#b8700e");
+  d.folds("#f2f2f2", d.legY);
+}
+
+/** Ju Peter: slicked blond hair, a short blond beard, a scar on his chest, black suit and a grey fur-collared cape. */
+function juPeter(d: Detail) {
+  const { hx, hy, hw, cx, tc, ty, tx, tw } = d;
+  d.wipeScar(["goatee"]).eyes("stern", "#4a3a2a", "#a88a40").mouth("line");
+  d.f(d.L - 1, d.ey - 1, 4, 1, shade(d.sk, -0.22)).f(d.R, d.ey - 1, 4, 1, shade(d.sk, -0.22));
+  const gold2 = "#e8d090", goldD = "#b89a50";
+  // Beard along the jaw and a moustache.
+  d.f(hx, hy + 9, 2, 6, gold2).f(hx + hw - 2, hy + 9, 2, 6, gold2).f(hx + 1, hy + 13, hw - 2, 3, gold2).f(cx - 4, hy + 11, 8, 1, gold2);
+  d.f(cx - 2, hy + 13, 4, 1, shade(d.sk, -0.5)).f(hx + 3, hy + 14, 1, 1, goldD).f(hx + hw - 4, hy + 14, 1, 1, goldD);
+  d.asBody(() => d.r(cx - 4, hy + d.hh, 8, 2, gold2).r(cx - 2, hy + d.hh + 2, 4, 1, goldD));
+  // Open white collar with the scar on his chest, buttoned black jacket.
+  for (let i = 0; i < 6; i++) { const half = Math.max(1, 4 - Math.floor(i / 2)); d.r(tc - half - 1, ty + 1 + i, half * 2 + 2, 1, SHIRT).r(tc - half + 1, ty + 1 + i, Math.max(0, half * 2 - 2), 1, d.sk); }
+  d.d(tc - 4, ty, SHIRT).d(tc + 3, ty, SHIRT).line(tc - 2, ty + 1, tc + 1, ty + 4, "#a04a3a");
+  d.buttons("#3a3a48", 2, ty + 9, 5).cuffs(SHIRT);
+  // Grey fur collar on the cape.
+  d.asBody(() => {
+    for (let x = tx - 5; x < tx + tw + 5; x++) {
+      if (x > tc - 6 && x < tc + 5) continue;
+      const hgt = 3 + ((x * 7) % 3);
+      d.r(x, ty - 2, 1, hgt, (x * 3) % 5 === 0 ? "#b8b8c0" : "#9a9aa2");
+    }
+  });
+  d.recolor("#6a6a70", 0, ty + 3, d.W, d.p.height, (x, y) => (x + y * 2) % 7 === 0 ? "#585860" : null);
+}
+
+/** Garling: star-burst blond hair, dark glasses, a long pointed beard, black suit, a red coat and a sword. */
+function garling(d: Detail) {
+  const { hx, hy, hw, cx, ty } = d;
+  d.eyes("none").mouth("line");
+  d.f(d.L - 2, d.ey - 1, d.R - d.L + 6, 3, "#14141c").f(d.L - 1, d.ey - 1, 2, 1, "#5a5a70").f(d.R, d.ey - 1, 2, 1, "#5a5a70"); // dark glasses
+  d.f(d.L - 2, d.ey - 3, 5, 1, "#a89868").f(d.R + 1, d.ey - 3, 5, 1, "#a89868"); // frowning brows
+  d.suit(SHIRT, "#8a1a2a", "#2a2a36").cuffs(SHIRT);
+  const HAIR = "#ece2bc", HAIR_D = "#c8b88a", LINE = "#a8946a";
+  const star = new Map<string, string>();
+  const put = (x: number, y: number, edge: boolean, hatch: boolean) => star.set(`${x},${y}`, hatch ? LINE : edge ? HAIR_D : HAIR);
+  // Upward spike.
+  for (let k = 0; k < 18; k++) { const half = Math.max(0, Math.round((hw / 2) * (1 - k / 18))); for (let x = cx - half; x < cx + half + (half ? 0 : 1); x++) put(x, hy + 1 - k, x === cx + half - 1, (x - cx) % 3 === 0 && k > 2); }
+  // Sideways spikes from the temples.
+  for (const s of [-1, 1]) for (let k = 0; k < 13; k++) {
+    const half = Math.max(0, Math.round(3.5 * (1 - k / 13))), x = s < 0 ? hx - k : hx + hw - 1 + k;
+    for (let j = -half; j <= half; j++) put(x, hy + 4 + j, j === half, j === 0 && k > 2 && k % 3 !== 0);
+  }
+  // Long beard tapering to a point over the tie: the star's lower ray.
+  for (let y = hy + 11; y < ty + 14; y++) {
+    const t = (y - hy - 11) / (ty + 14 - hy - 11), half = Math.max(0, Math.round(7 * (1 - t)));
+    for (let x = cx - half; x < cx + half + (half ? 0 : 1); x++) put(x, y, x === cx + half - 1, (x - cx) % 3 === 1 && y % 2 === 0);
+  }
+  for (let x = cx - 2; x < cx + 2; x++) star.delete(`${x},${hy + 13}`);
+  blob(d, star);
+  d.r(cx - 2, hy + 13, 4, 1, "#5a4a3a");
+  // Black suit, dark red tie, red coat draped on the shoulders.
+  d.recolor("#c83040", 0, ty - 2, d.W, d.p.height, (x, y) => (x + y) % 6 === 0 ? "#a02030" : null);
+  d.trim("#c83040", "#ff6a7a", ty);
+}
+
 function rocks(d: Detail) {
   const { cx, hy, hx, hw, hh, sk, tx, tw, ty, tc } = d;
   // --- Hair: tall flame-like tongues sweeping up and out, each with a highlight edge and a black streak.
@@ -400,21 +570,10 @@ function rocks(d: Detail) {
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!hair.has(`${x + dx},${y + dy}`)) d.u(x + dx, y + dy, 1, 1, ink);
     }
   });
-  // --- Face: crazed wide eyes under a heavy brow, a big nose, and the cracked red scar over his left eye.
-  d.wipeScar(["scar"]).eyes("none").mouth("none");
-  for (const [x, m] of [[d.L, false], [d.R, true]] as [number, boolean][]) {
-    d.f(x - 1, d.ey - 1, 5, 4, white).f(m ? x : x + 1, d.ey, 2, 2, ink).f(x - 1, d.ey + 3, 5, 1, shade(sk, -0.3));
-    d.f(x - 2, d.ey - 3, 7, 2, ROCKS_STREAK).f(m ? x - 2 : x + 4, d.ey - 1, 1, 1, ROCKS_STREAK); // furious brow
-  }
-  d.f(cx - 2, hy + 9, 4, 3, shade(sk, 0.15)).f(cx - 2, hy + 11, 4, 1, shade(sk, -0.35)).f(cx - 3, hy + 11, 1, 1, shade(sk, -0.35)).f(cx + 2, hy + 11, 1, 1, shade(sk, -0.35));
+  // --- Face in the shared style: a furious glare, a toothy grin and the cracked red scar over his left eye.
+  d.wipeScar(["scar"]).eyes("glare", "#ff4d6d", ROCKS_STREAK).mouth("fangs");
   const scar = "#c0282c";
-  d.line(d.R + 5, hy + 2, d.R + 3, d.ey - 3, scar).line(d.R + 3, d.ey - 3, d.R + 4, d.ey - 1, scar).line(d.R + 4, d.ey - 1, d.R + 2, d.ey + 5, scar);
-  d.d(d.R + 6, hy + 4, scar).d(d.R + 1, d.ey + 2, scar);
-  // --- A huge open grin: top teeth, dark throat, tongue, bottom teeth.
-  const my = hy + 12;
-  d.r(cx - 7, my, 14, 6, ink).r(cx - 6, my + 1, 12, 2, white).r(cx - 5, my + 3, 10, 1, "#5a0c18").r(cx - 3, my + 3, 6, 1, "#d84a5a").r(cx - 6, my + 4, 12, 1, white);
-  for (const x of [cx - 4, cx - 2, cx, cx + 2, cx + 4]) d.d(x, my + 1, "#c8ccd8").d(x - 1, my + 4, "#c8ccd8");
-  d.r(cx - 8, my - 1, 2, 1, ink).r(cx + 6, my - 1, 2, 1, ink); // corners pulled up
+  d.line(d.R + 4, hy + 2, d.R + 2, d.ey - 3, scar).line(d.R + 2, d.ey - 3, d.R + 3, d.ey, scar).line(d.R + 3, d.ey, d.R + 1, d.ey + 4, scar);
   // --- Bare, scarred chest under a black fur coat with a shaggy collar over the shoulders.
   d.r(tc - 5, ty + 5, 4, 1, shade(sk, -0.25)).r(tc + 1, ty + 5, 4, 1, shade(sk, -0.25)).r(tc, ty + 3, 1, 6, shade(sk, -0.18));
   d.line(tc - 6, ty + 9, tc - 2, ty + 13, "#9a5a40").line(tc + 5, ty + 8, tc + 2, ty + 12, "#9a5a40");
@@ -438,8 +597,8 @@ function rocks(d: Detail) {
   d.asBody(() => {
     d.r(cx - 6, hy + hh + 1, 12, 2, ROCKS_STREAK);
     for (const x of [cx - 6, cx - 2, cx + 2]) d.r(x, hy + hh + 3, 3, 1, ROCKS_STREAK).d(x + 1, hy + hh + 4, ROCKS_STREAK);
-    d.line(cx - 3, hy + 11, cx - 8, hy + 13, ROCKS_STREAK).line(cx - 8, hy + 13, cx - 10, hy + 22, ROCKS_STREAK).line(cx - 10, hy + 22, cx - 7, hy + 27, ROCKS_STREAK).d(cx - 6, hy + 26, ROCKS_STREAK);
-    d.line(cx + 2, hy + 11, cx + 7, hy + 13, ROCKS_STREAK).line(cx + 7, hy + 13, cx + 8, hy + 18, ROCKS_STREAK);
+    d.line(cx - 5, hy + 11, cx - 8, hy + 13, ROCKS_STREAK).line(cx - 8, hy + 13, cx - 10, hy + 22, ROCKS_STREAK).line(cx - 10, hy + 22, cx - 7, hy + 27, ROCKS_STREAK).d(cx - 6, hy + 26, ROCKS_STREAK);
+    d.line(cx + 4, hy + 11, cx + 7, hy + 13, ROCKS_STREAK).line(cx + 7, hy + 13, cx + 8, hy + 18, ROCKS_STREAK);
     d.r(hx - 2, hy + 11, 2, 3, gold).d(hx - 2, hy + 12, GOLD_D).r(hx + hw, hy + 11, 2, 3, gold).d(hx + hw + 1, hy + 12, GOLD_D); // gold earrings
   });
 }
@@ -494,7 +653,6 @@ function joyBoy(d: Detail) {
 }
 
 
-const suitElder = (d: Detail, tie: string) => d.suit(SHIRT, tie).buttons("#d8d8e0", 2, d.ty + 12, 4).cuffs(SHIRT);
 
 const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
   "prime-garp": (d) => {
@@ -523,61 +681,12 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
     d.r(d.cx - 1, d.hy - 4, 2, 2, HAKI_RED); // crown jewel
   },
   "joy-boy": joyBoy,
-  "saint-saturn": (d) => {
-    d.eyes("glare", "#c9b8ff", "#cfcfe0").mouth("none");
-    d.f(d.R + 3, d.hy + 11, 1, 1, "#4a3a3a"); // mole
-    suitElder(d, "#6a4aa8");
-    // Jointed spider legs with pale tips.
-    d.asBody(() => { for (let i = 0; i < 4; i++) for (const s of [-1, 1]) {
-      const bx = s < 0 ? d.tx - 2 : d.tx + d.tw + 1, by = d.ty + 4 + i * 4;
-      const kx = bx + s * (7 + i), fx = bx + s * (11 + i);
-      for (const o of [0, 1]) d.line(bx, by + o, kx, by - 4 + o, o ? "#3a2a5a" : "#7a6aa8", true).line(kx, by - 4 + o, fx, by + 7 + o, o ? "#3a2a5a" : "#7a6aa8", true);
-      d.u(kx, by - 5, 1, 1, "#c9b8ff").u(fx, by + 8, 1, 2, "#e8dcf0");
-    } });
-    d.trim("#4a3a6a", "#7a6aa8");
-    d.asBody(() => d.r(d.rx + d.aw - 3, d.rhy - 2, 3, 3, gold).d(d.rx + d.aw - 2, d.rhy - 2, GOLD_L)); // cane knob
-  },
-  "saint-mars": (d) => {
-    d.eyes("glare", "#ff7a5c").mouth("none");
-    suitElder(d, "#c8402a");
-    // Feathered Itsumade wings.
-    d.recolor("#ff6a3a", 0, 0, d.p.width, d.ty + 10, (x, y) => (x + y) % 4 === 0 ? "#ffb05a" : (x - y) % 5 === 0 ? "#b8341a" : null);
-    d.asBody(() => { for (const s of [-1, 1]) for (let i = 0; i < 4; i++) d.u(s < 0 ? d.tx - 14 + i * 2 : d.tx + d.tw + 6 + i * 2, d.ty + 12 + i, 2, 3, i % 2 ? "#ff6a3a" : "#c8402a"); });
-    d.flame(d.rx + d.aw + 2, d.rhy + 2, 7, ["#fff0a0", "#ffa05a", "#ff5a2a"]);
-  },
-  "saint-warcury": (d) => {
-    d.eyes("none").mouth("none");
-    d.r(d.L - 1, d.ey - 1, d.R - d.L + 5, 3, "#2a2f40").r(d.L, d.ey - 1, 3, 1, "#7a8aa8").r(d.R, d.ey - 1, 3, 1, "#7a8aa8"); // shades + glint
-    // Boar tusks.
-    for (const s of [-1, 1]) { const x = s < 0 ? d.cx - 6 : d.cx + 5; d.d(x, d.hy + 12, white).d(x, d.hy + 11, white).d(x + s, d.hy + 10, white).d(x + s, d.hy + 9, "#e8dcc0"); }
-    suitElder(d, "#c8a040");
-    d.asBody(() => d.r(d.rx + d.aw - 4, d.rhy - 6, 6, 2, gold).d(d.rx + d.aw - 2, d.rhy - 6, "#ff4d6d")); // sword guard gem
-  },
-  "saint-nusjuro": (d) => {
-    d.wipeScar(["glasses"]).eyes("none", "#9fe7ff").glasses("#2a3a50", "#c8e8f8").mouth("line");
-    for (const x of [d.L, d.R + 1]) d.d(x + 1, d.ey, ink).d(x + 1, d.ey + 1, "#9fe7ff");
-    suitElder(d, "#4a90c0");
-    // Frost-edged Shodai Kitetsu.
-    const x = Math.min(d.rx + d.aw - 2, d.W - 4);
-    for (let y = d.rhy - 20; y < d.rhy - 6; y += 2) d.d(x, y, "#e8fbff").u(x + 2, y + 1, 1, 1, "#9fe7ff").u(x - 2, y, 1, 1, "#bff4ff");
-    for (let i = 0; i < 4; i++) d.sparkle(d.tx - 6 + i * 2, d.legY - 4 + i * 6, "#bff4ff");
-  },
-  "saint-ju-peter": (d) => {
-    d.eyes("stern", "#8cffb0").mouth("none");
-    suitElder(d, "#3a8a4a");
-    // Segmented sandworm tail.
-    d.recolor("#c8a870", 0, d.ty, d.p.width, d.p.height - d.ty, (x, y) => y % 3 === 0 ? "#8a6a3a" : (x + y) % 5 === 0 ? "#e8d0a0" : null);
-    d.asBody(() => d.u(d.tx - 12, d.ty + 18, 6, 4, "#c8a870").u(d.tx - 14, d.ty + 20, 3, 3, "#8a6a3a").d(d.tx - 13, d.ty + 20, "#ff6a6a"));
-  },
-  "saint-garling": (d) => {
-    d.eyes("glare", "#ffe680", "#d0d0d8").mouth("none");
-    // Gold cross on the tall hat and the God Knights' gold coat trim.
-    d.r(d.cx - 1, d.hy - 10, 2, 7, gold).r(d.cx - 3, d.hy - 8, 6, 2, gold).d(d.cx - 1, d.hy - 9, GOLD_L);
-    d.trim("#d8c070", GOLD_D, d.ty).folds("#d8c070", d.legY);
-    d.r(d.tc - 3, d.ty + 4, 6, 6, gold).r(d.tc - 2, d.ty + 5, 4, 4, "#f2f2f2").r(d.tc - 1, d.ty + 5, 2, 4, gold).r(d.tc - 2, d.ty + 6, 4, 2, gold);
-    d.belt("#a8862a", "#ff4d6d");
-    d.asBody(() => d.r(d.rx + d.aw - 4, d.rhy - 6, 6, 2, GOLD_L));
-  },
+  "saint-saturn": saturn,
+  "saint-mars": mars,
+  "saint-warcury": warcury,
+  "saint-nusjuro": nusjuro,
+  "saint-ju-peter": juPeter,
+  "saint-garling": garling,
   "shanks-divine": (d) => {
     d.wipeScar().eyes("glare", "#ff3b3b", "#a01818").mouth("smirk");
     for (let i = 0; i < 3; i++) d.f(d.R - 1 + i * 2, d.ey - 3 + (i === 1 ? -1 : 0), 1, 7, "#9a2a34"); // three scars over his left eye
