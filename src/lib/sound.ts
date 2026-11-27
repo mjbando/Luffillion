@@ -848,28 +848,26 @@ const HOOK: (number | null)[][] = [
 const semis = (n: number) => E5 * Math.pow(2, n / 12);
 
 // ---------- Showdown theme ----------
-// A heavy anime battle theme at 168 BPM in D minor: i – VI – VII – V (Dm – Bb – C – A).
-// 8-bar phrases: bars 1–4 are a galloping distorted-guitar riff, bars 5–8 add a heroic lead
-// melody with vibrato and echo over open power chords, a choir and orchestra hits.
-const SD_BPM = 168, FIGHT_BPM = 144;
-const SD_ROOTS = [73.42, 58.27, 65.41, 55]; // D2 Bb1 C2 A1
+// A slow, heavy standoff theme at 96 BPM in D minor: i – VI – iv – V (Dm – Bb – Gm – A).
+// Half-time drums with a huge backbeat, ringing distorted power chords, a choir and a ticking
+// hi-hat. Bars 1–4 build the tension with chugs and taiko; bars 5–8 add a slow, wailing lead
+// over brass swells. Every phrase lands on a crash + orchestra hit.
+const SD_BPM = 96, FIGHT_BPM = 144;
+const SD_ROOTS = [73.42, 58.27, 49, 55]; // D2 Bb1 G1 A1
 const SD_TRIADS = [
-  [293.66, 349.23, 440],
-  [233.08, 293.66, 349.23],
-  [261.63, 329.63, 392],
-  [220, 277.18, 329.63],
+  [293.66, 349.23, 440], // Dm
+  [233.08, 293.66, 349.23], // Bb
+  [196, 233.08, 293.66], // Gm
+  [220, 277.18, 329.63], // A
 ];
 const D5 = 587.33;
-const n_ = null;
-// Lead melody (semitones from D5) for bars 5–8, two 16-step bars per chord change.
-const SD_LEAD: (number | null)[][] = [
-  [0, n_, n_, n_, 3, n_, 5, n_, 7, n_, n_, n_, 5, n_, 3, n_],
-  [5, n_, n_, n_, 3, n_, 2, n_, 3, n_, n_, n_, -2, n_, n_, n_],
-  [-2, n_, 0, n_, 2, n_, 3, n_, 5, n_, 7, n_, 10, n_, n_, n_],
-  [14, n_, n_, n_, 11, n_, n_, n_, 7, n_, 9, n_, 11, n_, n_, n_],
+// Lead melody for bars 5–8 as [step, semitones from D5, length in 16ths].
+const SD_LEAD: [number, number, number][][] = [
+  [[0, 7, 8], [8, 5, 4], [12, 3, 4]], // A5 … G5 F5
+  [[0, 2, 8], [8, 3, 4], [12, 5, 4]], // D5 … F5 G5
+  [[0, 8, 8], [8, 12, 4], [12, 10, 4]], // Bb5 … D6 Bb5  (Gm)
+  [[0, 11, 10], [10, 7, 6]], // C#6 … A5  (A — the turnaround)
 ];
-// Riff accents per bar: open power-chord hits; every other 16th is a palm-muted chug.
-const SD_ACCENTS = new Set([0, 3, 6, 10, 12]);
 
 interface ShowdownRig { guitar: GainNode; lead: GainNode }
 
@@ -898,7 +896,7 @@ function showdownRig(m: BattleMusic): ShowdownRig {
   const lead = ctx.createGain();
   lead.gain.value = 1;
   const delay = ctx.createDelay(1);
-  delay.delayTime.value = (60 / SD_BPM) * 0.75;
+  delay.delayTime.value = (60 / SD_BPM) * 0.75; // dotted eighth
   const feedback = ctx.createGain();
   feedback.gain.value = 0.32;
   const echo = ctx.createGain();
@@ -951,58 +949,60 @@ function showdownStep(m: BattleMusic, step: number, t: number, len: number) {
   const rig = showdownRig(m);
   const s = step % 16, bar = Math.floor(step / 16) % 8, chordIx = bar % 4, lifted = bar >= 4;
   const root = SD_ROOTS[chordIx], triad = SD_TRIADS[chordIx];
-  const lastBar = bar === 7 || bar === 3;
+  const fillBar = bar === 3 || bar === 7;
 
-  // --- Drums: gallop kicks (blast in the lifted half), snare backbeat, fills, crashes, hats.
-  const kick = lifted ? s % 2 === 0 || s % 4 === 3 : [0, 3, 4, 7, 8, 10, 11, 14].includes(s);
+  // --- Drums: half-time. Kick on 1 (and a syncopated push), a massive snare on 3, ticking hats.
+  const kick = s === 0 || s === 10 || (lifted && s === 6) || (fillBar && s === 14);
   if (kick) {
-    playTone(ctx, bus, t, { freq: 150, slideTo: 42, dur: 0.16, type: "sine", vol: s % 4 === 0 ? 0.6 : 0.4, attack: 0.002 });
-    playTone(ctx, bus, t, { freq: 1100, slideTo: 160, dur: 0.018, type: "square", vol: 0.04, attack: 0.001 });
+    playTone(ctx, bus, t, { freq: 120, slideTo: 36, dur: 0.38, type: "sine", vol: 0.62, attack: 0.002 });
+    playTone(ctx, bus, t, { freq: 900, slideTo: 120, dur: 0.02, type: "square", vol: 0.035, attack: 0.001 });
   }
-  const fill = lastBar && s >= 8;
-  if (fill ? s % 2 === 0 || s >= 12 : s === 4 || s === 12) {
-    const v = fill ? 0.14 + (s - 8) * 0.016 : 0.26;
-    playNoise(ctx, bus, t, 0, 0.16, v, "bandpass", fill ? 1600 + (s - 8) * 120 : 2200, 900);
-    playTone(ctx, bus, t, { freq: fill ? 170 + (s - 8) * 12 : 230, slideTo: 140, dur: 0.09, type: "triangle", vol: v * 0.7, attack: 0.001 });
+  if (s === 8) { // big room snare
+    playNoise(ctx, bus, t, 0, 0.55, 0.26, "bandpass", 1800, 700);
+    playTone(ctx, bus, t, { freq: 200, slideTo: 150, dur: 0.16, type: "triangle", vol: 0.22, attack: 0.001 });
   }
-  if (s % 2 === 0 && !fill) playNoise(ctx, bus, t, 0, s % 4 === 2 ? 0.05 : 0.025, 0.035, "highpass", 8000);
+  if (s % 2 === 0 && s !== 8) playNoise(ctx, bus, t, 0, 0.04, s % 4 === 0 ? 0.03 : 0.018, "highpass", 8500); // tick
+  if (fillBar && s >= 12) { // descending taiko fill into the next bar
+    const f = [150, 125, 105, 88][s - 12];
+    playTone(ctx, bus, t, { freq: f, slideTo: f * 0.7, dur: 0.3, type: "sine", vol: 0.34, attack: 0.002 });
+    playNoise(ctx, bus, t, 0, 0.12, 0.08, "lowpass", 900);
+  } else if (!lifted && (s === 4 || s === 14)) {
+    playTone(ctx, bus, t, { freq: 82, slideTo: 60, dur: 0.45, type: "sine", vol: 0.26, attack: 0.002 }); // low taiko
+  }
   if (s === 0 && (bar === 0 || bar === 4)) {
-    playNoise(ctx, bus, t, 0, 1.6, 0.11, "highpass", 5200, 3000); // crash
-    // Orchestra hit: brass stab + timpani on the phrase downbeats.
-    brass(ctx, bus, t, [triad[0] / 2, triad[0], triad[1], triad[2]], 0, len * 3, 0.03, 3000, 0.004);
-    playTone(ctx, bus, t, { freq: root * 2, slideTo: root * 1.6, dur: 0.5, type: "sine", vol: 0.32, attack: 0.002 });
-  } else if (s === 0) playNoise(ctx, bus, t, 0, 0.6, 0.05, "highpass", 6000, 4000); // ride-ish
-
-  // --- Guitar: galloping riff, then ringing power chords under the lead.
-  if (!lifted) {
-    if (SD_ACCENTS.has(s)) powerChord(ctx, rig, t, root, len * 1.8, 0.12);
-    else playTone(ctx, rig.guitar, t, { freq: root * 2, dur: len * 0.45, type: "sawtooth", vol: 0.13, attack: 0.002 }); // palm-mute chug
-  } else {
-    if (s === 0 || s === 8) powerChord(ctx, rig, t, root, len * 7.5, 0.1);
-    else if (s % 2 === 1) playTone(ctx, rig.guitar, t, { freq: root * 2, dur: len * 0.4, type: "sawtooth", vol: 0.08, attack: 0.002 });
+    playNoise(ctx, bus, t, 0, 2.6, 0.12, "highpass", 5000, 2500); // crash
+    brass(ctx, bus, t, [triad[0] / 2, triad[0], triad[1], triad[2]], 0, len * 5, 0.032, 2800, 0.004); // orchestra hit
+    playTone(ctx, bus, t, { freq: root * 2, slideTo: root * 1.5, dur: 0.9, type: "sine", vol: 0.34, attack: 0.002 }); // timpani
   }
-  // Bass doubles the root on 8ths, octave pop on the and-of-4.
-  if (s % 2 === 0) playTone(ctx, bus, t, { freq: root * (s === 14 ? 2 : 1), dur: len * 1.8, type: "sawtooth", vol: 0.12, attack: 0.004, filterHz: 650 });
-  if (s === 0) playTone(ctx, bus, t, { freq: root / 2, dur: len * 8, type: "sine", vol: 0.18, attack: 0.01 });
 
-  // --- Lead melody + choir in the lifted half; a rising synth arpeggio in the riff half.
+  // --- Guitar: a ringing power chord each bar; muted chugs push the tension in bars 1–4.
+  if (s === 0) powerChord(ctx, rig, t, root, len * 15, lifted ? 0.1 : 0.12);
+  if (lifted && s === 8) powerChord(ctx, rig, t, root, len * 7.5, 0.07);
+  if (!lifted && [3, 6, 7, 11, 12].includes(s)) playTone(ctx, rig.guitar, t, { freq: root * 2, dur: len * 0.55, type: "sawtooth", vol: 0.12, attack: 0.002 });
+
+  // --- Bass: a sustained low root + sub.
+  if (s === 0) {
+    playTone(ctx, bus, t, { freq: root, dur: len * 15.5, type: "sawtooth", vol: 0.11, attack: 0.01, filterHz: 420 });
+    playTone(ctx, bus, t, { freq: root / 2, dur: len * 15.5, type: "sine", vol: 0.2, attack: 0.02 });
+  }
+
+  // --- Choir pad on every bar; brass swells into the turnaround.
+  if (s === 0) for (const f of triad) {
+    playTone(ctx, bus, t, { freq: f, dur: len * 16, type: "sine", vol: 0.034, attack: len * 4, detune: -9 });
+    playTone(ctx, bus, t, { freq: f * 2, dur: len * 16, type: "triangle", vol: lifted ? 0.012 : 0.008, attack: len * 6, detune: 8 });
+  }
+  if (fillBar && s === 0) brass(ctx, bus, t, [triad[0] / 2, triad[0], triad[2]], 0, len * 16, 0.02, 1600, len * 12); // swell
+
+  // --- Lead: a slow wailing melody in bars 5–8; a lonely bell motif in bars 1–4.
   if (lifted) {
-    const note = SD_LEAD[chordIx][s];
-    if (note !== null) {
-      let hold = 1;
-      while (s + hold < 16 && SD_LEAD[chordIx][s + hold] === null && hold < 6) hold++;
-      leadNote(ctx, rig.lead, t, D5 * Math.pow(2, note / 12), len * hold * 0.95, 0.05);
-    }
-    if (s === 0) for (const f of triad) {
-      playTone(ctx, bus, t, { freq: f, dur: len * 16, type: "sine", vol: 0.035, attack: len * 5, detune: -10 });
-      playTone(ctx, bus, t, { freq: f * 2, dur: len * 16, type: "triangle", vol: 0.012, attack: len * 7, detune: 9 });
-    }
-  } else {
-    const arp = [0, 1, 2, 1];
-    playTone(ctx, bus, t, { freq: triad[arp[s % 4]] * (s >= 8 ? 4 : 2), dur: len * 0.7, type: "square", vol: 0.012, attack: 0.002, filterHz: 3800 });
+    const note = SD_LEAD[chordIx].find(([at]) => at === s);
+    if (note) leadNote(ctx, rig.lead, t, D5 * Math.pow(2, note[1] / 12), len * note[2] * 0.97, 0.055);
+  } else if (s === 0 || s === 6 || s === 12) {
+    const bell = [triad[2] * 2, triad[1] * 2, triad[0] * 2][s / 6];
+    playTone(ctx, bus, t, { freq: bell, dur: len * 5, type: "triangle", vol: 0.022, attack: 0.003 });
+    playTone(ctx, bus, t, { freq: bell * 2.01, dur: len * 2, type: "sine", vol: 0.008, attack: 0.003 });
   }
-  // Riser into each new phrase.
-  if (bar === 7 && s === 0) playNoise(ctx, bus, t, 0, len * 16, 0.07, "bandpass", 300, 7000);
+  if (bar === 7 && s === 0) playNoise(ctx, bus, t, 0, len * 16, 0.06, "bandpass", 250, 6000); // riser
 }
 
 function musicStep(m: BattleMusic, step: number, t: number, len: number) {
