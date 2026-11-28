@@ -8,6 +8,7 @@ import { Pixels, feet, human, ink, skin, skinShade, cream, white, silver, gold, 
 import { chestSprite } from "./generated";
 import { mythicHdSprite } from "./mythic-hd";
 import { isLegendaryArt, legendaryHdSprite } from "./legendary-hd";
+import { epicHdSprite, isEpicArt } from "./epic-hd";
 import { gear6IdleSprite, gear6StrideSprite } from "./creator-hd";
 import { UPDATE_LIVE } from "@/lib/release";
 
@@ -215,5 +216,7 @@ export function portraitSprite(characterId: CharacterId, running = false, time =
     return mythicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   if (isLegendaryArt(characterId))
     return legendaryHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
+  if (isEpicArt(characterId))
+    return epicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   return runnerSprite(characterId, running, time);
 }

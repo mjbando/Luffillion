@@ -61,11 +61,11 @@ const MARGIN: Partial<Record<LegendaryArtId, number>> = {
 
 // ---------- Helpers ----------
 /** Hair strands: a darker and a lighter thread pattern through one hair colour near the head. */
-function strands(d: Detail, c: string, y0 = d.hy - 16, h = d.hh + 22) {
+export function strands(d: Detail, c: string, y0 = d.hy - 16, h = d.hh + 22) {
   return d.recolor(c, d.hx - 10, y0, d.hw + 20, h, (x, y) => (x * 2 + y) % 7 === 0 ? shade(c, -0.32) : (x + y * 3) % 11 === 0 ? shade(c, 0.35) : null);
 }
 /** Recolours a colour family (keeping its light/shadow/outline shades) inside a box. */
-function repaint(d: Detail, from: string, to: string, x = 0, y = 0, w = d.W, h = d.p.height) {
+export function repaint(d: Detail, from: string, to: string, x = 0, y = 0, w = d.W, h = d.p.height) {
   const dk = shade(from, -0.24), lt = shade(from, 0.24), ol = shade(from, -0.55);
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) {
     const c = d.at(i, j);
@@ -73,12 +73,12 @@ function repaint(d: Detail, from: string, to: string, x = 0, y = 0, w = d.W, h =
   }
   return d;
 }
-function stubble(d: Detail, rows = 1) {
+export function stubble(d: Detail, rows = 1) {
   for (let r = 0; r < rows; r++) for (let i = 0; i < d.hw - 6; i += 2) d.f(d.hx + 3 + i + (r % 2), d.hy + 14 + r, 1, 1, shade(d.sk, -0.3));
   return d;
 }
 /** A V-shaped open front showing the chest. */
-function openFront(d: Detail, depth = 10, maxHalf = 4, edge?: string) {
+export function openFront(d: Detail, depth = 10, maxHalf = 4, edge?: string) {
   const { tc, ty, sk } = d;
   for (let i = 0; i < depth; i++) {
     const half = Math.max(1, maxHalf - Math.floor(i / 3));
@@ -89,7 +89,7 @@ function openFront(d: Detail, depth = 10, maxHalf = 4, edge?: string) {
   return d.r(tc - 3, ty + 4, 2, 1, m).r(tc + 1, ty + 4, 2, 1, m).r(tc, ty + 5, 1, Math.max(0, depth - 6), shade(sk, -0.16));
 }
 /** Muscle definition on a bare torso: pec lines, a centre line and two rows of abs. */
-function muscles(d: Detail, rows = 3, y0 = d.ty + 3) {
+export function muscles(d: Detail, rows = 3, y0 = d.ty + 3) {
   const { tc } = d, m = shade(d.sk, -0.24), hl = shade(d.sk, 0.2), half = Math.min(7, d.tw / 2 - 2);
   d.r(tc - half, y0 + 3, half - 1, 1, m).r(tc + 1, y0 + 3, half - 1, 1, m).r(tc - half + 1, y0 + 1, 3, 1, hl).r(tc + half - 4, y0 + 1, 3, 1, hl);
   d.r(tc, y0 + 1, 1, 6 + rows * 3, m);
@@ -97,12 +97,12 @@ function muscles(d: Detail, rows = 3, y0 = d.ty + 3) {
   return d;
 }
 /** Turns the shirt into a bare, muscled torso. */
-function bareTorso(d: Detail, shirt: string, rows = 3) {
+export function bareTorso(d: Detail, shirt: string, rows = 3) {
   repaint(d, shirt, d.sk, d.tx - 1, d.ty - 1, d.tw + 2, d.th + 1);
   return muscles(d, rows);
 }
 /** A straight blade from the hand to the tip: bright edge, steel body, dark spine, guard and wrapped grip. */
-function sword(d: Detail, hx: number, hy: number, tipX: number, tipY: number, o: { steel?: string; edge?: string; spine?: string; guard?: string; grip?: string; gripLen?: number; thick?: boolean; guardW?: number } = {}) {
+export function sword(d: Detail, hx: number, hy: number, tipX: number, tipY: number, o: { steel?: string; edge?: string; spine?: string; guard?: string; grip?: string; gripLen?: number; thick?: boolean; guardW?: number } = {}) {
   const steel = o.steel ?? "#c8d2e0", edge = o.edge ?? "#ffffff", spine = o.spine ?? shade(steel, -0.42), guard = o.guard ?? gold, grip = o.grip ?? "#2a2238";
   const vertical = Math.abs(tipY - hy) >= Math.abs(tipX - hx);
   const off = (k: number): [number, number] => vertical ? [k, 0] : [0, k];
@@ -126,12 +126,12 @@ function sword(d: Detail, hx: number, hy: number, tipX: number, tipY: number, o:
   return d;
 }
 /** A long pole weapon from the ground up to a head drawn by `head`. */
-function pole(d: Detail, x: number, top: number, bottom: number, c: string) {
+export function pole(d: Detail, x: number, top: number, bottom: number, c: string) {
   d.asBody(() => d.r(x - 1, top, 4, bottom - top, ink).r(x, top, 2, bottom - top, c).r(x, top, 1, bottom - top, shade(c, 0.3)));
   return d;
 }
 /** A translucent soap/air bubble. */
-function bubble(d: Detail, x: number, y: number, r: number, c = "#bfefff") {
+export function bubble(d: Detail, x: number, y: number, r: number, c = "#bfefff") {
   for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
     const q = i * i + j * j;
     if (q <= r * r + r && q >= (r - 1) * (r - 1)) d.u(x + i, y + j, 1, 1, c);
@@ -140,21 +140,21 @@ function bubble(d: Detail, x: number, y: number, r: number, c = "#bfefff") {
   return d.u(x - Math.ceil(r / 2), y - Math.ceil(r / 2), 1, 1, white);
 }
 /** A rising tongue of fire with a hot core. */
-function fire(d: Detail, x: number, y: number, h: number, outer: string, mid: string, core: string) {
+export function fire(d: Detail, x: number, y: number, h: number, outer: string, mid: string, core: string) {
   return d.flame(x, y, h, [core, mid, outer]);
 }
 /** Faceted diamond shine over a colour family. */
-function facets(d: Detail, family: string, light = "#ffffff", dark = "#7ab0d8") {
+export function facets(d: Detail, family: string, light = "#ffffff", dark = "#7ab0d8") {
   return d.recolor(family, 0, 0, d.W, d.p.height, (x, y) => (x + y) % 6 === 0 ? light : (x - y + 60) % 7 === 0 ? dark : null);
 }
 /** Marine coat: shoulder line, trims and folds, optional epaulettes. */
-function marineCoat(d: Detail, coat = MARINE, trim = "#c8cedc", epaulettes = false) {
+export function marineCoat(d: Detail, coat = MARINE, trim = "#c8cedc", epaulettes = false) {
   d.trim(coat, trim, d.ty).folds(coat, d.legY - 4, 4);
   if (epaulettes) d.asBody(() => { d.epaulettes(gold); fringe(d, d.tx - 3, d.ty + 2, 6); fringe(d, d.tx + d.tw - 3, d.ty + 2, 6); });
   return d;
 }
 /** Drifting wisps (steam, smoke, cold mist) drawn behind the figure. */
-function wisps(d: Detail, list: [number, number, number][], c: string) {
+export function wisps(d: Detail, list: [number, number, number][], c: string) {
   for (const [x, y, r] of list) for (let j = -r; j <= r; j++) for (let i = -r - 1; i <= r + 1; i++) if (i * i * 0.7 + j * j <= r * r) d.u(x + i, y + j, 1, 1, j < 0 && i < 0 ? shade(c, 0.3) : c);
   return d;
 }
@@ -175,7 +175,7 @@ function clawScars(d: Detail) {
   return d;
 }
 /** Feathered wings fanning out from both shoulders. `tint(t)` colours a feather from root (0) to tip (1). */
-function wings(d: Detail, tint: (t: number, feather: number) => string, span = 14) {
+export function wings(d: Detail, tint: (t: number, feather: number) => string, span = 14) {
   d.asBody(() => {
     for (const s of [-1, 1]) {
       const ax = s < 0 ? d.tx : d.tx + d.tw - 1, ay = d.ty + 3;
