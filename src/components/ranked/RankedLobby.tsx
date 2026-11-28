@@ -20,7 +20,7 @@ const BOT_LOSS_RP = -Math.round(RP_EVEN_LOSS * BOT_RP_FACTOR);
 const BOT_DRAW_RP = Math.round(RP_EVEN_DRAW * BOT_RP_FACTOR);
 import type { FriendSummary, RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
 import { voyageRequest } from "@/lib/voyage-client";
-import { playClick, playQueueHorn, playSonar } from "@/lib/sound";
+import { playClick, playMapUnroll, playQueueHorn, playSonar } from "@/lib/sound";
 
 function RankBadge({ points }: { points: number }) {
   const tier = rankTierFor(points);
@@ -297,7 +297,7 @@ export default function RankedLobby({
                   <div className="rk-port-plate is-unknown">??? <small>SCANNING…</small></div>
                 </>
               ) : (
-                <button ref={wantedTrigger} type="button" className="rk-wanted" onClick={() => { playClick(); setWantedOpen(true); }}
+                <button ref={wantedTrigger} type="button" className="rk-wanted" onClick={() => { playMapUnroll(); setWantedOpen(true); }}
                   aria-label="Open the Most Wanted poster" title="Most Wanted: the captain with the highest bounty">
                   <small>WANTED</small>
                   <span>?</span>
