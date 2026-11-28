@@ -65,12 +65,14 @@ function CharacterPortrait({ characterId, size = 64, dim = false, className = ""
     <g opacity={dim ? 0.5 : 1}>
       {layered
         ? <>
-          <g className={`aura-layer aura-${auraTier}`}>
-            {[layered.aura, ...extra].map((frame, i, all) =>
-              <image key={i} href={spriteDataUrl(frame)} x={left} y={top} width={sprite.width} height={sprite.height}
-                className={all.length > 1 ? `aura-frame aura-frame-${all.length}` : undefined}
-                opacity={i ? 0 : undefined} style={{ imageRendering: "pixelated", animationDelay: i ? `calc(var(--aura-step) * -${all.length - i})` : undefined }} />)}
-          </g>
+          {/* Mythics stack a second, flaring copy of the glow on top: brighter, but it never leaves the outline. */}
+          {(auraTier === "mythic" ? ["aura-layer", "aura-layer aura-boost"] : ["aura-layer"]).map((cls) =>
+            <g key={cls} className={`${cls} aura-${auraTier}`}>
+              {[layered.aura, ...extra].map((frame, i, all) =>
+                <image key={i} href={spriteDataUrl(frame)} x={left} y={top} width={sprite.width} height={sprite.height}
+                  className={all.length > 1 ? `aura-frame aura-frame-${all.length}` : undefined}
+                  opacity={i ? 0 : undefined} style={{ imageRendering: "pixelated", animationDelay: i ? `calc(var(--aura-step) * -${all.length - i})` : undefined }} />)}
+            </g>)}
           <image href={spriteDataUrl(layered.body)} x={left} y={top} width={sprite.width} height={sprite.height} style={{ imageRendering: "pixelated" }} />
         </>
         : creator || k >= 2
