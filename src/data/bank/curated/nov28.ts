@@ -235,11 +235,11 @@ export const CURATED_NOV_28: Question[] = [
         "Mont Blanc Cricket|Cricket",
         "Mikazuki",
         "Roshio",
-        "Jean Goen",
         "Buchi",
         "Sham",
+        "Demaro Black|Fake Luffy|Fake Straw Hat",
       ],
-      luffillion: [],
+      luffillion: ["Jean Goen"],
     },
   },
   {
