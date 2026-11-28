@@ -1,5 +1,6 @@
 "use client";
 
+import AdSlot, { RESULTS_AD_SLOT } from "./AdSlot";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { SAGAS, sagaAt, travelFor } from "@/data/arcs";
@@ -1375,6 +1376,7 @@ function CountdownScreen({
         <button type="button" aria-haspopup="dialog" onClick={onAccount} className="mt-2 inline-flex items-center justify-center gap-2 py-1.5 text-base text-cyan-200 underline-offset-4 hover:underline">
           <LogIcon />{signedIn ? "Open my Captain's Log" : "Sign in or create an account to keep this voyage"} ▸
         </button>
+        <AdSlot slot={RESULTS_AD_SLOT} />
       </div>
     </div>
   );
