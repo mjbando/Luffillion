@@ -310,6 +310,7 @@ export default function RankedLobby({
           <div className="rk-port-hud">
             <p className="rk-eyebrow">10-SECOND KNOWLEDGE DUELS · 3 LIVES · SHOWDOWNS</p>
             <h1 className="rk-port-title">Ranked Battle Arena</h1>
+            <p className="rk-season" aria-label="Ranked Season 1">SEASON 1</p>
             <p className="rk-online">
               <span className="rk-live-dot" /> {onlineCount} captain{onlineCount === 1 ? "" : "s"} online
             </p>
@@ -652,7 +653,7 @@ export default function RankedLobby({
             <div className="mb-3 flex items-center gap-2">
               <Trophy size={18} className="text-amber-300" />
               <div>
-                <p className="rk-eyebrow">TOP 50 CAPTAINS</p>
+                <p className="rk-eyebrow">SEASON 1 · TOP 50 CAPTAINS</p>
                 <h2 className="font-pixel-display text-xl text-white">Ranked Leaderboard</h2>
               </div>
             </div>

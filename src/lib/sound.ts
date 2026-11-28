@@ -179,28 +179,24 @@ export function playClick(): void {
 }
 
 /**
- * An old treasure map unrolling: dry parchment crinkles, the sheet sliding open with a papery swish,
- * then a soft flap as it lays flat. Used when opening the WANTED challenger poster.
+ * An old treasure map unrolling: a smooth papery swish as the sheet slides open, a couple of soft
+ * rustles, then a gentle flap as it lays flat. Used when opening the WANTED challenger poster.
  */
 export function playMapUnroll(): void {
   const a = getAudio();
   if (!a) return;
   const { ctx, out } = a;
   const t = ctx.currentTime;
-  // Crinkles: short, bright grains of noise, dense at first and thinning out as the paper opens.
-  let at = 0;
-  for (let i = 0; i < 26; i++) {
-    const f = 1800 + Math.random() * 4200;
-    playNoise(ctx, out, t, at, 0.008 + Math.random() * 0.02, 0.035 + Math.random() * 0.06, "bandpass", f, f * 0.85);
-    at += 0.008 + Math.random() * 0.03 * (1 + i / 10);
+  // The sheet sliding open: a warm swish that rises and fades, with a quieter airy layer on top.
+  playNoise(ctx, out, t, 0, 0.55, 0.09, "bandpass", 500, 1700);
+  playNoise(ctx, out, t, 0.06, 0.42, 0.025, "highpass", 2400, 3800);
+  // Just a few soft, low rustles (no sharp crinkling).
+  for (const [at, f] of [[0.1, 1300], [0.24, 1100], [0.38, 1500]] as const) {
+    playNoise(ctx, out, t, at, 0.05, 0.03, "bandpass", f, f * 0.8);
   }
-  // The sheet sliding open, then the higher rustle of its edge.
-  playNoise(ctx, out, t, 0.02, 0.5, 0.07, "bandpass", 700, 2600);
-  playNoise(ctx, out, t, 0.12, 0.38, 0.035, "highpass", 3200, 5200);
-  // It lays flat: a soft papery flap with a little body.
-  playNoise(ctx, out, t, 0.56, 0.1, 0.13, "lowpass", 1400, 300);
-  playTone(ctx, out, t, { freq: 150, slideTo: 80, start: 0.56, dur: 0.09, type: "sine", vol: 0.12, attack: 0.002 });
-  playNoise(ctx, out, t, 0.6, 0.05, 0.03, "bandpass", 3600, 2400);
+  // It lays flat: a gentle papery flap with a little body.
+  playNoise(ctx, out, t, 0.54, 0.12, 0.12, "lowpass", 1100, 250);
+  playTone(ctx, out, t, { freq: 140, slideTo: 75, start: 0.54, dur: 0.1, type: "sine", vol: 0.11, attack: 0.003 });
 }
 
 /** Heroic anchor-lift jingle when clicking SET SAIL */

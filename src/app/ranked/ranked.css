@@ -580,6 +580,12 @@
   font-family: "Pixelify Sans", monospace; font-weight: 700; font-size: clamp(28px, 3.7vw, 46px); line-height: 1; letter-spacing: 2px; color: #fff;
   text-shadow: 4px 4px 0 #050a14, -2px -2px 0 #050a14, 2px -2px 0 #050a14, -2px 2px 0 #050a14, 0 0 30px #f43f5e88;
 }
+/* Season badge under the arena title: a gold ribbon with notched ends. */
+.rk-season {
+  position: relative; padding: 2px 22px; font-family: "Pixelify Sans", monospace; font-weight: 700; font-size: 16px; letter-spacing: 4px;
+  color: #241a04; background: linear-gradient(#fde68a 0 50%, #f5c542 50%); border-top: 2px solid #050a14; border-bottom: 2px solid #050a14;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 50%, 100% 100%, 0 100%, 10px 50%); filter: drop-shadow(0 0 8px #fbbf2466);
+}
 .rk-online { display: inline-flex; align-items: center; gap: 8px; padding: 2px 10px; background: #050a14b0; font-size: 17px; color: #bbf7d0; }
 .rk-online.is-small { background: transparent; padding: 0; font-size: 15px; }
 .rk-live-dot { width: 9px; height: 9px; background: #4ade80; box-shadow: 0 0 0 0 #4ade80aa; animation: rk-live 1.6s ease-out infinite; }

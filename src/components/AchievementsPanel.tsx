@@ -4,15 +4,17 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import PixelEmblem from "./pixel-emblems";
 import CharacterPortrait from "./CharacterPortrait";
 import { ACHIEVEMENTS, formatBerries, type AchievementReport } from "@/lib/achievements";
-import { RETIRED_RECRUITS, rosterEntry } from "@/data/roster";
-import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
+import { RETIRED_RECRUITS, TREASURE_ROSTER, rosterEntry } from "@/data/roster";
+import { PLAYABLE_CHARACTERS, characterById, type CharacterId, type PlayableCharacter } from "@/data/playable-characters";
 import { CHEST_CHARACTERS, CHEST_RARITIES, type ChestCharacterRarity } from "@/data/chest-characters";
 import { TREASURE_RARITY_COLORS, rarityLabelColor } from "@/lib/treasure";
 import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
 import { UPDATE_LIVE } from "@/lib/release";
-import type { MilestoneReport, RankedAchievementStatus, RankedBerryAchievementStatus, UnopenedChest } from "@/lib/ranked-achievements";
+import { STRAW_HAT_CREW, type MilestoneReport, type RankedAchievementStatus, type RankedBerryAchievementStatus, type UnopenedChest } from "@/lib/ranked-achievements";
+
+const STRAW_HAT_IDS: ReadonlySet<string> = new Set(STRAW_HAT_CREW);
 import { berriesLabel } from "@/lib/coins";
 import BerryMark from "./BerryMark";
 import PixelChest from "./PixelChest";
@@ -132,13 +134,19 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
   const ownedCharacterIds = new Set(UPDATE_LIVE
     ? ["luffy", ...(report?.ownedCharacterIds ?? []), ...chestUnlockedIds]
     : ["luffy", ...achievementCharacterIds, ...(creatorAccount ? ["gear-6"] : [])]);
-  // Retired recruits only show for captains who already have them.
-  const crewCharacters = PLAYABLE_CHARACTERS.filter(character => (character.id !== "gear-6" || creatorAccount)
-    && (!UPDATE_LIVE || !RETIRED_RECRUITS.has(character.id) || ownedCharacterIds.has(character.id)));
+  // With the update, the top section is the Straw Hat Pirates: only the base versions of the crew.
+  // Everyone else who drops from chests (Ace included) is in Treasure Recruits; retired recruits and
+  // Gear 6 only show, under Legacy Recruits, for captains who already have them.
+  const crewCharacters: PlayableCharacter[] = UPDATE_LIVE
+    ? STRAW_HAT_CREW.map(id => characterById(id))
+    : PLAYABLE_CHARACTERS.filter(character => character.id !== "gear-6" || creatorAccount);
+  const treasureRoster = UPDATE_LIVE ? TREASURE_ROSTER.filter(character => !STRAW_HAT_IDS.has(character.id)) : [];
+  const legacyCharacters = UPDATE_LIVE ? PLAYABLE_CHARACTERS.filter(character => !STRAW_HAT_IDS.has(character.id) && !rosterEntry(character.id)
+    && (character.id === "gear-6" ? creatorAccount : RETIRED_RECRUITS.has(character.id) && ownedCharacterIds.has(character.id))) : [];
   const achievementRecruits = crewCharacters.filter(character => ownedCharacterIds.has(character.id)).length;
-  const chestRecruits = UPDATE_LIVE ? CHEST_CHARACTERS.filter(character => chestUnlockedIds.has(character.id)).length : 0;
-  const recruitCount = achievementRecruits + chestRecruits;
-  const totalCharacters = crewCharacters.length + (UPDATE_LIVE ? CHEST_CHARACTERS.length : 0);
+  const chestRecruits = treasureRoster.filter(character => ownedCharacterIds.has(character.id)).length;
+  const recruitCount = achievementRecruits + chestRecruits + legacyCharacters.length;
+  const totalCharacters = crewCharacters.length + treasureRoster.length + legacyCharacters.length;
   const tiers = [...CHEST_RARITIES].reverse().filter(tier => chestTier === "all" || chestTier === tier);
   const ranked = report?.ranked ?? [];
   const rankedBerry = report?.rankedBerryAchievements ?? [];
@@ -239,9 +247,9 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
         })}
       </div>}
     </> : shown === "crew" ? <>
-      {UPDATE_LIVE && <h3 className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Straw Hats &amp; Legends <small className="text-sm text-slate-400">{achievementRecruits}/{crewCharacters.length}</small></h3>}
+      {UPDATE_LIVE && <h3 className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Straw Hat Pirates <small className="text-sm text-slate-400">{achievementRecruits}/{crewCharacters.length}</small></h3>}
       <p className="mb-3 text-base leading-tight text-slate-400">{UPDATE_LIVE
-        ? "These legends now sail in Treasure Chests. Any you recruited through achievements are yours to keep."
+        ? "The base Straw Hat crew. Find them in Treasure Chests. Any you recruited through achievements are yours to keep."
         : "One unique recruit per achievement. The toughest challenges unlock Emperors, the Pirate King, and Gear 5."}</p>
       <div className="grid grid-cols-2 gap-2" aria-label="Unlockable characters">
         {crewCharacters.map(character => {
@@ -274,7 +282,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
       </div>
 
       {UPDATE_LIVE && <section className="mt-6 border-t border-white/10 pt-4" aria-labelledby="chest-recruits-title">
-        <h3 id="chest-recruits-title" className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Treasure Recruits <small className="text-sm text-slate-400">{chestRecruits}/{CHEST_CHARACTERS.length}</small></h3>
+        <h3 id="chest-recruits-title" className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Treasure Recruits <small className="text-sm text-slate-400">{chestRecruits}/{treasureRoster.length}</small></h3>
         <p className="mb-3 text-base leading-tight text-slate-400">The rest of the crew, found only in Treasure Chests.</p>
         <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Filter treasure recruits by rarity">
           {(["all", ...[...CHEST_RARITIES].reverse()] as const).map(tier => <button key={tier} type="button" aria-pressed={chestTier === tier}
@@ -283,8 +291,8 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
             style={chestTier === tier && tier !== "all" ? { borderColor: TREASURE_RARITY_COLORS[tier], color: TREASURE_RARITY_COLORS[tier] } : undefined}>{tier}</button>)}
         </div>
         {tiers.map(tier => {
-          const roster = CHEST_CHARACTERS.filter(character => character.rarity === tier);
-          const owned = roster.filter(character => chestUnlockedIds.has(character.id)).length;
+          const roster = treasureRoster.filter(character => character.rarity === tier);
+          const owned = roster.filter(character => ownedCharacterIds.has(character.id)).length;
           const color = TREASURE_RARITY_COLORS[tier];
           return <div key={tier} className="mb-4" data-chest-tier={tier}>
             <p className="mb-1.5 flex items-center gap-2 text-sm uppercase tracking-[.2em]" style={{ color }}>
@@ -292,7 +300,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
             </p>
             <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4" aria-label={`${tier} treasure recruits`}>
               {roster.map(character => {
-                const available = chestUnlockedIds.has(character.id);
+                const available = ownedCharacterIds.has(character.id);
                 const selected = character.id === equippedCharacter;
                 return <article key={character.id} data-crew={character.id} data-unlocked={available} data-equipped={selected}
                   className={`chest-card chest-card-${tier} flex flex-col border ${selected ? "border-amber-300/70" : ""}`} style={{ "--chest-color": color } as CSSProperties}>
@@ -305,13 +313,37 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
                     {available ? <button type="button" disabled={selected || !!equipping} onClick={() => equip(character.id)} aria-label={selected ? `${character.shortName} equipped` : `Equip ${character.shortName}`}
                       className={`px-btn mt-1 h-6 w-full text-sm ${selected ? "bg-amber-300/15 text-amber-200" : "bg-[#25415a] text-cyan-100 hover:bg-[#31566e] disabled:opacity-50"}`}>
                       {selected ? "✓ Equipped" : equipping === character.id ? "…" : "Equip ▸"}
-                    </button> : <p className="mt-1 text-xs leading-tight" style={{ color }}>◇ Find in {/^[AEIOU]/i.test(character.grade) ? "an" : "a"} {character.grade} chest</p>}
+                    </button> : <p className="mt-1 text-xs leading-tight" style={{ color }}>◇ Find in {/^[aeiou]/.test(tier) ? "an" : "a"} <span className="capitalize">{tier}</span> chest</p>}
                   </div>
                 </article>;
               })}
             </div>
           </div>;
         })}
+      </section>}
+
+      {legacyCharacters.length > 0 && <section className="mt-6 border-t border-white/10 pt-4" aria-labelledby="legacy-recruits-title">
+        <h3 id="legacy-recruits-title" className="mb-1 flex items-baseline justify-between font-pixel-display text-base text-amber-100">Legacy Recruits <small className="text-sm text-slate-400">{legacyCharacters.length}</small></h3>
+        <p className="mb-3 text-base leading-tight text-slate-400">Earned before the update and no longer found anywhere. Yours to keep.</p>
+        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4" aria-label="Legacy recruits">
+          {legacyCharacters.map(character => {
+            const selected = character.id === equippedCharacter;
+            return <article key={character.id} data-crew={character.id} data-unlocked="true" data-equipped={selected}
+              className={`chest-card flex flex-col border ${selected ? "border-amber-300/70" : ""}`} style={{ "--chest-color": character.color } as CSSProperties}>
+              <div className="chest-stage relative grid h-[4.5rem] place-items-center">
+                <CharacterPortrait characterId={character.id} size={64}/>
+                {selected && <span className="absolute right-1 top-0 text-sm text-amber-300">✓</span>}
+              </div>
+              <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-1">
+                <h4 className="truncate text-sm leading-tight text-slate-100" title={character.name}>{character.shortName}</h4>
+                <button type="button" disabled={selected || !!equipping} onClick={() => equip(character.id)} aria-label={selected ? `${character.shortName} equipped` : `Equip ${character.shortName}`}
+                  className={`px-btn mt-1 h-6 w-full text-sm ${selected ? "bg-amber-300/15 text-amber-200" : "bg-[#25415a] text-cyan-100 hover:bg-[#31566e] disabled:opacity-50"}`}>
+                  {selected ? "✓ Equipped" : equipping === character.id ? "…" : "Equip ▸"}
+                </button>
+              </div>
+            </article>;
+          })}
+        </div>
       </section>}
     </> : <>
       <div className="mb-3 flex gap-1.5" aria-label="Filter achievements">
