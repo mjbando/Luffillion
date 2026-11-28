@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 export const ADSENSE_CLIENT = "ca-pub-3460671766515899";
 /** Display ad unit for the end-of-voyage results screen (AdSense → Ads → By ad unit). */
-export const RESULTS_AD_SLOT = "";
+export const RESULTS_AD_SLOT = "9374536832";
 
 declare global {
   interface Window { adsbygoogle?: unknown[] }
