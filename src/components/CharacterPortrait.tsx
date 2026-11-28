@@ -1,8 +1,9 @@
 "use client";
 
 import { memo } from "react";
-import { portraitSprite } from "./pixel/runners";
+import { portraitAuraFrames, portraitSprite, type RunnerSprite } from "./pixel/runners";
 import { spriteDataUrl } from "./pixel/sprite-image";
+import { isLegendaryArt } from "./pixel/legendary-hd";
 import { chestCharacterById } from "@/data/chest-characters";
 import { UPDATE_LIVE } from "@/lib/release";
 import type { CharacterId } from "@/data/playable-characters";
@@ -22,6 +23,20 @@ function runs(rows: string[], palette: Record<string, string>) {
   return out;
 }
 
+/** The body and glow halves of high-detail art as sprites of their own (cached per sprite). */
+const halves = new WeakMap<RunnerSprite, { body: RunnerSprite; aura: RunnerSprite }>();
+function split(sprite: RunnerSprite) {
+  let h = halves.get(sprite);
+  if (!h && sprite.layers) {
+    h = { body: { ...sprite, rows: sprite.layers.body }, aura: { ...sprite, rows: sprite.layers.aura } };
+    halves.set(sprite, h);
+  }
+  return h;
+}
+
+/** Tiers whose glow moves: Epics barely breathe, Legendaries pulse and flicker, Mythics surge. */
+const MOVING_AURA = new Set(["epic", "legendary", "mythic"]);
+
 function CharacterPortrait({ characterId, size = 64, dim = false, className = "" }: {
   characterId: CharacterId;
   size?: number;
@@ -38,11 +53,27 @@ function CharacterPortrait({ characterId, size = 64, dim = false, className = ""
   const box = Math.max(32 * k, sprite.width - bleed * 2, sprite.height - bleed * 2 + k);
   const left = Math.floor((box - sprite.width) / 2), top = box - k - sprite.height + bleed;
   const tier = creator ? "creator" : chestCharacterById(characterId)?.rarity;
+  // The former achievement legends (Law, Rayleigh, Whitebeard, Shanks) wear Legendary art too.
+  const auraTier = tier ?? (isLegendaryArt(characterId) ? "legendary" : undefined);
+  const layered = auraTier && MOVING_AURA.has(auraTier) ? split(sprite) : undefined;
+  // Later glow frames, only kept when they line up exactly with the standing sprite.
+  const extra = layered ? portraitAuraFrames(characterId).filter((f) => f.width === sprite.width && f.height === sprite.height)
+    .map((f) => split(f)?.aura).filter((f): f is RunnerSprite => !!f) : [];
   return <svg viewBox={`0 0 ${box} ${box}`} width={size} height={size} shapeRendering="crispEdges" aria-hidden="true"
     overflow={bleed ? "visible" : undefined}
     className={`${className}${tier ? ` portrait-${tier}` : ""}`} data-portrait={characterId} data-tier={tier}>
     <g opacity={dim ? 0.5 : 1}>
-      {creator || k >= 2
+      {layered
+        ? <>
+          <g className={`aura-layer aura-${auraTier}`}>
+            {[layered.aura, ...extra].map((frame, i, all) =>
+              <image key={i} href={spriteDataUrl(frame)} x={left} y={top} width={sprite.width} height={sprite.height}
+                className={all.length > 1 ? `aura-frame aura-frame-${all.length}` : undefined}
+                opacity={i ? 0 : undefined} style={{ imageRendering: "pixelated", animationDelay: i ? `calc(var(--aura-step) * -${all.length - i})` : undefined }} />)}
+          </g>
+          <image href={spriteDataUrl(layered.body)} x={left} y={top} width={sprite.width} height={sprite.height} style={{ imageRendering: "pixelated" }} />
+        </>
+        : creator || k >= 2
         ? <image href={spriteDataUrl(sprite)} x={left} y={top} width={sprite.width} height={sprite.height} style={{ imageRendering: "pixelated" }} />
         : runs(sprite.rows, sprite.palette).map(([x, y, w, fill]) =>
           <rect key={`${x}:${y}`} x={left + x} y={top + y} width={w} height={1} fill={fill} />)}

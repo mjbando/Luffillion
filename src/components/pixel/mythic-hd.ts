@@ -1351,14 +1351,30 @@ export function renderHd(fig: Pick<Figure, "f" | "look" | "accent">, bodyFig: Pi
   if (paint) paint(d); else d.eyes().mouth();
   const top = trimTop(p);
   body.splice(0, top);
+  const before = p.cells.map((row) => row.slice());
   const pad = opts.aura(p, body, accent, frame);
   const sprite = p.finish(Math.max(0, d.hx - 6 + pad + 1), Math.max(0, d.hy - 6 - top + pad + 1));
-  return { ...sprite, scale: S };
+  // Glow = cells the aura filled that were empty before it ran.
+  const glow = (x: number, y: number) => (before[y - pad]?.[x - pad] ?? ".") === ".";
+  const layers = {
+    body: p.cells.map((row, y) => row.map((c, x) => glow(x, y) ? "." : c).join("")),
+    aura: p.cells.map((row, y) => row.map((c, x) => glow(x, y) ? c : ".").join("")),
+  };
+  return { ...sprite, scale: S, layers };
 }
 
 function buildHd(id: ChestCharacterId, pose: Pose, frame: number): RunnerSprite {
   return renderHd(buildFigure(id, pose, true), buildFigure(id, pose, true, true), PAINTERS[id], frame, pose,
     { margin: MARGIN[id], flat: FLAT.has(id), aura: (p, body, accent, fr) => shapeAura(p, body, accent, fr) });
+}
+
+const auraCache = new Map<string, RunnerSprite>();
+/** The standing pose with the glow at a later animation frame (portraits cycle these). */
+export function mythicHdAuraFrame(id: ChestCharacterId, frame: number): RunnerSprite {
+  const key = `${id}:${frame}`;
+  let sprite = auraCache.get(key);
+  if (!sprite) { sprite = buildHd(id, -1, frame); auraCache.set(key, sprite); }
+  return sprite;
 }
 
 const cache = new Map<ChestCharacterId, RunnerSprite[]>();

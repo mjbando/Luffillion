@@ -8,6 +8,8 @@ export interface RunnerSprite {
   scale?: number;
   /** Glow pixels on each side that may spill past the portrait frame (so huge auras don't shrink the character). */
   bleed?: number;
+  /** High-detail art: the same rows split into the character and its glow, so the glow can move on its own. */
+  layers?: { body: string[]; aura: string[] };
 }
 
 export type Pose = -1 | 0 | 1;

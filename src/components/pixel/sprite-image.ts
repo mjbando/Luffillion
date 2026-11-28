@@ -35,6 +35,54 @@ function parse(color: string): [number, number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255, color.length > 7 ? parseInt(color.slice(7, 9), 16) : 255];
 }
 
+// ---------- Tiny deflate ----------
+// Pixel art is mostly runs (transparent space, flat colours) and rows that repeat the row above,
+// so a fixed-Huffman block that only looks back one pixel or one row shrinks it a lot, while
+// staying small, synchronous and deterministic (server and browser markup must match).
+const LEN_BASE = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+const LEN_EXTRA = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+const DIST_BASE = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
+const DIST_EXTRA = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+
+function deflateFixed(data: Uint8Array, stride: number): number[] {
+  const out: number[] = [];
+  let bits = 0, n = 0;
+  const put = (value: number, count: number) => { // LSB first
+    bits |= value << n; n += count;
+    while (n >= 8) { out.push(bits & 255); bits >>>= 8; n -= 8; }
+  };
+  const code = (value: number, count: number) => { // Huffman codes go MSB first
+    let r = 0;
+    for (let i = 0; i < count; i++) r = (r << 1) | ((value >> i) & 1);
+    put(r, count);
+  };
+  const literal = (v: number) => {
+    if (v < 144) code(0x30 + v, 8); else if (v < 256) code(0x190 + v - 144, 9);
+    else if (v < 280) code(v - 256, 7); else code(0xc0 + v - 280, 8);
+  };
+  put(1, 1); put(1, 2); // final block, fixed Huffman
+  for (let i = 0; i < data.length;) {
+    let best = 0, dist = 0;
+    for (const d of [4, stride, 1]) {
+      if (d > i || d > 32768) continue;
+      let len = 0;
+      while (len < 258 && i + len < data.length && data[i + len] === data[i + len - d]) len++;
+      if (len > best) { best = len; dist = d; }
+    }
+    if (best < 3) { literal(data[i]); i++; continue; }
+    let li = LEN_BASE.length - 1;
+    while (LEN_BASE[li] > best) li--;
+    literal(257 + li); put(best - LEN_BASE[li], LEN_EXTRA[li]);
+    let di = DIST_BASE.length - 1;
+    while (DIST_BASE[di] > dist) di--;
+    code(di, 5); put(dist - DIST_BASE[di], DIST_EXTRA[di]);
+    i += best;
+  }
+  literal(256);
+  if (n > 0) out.push(bits & 255);
+  return out;
+}
+
 function encode(sprite: RunnerSprite) {
   const { width: w, height: h, rows, palette } = sprite;
   const colors: Record<string, [number, number, number, number]> = {};
@@ -48,13 +96,8 @@ function encode(sprite: RunnerSprite) {
       if (c) raw.set(c, base + x * 4);
     }
   });
-  // zlib stream with stored (uncompressed) deflate blocks.
-  const z: number[] = [0x78, 0x01];
-  for (let i = 0; i < raw.length; i += 65535) {
-    const len = Math.min(65535, raw.length - i);
-    z.push(i + len >= raw.length ? 1 : 0, len & 255, len >> 8, ~len & 255, (~len >> 8) & 255);
-    for (let j = 0; j < len; j++) z.push(raw[i + j]);
-  }
+  // zlib stream: one fixed-Huffman deflate block (see deflateFixed).
+  const z: number[] = [0x78, 0x01, ...deflateFixed(raw, w * 4 + 1)];
   let a = 1, b = 0;
   for (let i = 0; i < raw.length; i++) { a = (a + raw[i]) % 65521; b = (b + a) % 65521; }
   u32(z, ((b << 16) | a) >>> 0);

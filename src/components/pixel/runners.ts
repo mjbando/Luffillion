@@ -6,8 +6,8 @@ export type { RunnerSprite } from "./kit";
 import type { RunnerSprite } from "./kit";
 import { Pixels, feet, human, ink, skin, skinShade, cream, white, silver, gold, type Pose } from "./kit";
 import { chestSprite } from "./generated";
-import { mythicHdSprite } from "./mythic-hd";
-import { isLegendaryArt, legendaryHdSprite } from "./legendary-hd";
+import { mythicHdAuraFrame, mythicHdSprite } from "./mythic-hd";
+import { isLegendaryArt, legendaryHdAuraFrame, legendaryHdSprite } from "./legendary-hd";
 import { epicHdSprite, isEpicArt } from "./epic-hd";
 import { isRareArt, rareHdSprite } from "./rare-hd";
 import { gear6IdleSprite, gear6StrideSprite } from "./creator-hd";
@@ -222,4 +222,16 @@ export function portraitSprite(characterId: CharacterId, running = false, time =
   if (isRareArt(characterId))
     return rareHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   return runnerSprite(characterId, running, time);
+}
+
+/**
+ * Extra glow frames for a standing portrait (same pose as portraitSprite, later aura frames), so
+ * the glow can flicker on its own: none for Epics, one for Legendaries, three for Mythics.
+ */
+export function portraitAuraFrames(characterId: CharacterId): RunnerSprite[] {
+  if (!UPDATE_LIVE && !isChestCharacterId(characterId)) return [];
+  if (isChestCharacterId(characterId) && chestCharacterById(characterId)?.rarity === "mythic")
+    return [1, 2, 3].map((f) => mythicHdAuraFrame(characterId, f));
+  if (characterId !== "gear-6" && isLegendaryArt(characterId)) return [legendaryHdAuraFrame(characterId, 1)];
+  return [];
 }

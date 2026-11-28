@@ -342,7 +342,31 @@
   0%, 100% { filter: drop-shadow(0 0 3px #fb7185) drop-shadow(0 0 8px #fbbf2466); }
   50% { filter: drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 14px #a78bfa99); transform: translateY(-2px); }
 }
-@media (prefers-reduced-motion: reduce) { .portrait-mythic, .chest-card-mythic, .chest-card-mythic .chest-stage::before { animation: none !important; } }
+/* Moving auras. The glow is its own layer behind the character (only transform and opacity are
+   animated: no filters on the pixel art). Epics barely breathe, Legendaries pulse and flicker
+   between two glow frames, Mythics surge and churn through four. */
+.aura-layer { transform-box: fill-box; transform-origin: 50% 62%; }
+.aura-epic { animation: aura-epic 3.6s ease-in-out infinite; }
+.aura-legendary { --aura-step: .45s; animation: aura-legendary 2.4s ease-in-out infinite; }
+.aura-mythic { --aura-step: .16s; animation: aura-mythic 1.5s ease-in-out infinite; }
+@keyframes aura-epic { 50% { transform: scale(1.02); opacity: .82; } }
+@keyframes aura-legendary {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05) translateY(-1%); opacity: .8; }
+}
+@keyframes aura-mythic {
+  0%, 100% { transform: scale(1) rotate(0); opacity: 1; }
+  25% { transform: scale(1.09) rotate(1.2deg); opacity: .85; }
+  50% { transform: scale(1.03) translateY(-1.5%); opacity: 1; }
+  75% { transform: scale(1.1) rotate(-1.2deg); opacity: .8; }
+}
+.aura-frame-2 { animation: aura-frame-2 calc(var(--aura-step) * 2) step-end infinite; }
+.aura-frame-4 { animation: aura-frame-4 calc(var(--aura-step) * 4) step-end infinite; }
+@keyframes aura-frame-2 { 0% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes aura-frame-4 { 0% { opacity: 1; } 25%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .portrait-mythic, .chest-card-mythic, .chest-card-mythic .chest-stage::before, .aura-layer, .aura-frame { animation: none !important; }
+}
 
 /* Square buttons under the hamburger. */
 .rail-square {

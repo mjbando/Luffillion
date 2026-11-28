@@ -986,6 +986,15 @@ function buildLegendary(id: LegendaryArtId, pose: Pose, frame: number): RunnerSp
     { margin: MARGIN[id], aura: (p, body, a, fr) => shapeAura(p, body, a, fr, 4, true) });
 }
 
+const auraCache = new Map<string, RunnerSprite>();
+/** The standing pose with the glow at a later animation frame (portraits cycle these). */
+export function legendaryHdAuraFrame(id: LegendaryArtId, frame: number): RunnerSprite {
+  const key = `${id}:${frame}`;
+  let sprite = auraCache.get(key);
+  if (!sprite) { sprite = buildLegendary(id, -1, frame); auraCache.set(key, sprite); }
+  return sprite;
+}
+
 const cache = new Map<LegendaryArtId, RunnerSprite[]>();
 /** High-detail legendary sprite (2 pixels per world pixel). frame 0 = idle, 1/2 = strides. */
 export function legendaryHdSprite(id: LegendaryArtId, frame: 0 | 1 | 2): RunnerSprite {
