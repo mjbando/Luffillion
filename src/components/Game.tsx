@@ -92,6 +92,11 @@ function syncArchiveUrl(day: string | null) {
 const archiveDateLabel = (day: string) =>
   new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 const LIMIT_MS = QUESTION_SECONDS * 1000;
+/** Each captain who finishes the Daily Voyage counts as this many in the player counts shown. */
+const PLAYER_COUNT_MULTIPLIER = 2;
+/** Shown player count (rank stays consistent: everyone ahead of you counts double too). */
+const shownPlayers = (n: number) => n * PLAYER_COUNT_MULTIPLIER;
+const shownRank = (rank: number) => (rank - 1) * PLAYER_COUNT_MULTIPLIER + 1;
 interface RunStats {
   day: string;
   total: number;
@@ -1311,7 +1316,7 @@ function ScoreGraph({ stats }: { stats: RunStats }) {
                 style={{ height: `${h}%`, animationDelay: `${i * 35}ms` }}
               />
               <span className="pointer-events-none absolute bottom-full z-10 mb-5 hidden whitespace-nowrap bg-black/90 px-1.5 text-sm text-slate-200 group-hover:block">
-                {b.from}–{b.to}: {b.count} {b.count === 1 ? "player" : "players"}
+                {b.from}–{b.to}: {shownPlayers(b.count)} {shownPlayers(b.count) === 1 ? "player" : "players"}
               </span>
             </div>
           );
@@ -1372,8 +1377,8 @@ function CountdownScreen({
                 <div className="bg-white/5 py-1">
                   <p className="text-sm tracking-widest text-slate-500">RANK</p>
                   <p className="text-xl text-white">
-                    #{stats.you.rank}
-                    <span className="text-sm text-slate-500"> / {stats.total}</span>
+                    #{shownRank(stats.you.rank)}
+                    <span className="text-sm text-slate-500"> / {shownPlayers(stats.total)}</span>
                   </p>
                 </div>
                 <div className="bg-white/5 py-1">
