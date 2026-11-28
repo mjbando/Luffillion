@@ -342,20 +342,17 @@
   0%, 100% { filter: drop-shadow(0 0 3px #fb7185) drop-shadow(0 0 8px #fbbf2466); }
   50% { filter: drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 14px #a78bfa99); transform: translateY(-2px); }
 }
-/* Moving auras. The glow is its own layer behind the character (only transform and opacity are
-   animated: no filters on the pixel art). Epics barely breathe; Legendaries pulse and flicker
-   between two glow frames; Mythics stay locked to the body's outline but burn hardest: four fast
-   glow frames, a strong flicker, and a second copy of the glow flaring on top. */
-.aura-layer { transform-box: fill-box; transform-origin: 50% 62%; }
+/* Moving auras. The glow is its own layer behind the character and always stays locked to the
+   body's outline (only opacity is animated, never size or position, and no filters on the pixel
+   art). Intensity climbs with rarity: Epics barely breathe; Legendaries flicker between two glow
+   frames with a steady pulse; Mythics burn hardest with four fast frames, a strong flicker and a
+   second copy of the glow flaring on top. */
 .aura-epic { animation: aura-epic 3.6s ease-in-out infinite; }
-.aura-legendary { --aura-step: .45s; animation: aura-legendary 2.4s ease-in-out infinite; }
+.aura-legendary { --aura-step: .3s; animation: aura-legendary 1.8s ease-in-out infinite; }
 .aura-mythic { --aura-step: .11s; animation: aura-mythic 1.2s ease-in-out infinite; }
 .aura-mythic.aura-boost { animation: aura-boost .9s ease-in-out infinite; opacity: 0; }
-@keyframes aura-epic { 50% { transform: scale(1.02); opacity: .82; } }
-@keyframes aura-legendary {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05) translateY(-1%); opacity: .8; }
-}
+@keyframes aura-epic { 50% { opacity: .8; } }
+@keyframes aura-legendary { 0%, 100% { opacity: 1; } 50% { opacity: .68; } }
 @keyframes aura-mythic { 0%, 100% { opacity: 1; } 20% { opacity: .55; } 45% { opacity: 1; } 70% { opacity: .65; } 85% { opacity: 1; } }
 @keyframes aura-boost { 0%, 100% { opacity: 0; } 35% { opacity: .95; } 60% { opacity: .4; } 75% { opacity: .9; } }
 .aura-frame-2 { animation: aura-frame-2 calc(var(--aura-step) * 2) step-end infinite; }

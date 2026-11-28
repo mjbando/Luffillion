@@ -535,6 +535,11 @@ export function playChestBurst(rank: number): void {
     playTone(ctx, out, t, { freq: 110, slideTo: 40, dur: 0.5, type: "sine", vol: 0.42, attack: 0.004 });
     [1760, 2093, 2637].forEach((f, i) => playTone(ctx, out, t, { freq: f, start: 0.5 + i * 0.09, dur: 0.3, type: "sine", vol: 0.08 }));
   }
+  if (rank === 4) {
+    // Legendary: a Haki thunder-crack splitting the air.
+    playNoise(ctx, out, t, 0, 0.9, 0.13, "lowpass", 2600, 110);
+    for (let i = 0; i < 4; i++) zap(ctx, out, t, 0.04 + i * 0.09, 0.08);
+  }
   if (rank >= 5) {
     // Mythic: second shockwave and a rising shimmer.
     playTone(ctx, out, t, { freq: 90, slideTo: 32, start: 0.55, dur: 0.6, type: "sine", vol: 0.4, attack: 0.004 });
@@ -564,27 +569,136 @@ export function playChestCrack(rank: number): void {
     playNoise(a.ctx, a.out, t, s + 0.02, 0.05, 0.05, "highpass", 2600, 0);
   }
   playNoise(a.ctx, a.out, t, 0, 0.6 + rank * 0.1, 0.04, "bandpass", 300, 4200);
+  if (rank === 4) {
+    // Conqueror's Haki: a low growl under crackling black lightning.
+    drone(a.ctx, a.out, t, 0, 1.6, [55, 82.41], 0.05, 380);
+    for (let i = 0; i < 7; i++) zap(a.ctx, a.out, t, 0.12 + i * 0.2 + (i % 2) * 0.05, 0.07);
+  }
+  if (rank >= 5) {
+    // Reality tearing: sub swell, glitch zaps and a reverse riser into the burst.
+    drone(a.ctx, a.out, t, 0, 1.9, [36.71, 55, 73.42], 0.06, 300);
+    for (let i = 0; i < 10; i++) zap(a.ctx, a.out, t, 0.1 + i * 0.16, 0.06, 1 + (i % 3) * 0.5);
+    playNoise(a.ctx, a.out, t, 0.2, 1.6, 0.09, "bandpass", 200, 8000);
+    playTone(a.ctx, a.out, t, { freq: 110, slideTo: 880, start: 0.3, dur: 1.5, type: "sawtooth", vol: 0.04, filterHz: 2400, attack: 1.2 });
+  }
 }
 
-/** A rising shimmer while the recruit's silhouette floats out of the chest. */
+/** The recruit's silhouette floats out of the chest. Legendary and Mythic get a full build-up. */
 export function playChestRise(rank: number): void {
-  const a = getAudio();
-  if (!a) return;
-  const t = a.ctx.currentTime;
+  const r = arena();
+  if (!r) return;
+  const { ctx, out, wet, t } = r;
   const dur = 0.9 + rank * 0.15;
-  playTone(a.ctx, a.out, t, { freq: 220, slideTo: 880 + rank * 120, dur, type: "triangle", vol: 0.08 });
-  playTone(a.ctx, a.out, t, { freq: 330, slideTo: 1320 + rank * 160, dur, type: "sine", vol: 0.05 });
-  if (rank >= 4) playNoise(a.ctx, a.out, t, 0, dur, 0.05, "bandpass", 800, 7000);
+  playTone(ctx, out, t, { freq: 220, slideTo: 880 + rank * 120, dur, type: "triangle", vol: 0.08 });
+  playTone(ctx, out, t, { freq: 330, slideTo: 1320 + rank * 160, dur, type: "sine", vol: 0.05 });
+  if (rank === 4) {
+    // Legendary: Haki rumble, two war-drum heartbeats, crackles and a swelling riser into the reveal.
+    drone(ctx, out, t, 0, 2.1, [49, 73.42], 0.07, 420, 0.6);
+    taiko(ctx, out, t, 0.05, 0.42, 0.9); taiko(ctx, wet, t, 0.05, 0.2, 0.9);
+    taiko(ctx, out, t, 0.85, 0.46, 0.9); taiko(ctx, wet, t, 0.85, 0.22, 0.9);
+    taiko(ctx, out, t, 1.45, 0.36); taiko(ctx, out, t, 1.65, 0.4); taiko(ctx, out, t, 1.82, 0.44);
+    for (let i = 0; i < 6; i++) zap(ctx, out, t, 0.3 + i * 0.27, 0.06);
+    playNoise(ctx, out, t, 0.6, 1.45, 0.1, "bandpass", 300, 7000); // riser
+    playNoise(ctx, wet, t, 1.2, 0.85, 0.08, "highpass", 2000, 9000); // reverse-cymbal swell
+  }
+  if (rank >= 5) {
+    // Mythic: an angelic choir swells over a sub drone while a timpani roll accelerates and
+    // a glissando climbs through the roof.
+    drone(ctx, out, t, 0, 2.4, [36.71, 55], 0.08, 260, 0.8);
+    choir(ctx, out, wet, t, [146.83, 220, 293.66, 369.99], 0.1, 2.3, 0.03, 1.4);
+    let at = 0.1;
+    for (let i = 0; i < 16; i++) { taiko(ctx, out, t, at, 0.18 + i * 0.018, 0.75 + i * 0.02); at += Math.max(0.05, 0.26 - i * 0.014); }
+    for (const f of [220, 330, 440]) playTone(ctx, out, t, { freq: f, slideTo: f * 4, start: 0.2, dur: 2.1, type: "sine", vol: 0.035, attack: 0.6 });
+    playNoise(ctx, out, t, 0.4, 1.9, 0.11, "bandpass", 200, 9000);
+    playNoise(ctx, wet, t, 1.4, 0.9, 0.12, "highpass", 1800, 10000);
+  }
 }
 
-/** Final reveal sting. */
+/** Final reveal sting: a short chord, a full Haki fanfare for Legendary, an epic finale for Mythic. */
 export function playChestReveal(rank: number): void {
-  const a = getAudio();
-  if (!a) return;
-  const t = a.ctx.currentTime;
-  const chord = rank >= 4 ? [523.25, 659.25, 783.99, 1046.5] : [523.25, 659.25, 783.99];
-  chord.forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: i * 0.03, dur: 0.6 + rank * 0.1, type: "triangle", vol: 0.1 }));
-  if (rank >= 5) [1567.98, 2093, 2637, 3135.96].forEach((f, i) => playTone(a.ctx, a.out, t, { freq: f, start: 0.15 + i * 0.08, dur: 0.4, type: "sine", vol: 0.06 }));
+  const r = arena();
+  if (!r) return;
+  const { ctx, out, wet, t } = r;
+  if (rank < 4) {
+    const chord = [523.25, 659.25, 783.99];
+    chord.forEach((f, i) => playTone(ctx, out, t, { freq: f, start: i * 0.03, dur: 0.6 + rank * 0.1, type: "triangle", vol: 0.1 }));
+    return;
+  }
+  if (rank === 4) {
+    // Legendary: thunder-crack impact, a gong, war drums and a three-step brass fanfare
+    // (D – E – G major) that lands on a held golden chord with bells on top.
+    impact(ctx, out, wet, t, 1.25);
+    playNoise(ctx, out, t, 0.02, 1.2, 0.12, "lowpass", 1800, 120); // thunder roll
+    metal(ctx, wet, t, 98, 0.02, 2.6, 0.12, [1, 2.4, 3.9, 5.6]);
+    crash(ctx, out, wet, t, 0.02, 0.13, 1.8);
+    taiko(ctx, out, t, 0, 0.5); taiko(ctx, out, t, 0.2, 0.42); taiko(ctx, out, t, 0.4, 0.5);
+    brass(ctx, out, t, [293.66, 369.99, 440], 0.0, 0.2, 0.045, 2600, 0.01);
+    brass(ctx, out, t, [329.63, 415.3, 493.88], 0.2, 0.2, 0.045, 2800, 0.01);
+    brass(ctx, out, t, [196, 392, 493.88, 587.33], 0.4, 1.6, 0.05, 3200, 0.02);
+    brass(ctx, wet, t, [392, 587.33], 0.4, 1.4, 0.03, 2400, 0.05);
+    [1567.98, 1975.53, 2349.32, 3135.96].forEach((f, i) => playTone(ctx, wet, t, { freq: f, start: 0.5 + i * 0.07, dur: 0.6, type: "sine", vol: 0.06 }));
+    return;
+  }
+  // Mythic: a double cosmic impact with a sub drop and thunder, then a heroic brass rise
+  // (Bb – C – D major) that explodes into a choir-backed final chord, a celestial arpeggio
+  // climbing three octaves and a cascade of sparkles ringing out in the hall.
+  impact(ctx, out, wet, t, 1.6);
+  impact(ctx, out, wet, t, 1.3, 0.16);
+  playTone(ctx, out, t, { freq: 48, slideTo: 24, dur: 1.6, type: "sine", vol: 0.5, attack: 0.003 });
+  playNoise(ctx, out, t, 0.05, 1.8, 0.14, "lowpass", 2200, 90);
+  whoosh(ctx, out, t, 0, 0.5, 0.16, false);
+  crash(ctx, out, wet, t, 0.02, 0.15, 2.4);
+  crash(ctx, out, wet, t, 0.62, 0.12, 2.6);
+  metal(ctx, wet, t, 73.42, 0.6, 3.4, 0.14, [1, 2.4, 3.9, 5.6, 7.3]);
+  taiko(ctx, out, t, 0, 0.55, 0.85); taiko(ctx, out, t, 0.2, 0.48, 0.9); taiko(ctx, out, t, 0.4, 0.55, 0.85); taiko(ctx, out, t, 0.6, 0.62, 0.8);
+  brass(ctx, out, t, [233.08, 293.66, 349.23, 466.16], 0.0, 0.2, 0.045, 2600, 0.01);
+  brass(ctx, out, t, [261.63, 329.63, 392, 523.25], 0.2, 0.2, 0.045, 2800, 0.01);
+  brass(ctx, out, t, [146.83, 293.66, 369.99, 440, 587.33], 0.4, 2.4, 0.05, 3600, 0.02);
+  brass(ctx, wet, t, [587.33, 739.99, 880], 0.42, 2.0, 0.025, 3000, 0.08);
+  choir(ctx, out, wet, t, [293.66, 369.99, 440, 587.33], 0.4, 2.6, 0.035, 0.25);
+  const arp = [587.33, 739.99, 880, 1174.66, 1479.98, 1760, 2349.32, 2959.96, 3520];
+  arp.forEach((f, i) => playTone(ctx, wet, t, { freq: f, start: 0.5 + i * 0.065, dur: 0.7, type: "sine", vol: 0.06 }));
+  for (let i = 0; i < 10; i++) playTone(ctx, wet, t, { freq: 2093 * Math.pow(2, ((i * 5) % 12) / 12), start: 1.2 + i * 0.09, dur: 0.5, type: "sine", vol: 0.035 });
+  playTone(ctx, out, t, { freq: 880, slideTo: 3520, start: 0.45, dur: 1.4, type: "sine", vol: 0.04 });
+}
+
+/** A held low drone of detuned saws through a lowpass, swelling in. */
+function drone(ctx: AudioContext, out: AudioNode, t: number, at: number, dur: number, notes: number[], vol: number, filterHz: number, attack = 0.4) {
+  for (const f of notes) {
+    playTone(ctx, out, t, { freq: f, start: at, dur, type: "sawtooth", vol, attack, filterHz, detune: -7 });
+    playTone(ctx, out, t, { freq: f, start: at, dur, type: "sawtooth", vol: vol * 0.8, attack, filterHz, detune: 7 });
+  }
+}
+
+/** An electric crackle: a short bright noise snap with a falling squelch. */
+function zap(ctx: AudioContext, out: AudioNode, t: number, at: number, vol: number, pitch = 1) {
+  playNoise(ctx, out, t, at, 0.06, vol, "bandpass", 3200 * pitch, 900);
+  playTone(ctx, out, t, { freq: 1400 * pitch, slideTo: 160, start: at, dur: 0.07, type: "square", vol: vol * 0.5, attack: 0.001, filterHz: 4200 });
+}
+
+/** A synthetic "aah" choir: stacked detuned saws through two vowel formants, with a slow swell. */
+function choir(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number, notes: number[], at: number, dur: number, vol: number, attack: number) {
+  const start = t + at;
+  const bus = ctx.createGain();
+  bus.gain.setValueAtTime(0.0001, start);
+  bus.gain.linearRampToValueAtTime(vol, start + attack);
+  bus.gain.setValueAtTime(vol, start + Math.max(attack, dur - 0.6));
+  bus.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  for (const [hz, q, g] of [[800, 5, 1], [1150, 6, 0.6], [2900, 8, 0.25]] as const) {
+    const f = ctx.createBiquadFilter();
+    f.type = "bandpass"; f.frequency.value = hz; f.Q.value = q;
+    const fg = ctx.createGain(); fg.gain.value = g;
+    bus.connect(f); f.connect(fg); fg.connect(out); fg.connect(wet);
+  }
+  for (const n of notes) for (const d of [-12, 0, 11]) {
+    const o = ctx.createOscillator();
+    o.type = "sawtooth"; o.frequency.value = n; o.detune.value = d;
+    const vib = ctx.createOscillator(), vg = ctx.createGain();
+    vib.frequency.value = 5 + (d % 3); vg.gain.value = 6;
+    vib.connect(vg); vg.connect(o.detune);
+    o.connect(bus);
+    o.start(start); vib.start(start); o.stop(start + dur + 0.05); vib.stop(start + dur + 0.05);
+  }
 }
 
 /* ---------- Ranked battle ---------- */

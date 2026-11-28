@@ -209,7 +209,7 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
     });
     // Legendary+: embers drifting up through the whole scene (gold, or rainbow for Mythic).
     const palette = rank >= 5 ? RAINBOW : GOLDS;
-    const embers: Ember[] = Array.from({ length: rank >= 5 ? 36 : rank >= 4 ? 24 : 0 }, (_, i) => ({
+    const embers: Ember[] = Array.from({ length: rank >= 5 ? 36 : 0 }, (_, i) => ({
       id: i, left: random() * 100, delay: random() * 3, dur: 2.4 + random() * 2.6, size: 2 + Math.round(random() * (rank >= 5 ? 4 : 3)),
       drift: (random() - 0.5) * 140, color: palette[i % palette.length],
     }));
@@ -229,13 +229,24 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
       while (r < 150) { r += 14 + random() * 22; a += (random() - 0.5) * 0.5; x = Math.cos(a) * r; y = Math.sin(a) * r; pts.push(`${x.toFixed(1)},${y.toFixed(1)}`); }
       return { id: i, points: pts.join(" "), delay: random() * 0.12 };
     }) : [];
-    const sparks: Spark[] = Array.from({ length: rank >= 5 ? 12 : rank >= 4 ? 6 : 0 }, (_, i) => ({
-      id: i, angle: (i / (rank >= 5 ? 12 : 6)) * 360, radius: 150 + (i % 3) * 14, size: 4 + (i % 3) * 2, color: palette[i % palette.length], dur: rank >= 5 ? 3.2 : 5,
+    const sparks: Spark[] = Array.from({ length: rank >= 5 ? 12 : 0 }, (_, i) => ({
+      id: i, angle: (i / 12) * 360, radius: 150 + (i % 3) * 14, size: 4 + (i % 3) * 2, color: palette[i % palette.length], dur: rank >= 5 ? 3.2 : 5,
     }));
-    const coins = Array.from({ length: rank === 4 ? 26 : 0 }, (_, i) => ({
-      id: i, left: random() * 100, delay: random() * 2.2, dur: 1.8 + random() * 1.4, drift: (random() - 0.5) * 80, flip: 0.25 + random() * 0.3,
-    }));
-    return { particles, orbs, confetti, bolts, embers, streaks, meteors, bars, cracks, sparks, coins };
+    // Legendary: Conqueror's Haki — black lightning with a crimson glow crackling around the chest.
+    const haki = rank === 4 ? Array.from({ length: 9 }, (_, i) => {
+      const pts: string[] = [];
+      if (i % 3 === 2) {
+        // An arc hugging the chest.
+        const a0 = random() * Math.PI * 2, span = 0.9 + random() * 0.9, r0 = 58 + random() * 20;
+        for (let k = 0; k <= 7; k++) { const a = a0 + (span * k) / 7, r = r0 + (random() - 0.5) * 16; pts.push(`${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`); }
+      } else {
+        // A forked bolt crackling outward.
+        let a = (i / 9) * Math.PI * 2 + random() * 0.4, r = 34;
+        while (r < 98) { pts.push(`${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`); r += 9 + random() * 12; a += (random() - 0.5) * 0.55; }
+      }
+      return { id: i, points: pts.join(" "), delay: random() * 0.5, dur: 0.28 + random() * 0.3 };
+    }) : [];
+    return { particles, orbs, confetti, bolts, embers, streaks, meteors, bars, cracks, sparks, haki };
   }, [reward, rank, chest]);
 
   // Landed but the server hasn't answered yet.
@@ -274,14 +285,21 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
           {fx.bars.map((b) => <span key={b.id} style={{ top: `${b.top}%`, height: `${b.height}%`, animationDelay: `${b.delay}s`, "--c": b.color } as CSSProperties} />)}
         </div>
       )}
-      {rank >= 4 && (phase === "crack" || opened) && fx.embers.length > 0 && (
+      {rank >= 5 && (phase === "crack" || opened) && fx.embers.length > 0 && (
         <div className="tc-embers" aria-hidden="true">
           {fx.embers.map((e) => <span key={e.id} style={{ left: `${e.left}%`, width: e.size, height: e.size, background: e.color, color: e.color, animationDelay: `${e.delay}s`, animationDuration: `${e.dur}s`, "--drift": `${e.drift}px` } as CSSProperties} />)}
         </div>
       )}
-      {rank >= 4 && (phase === "crack" || phase === "burst") && (
+      {rank >= 5 && (phase === "crack" || phase === "burst") && (
         <div className="tc-pillars" aria-hidden="true">
-          {Array.from({ length: rank >= 5 ? 9 : 5 }, (_, i) => <span key={i} style={{ left: `${8 + (i * 84) / (rank >= 5 ? 8 : 4)}%`, animationDelay: `${(i % 3) * 0.22 + (i % 2) * 0.1}s`, "--c": rank >= 5 ? RAINBOW[i % 5] : "var(--tc-glow)" } as CSSProperties} />)}
+          {Array.from({ length: 9 }, (_, i) => <span key={i} style={{ left: `${8 + (i * 84) / 8}%`, animationDelay: `${(i % 3) * 0.22 + (i % 2) * 0.1}s`, "--c": RAINBOW[i % 5] } as CSSProperties} />)}
+        </div>
+      )}
+      {/* Legendary: Conqueror's Haki darkens the screen and pulses out in crimson-black waves. */}
+      {rank === 4 && (phase === "crack" || phase === "burst") && <div className="tc-haki-dim" aria-hidden="true" />}
+      {rank === 4 && (phase === "crack" || phase === "burst") && (
+        <div className={`tc-haki-waves${phase === "burst" ? " is-burst" : ""}`} aria-hidden="true">
+          {(phase === "burst" ? [0, 0.18] : [0, 0.45, 0.9]).map((d) => <span key={d} style={{ animationDelay: `${d}s` }} />)}
         </div>
       )}
       {rank >= 5 && phase === "burst" && (
@@ -297,11 +315,6 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
       {rank >= 5 && phase === "reveal" && (
         <div className="tc-meteors" aria-hidden="true">
           {fx.meteors.map((m) => <span key={m.id} style={{ top: `${m.top}%`, left: `${m.left}%`, animationDelay: `${m.delay}s`, animationDuration: `${m.dur}s`, "--c": m.color } as CSSProperties} />)}
-        </div>
-      )}
-      {rank === 4 && phase === "reveal" && (
-        <div className="tc-coins" aria-hidden="true">
-          {fx.coins.map((c) => <span key={c.id} style={{ left: `${c.left}%`, animationDelay: `${c.delay}s`, animationDuration: `${c.dur}s`, "--drift": `${c.drift}px`, "--flip": `${c.flip}s` } as CSSProperties}><i /></span>)}
         </div>
       )}
       {opened && rank >= 2 && <div className="tc-rays" aria-hidden="true" />}
@@ -329,6 +342,16 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
         <div className="tc-chest-zone">
           {rank >= 5 && (phase === "crack" || phase === "burst" || phase === "rise") && <Seal className="tc-seal-floor" />}
           {opened && phase !== "reveal" && <div className="tc-beam" aria-hidden="true" />}
+          {fx.haki.length > 0 && phase !== "intro" && phase !== "waiting" && phase !== "charging" && (
+            <svg className={`tc-haki tc-haki-${phase}`} viewBox="-100 -100 200 200" aria-hidden="true">
+              {fx.haki.map((h) => (
+                <g key={h.id} style={{ animationDelay: `${h.delay}s`, animationDuration: `${h.dur}s` }}>
+                  <polyline points={h.points} className="tc-haki-glow" />
+                  <polyline points={h.points} className="tc-haki-core" />
+                </g>
+              ))}
+            </svg>
+          )}
 
           {orbCount > 0 && (
             <div className="tc-orbs" aria-hidden="true">
@@ -347,7 +370,7 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
           {phase === "burst" && (
             <>
               <div className="tc-ring" aria-hidden="true" />
-              {rank >= 4 && <div className="tc-nova" aria-hidden="true" />}
+              {rank >= 5 && <div className="tc-nova" aria-hidden="true" />}
               {rank >= 5 && <div className="tc-nova tc-nova-late" aria-hidden="true" />}
               {rank >= 3 && <div className="tc-ring tc-ring-late" aria-hidden="true" />}
               {rank >= 5 && <div className="tc-ring tc-ring-later" aria-hidden="true" />}
