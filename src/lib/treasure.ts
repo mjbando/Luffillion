@@ -37,6 +37,15 @@ export const TREASURE_RARITY_COLORS: Record<TreasureRarity, string> = {
   mythic: "#fb7185",
 };
 
+/** Achievement-era grades mapped to the rarity colours, so every label of one rarity matches. */
+const GRADE_RARITY: Record<string, TreasureRarity> = { starter: "common", crew: "rare", elite: "epic", legendary: "legendary", mythic: "mythic" };
+export const CREATOR_COLOR = "#f2c56b";
+export function rarityLabelColor(rarityOrGrade: string): string {
+  const key = rarityOrGrade.toLowerCase();
+  if (key === "creator") return CREATOR_COLOR;
+  return TREASURE_RARITY_COLORS[(key in TREASURE_RARITY_COLORS ? key : GRADE_RARITY[key]) as TreasureRarity] ?? TREASURE_RARITY_COLORS.common;
+}
+
 /**
  * Odds in basis points (1/100 of a percent), always totalling exactly 10,000.
  * Some published tables add up to less than 100% (e.g. Legendary = 96%), so the

@@ -9,6 +9,7 @@ import { chestSprite } from "./generated";
 import { mythicHdSprite } from "./mythic-hd";
 import { isLegendaryArt, legendaryHdSprite } from "./legendary-hd";
 import { epicHdSprite, isEpicArt } from "./epic-hd";
+import { isRareArt, rareHdSprite } from "./rare-hd";
 import { gear6IdleSprite, gear6StrideSprite } from "./creator-hd";
 import { UPDATE_LIVE } from "@/lib/release";
 
@@ -218,5 +219,7 @@ export function portraitSprite(characterId: CharacterId, running = false, time =
     return legendaryHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   if (isEpicArt(characterId))
     return epicHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
+  if (isRareArt(characterId))
+    return rareHdSprite(characterId, running ? Math.floor(time / 110) % 2 === 0 ? 1 : 2 : 0);
   return runnerSprite(characterId, running, time);
 }

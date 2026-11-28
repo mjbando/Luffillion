@@ -7,7 +7,7 @@ import { ACHIEVEMENTS, formatBerries, type AchievementReport } from "@/lib/achie
 import { RETIRED_RECRUITS, rosterEntry } from "@/data/roster";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { CHEST_CHARACTERS, CHEST_RARITIES, type ChestCharacterRarity } from "@/data/chest-characters";
-import { TREASURE_RARITY_COLORS } from "@/lib/treasure";
+import { TREASURE_RARITY_COLORS, rarityLabelColor } from "@/lib/treasure";
 import type { Captain } from "@/lib/voyage";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
@@ -253,7 +253,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
             className={`crew-card flex flex-col border ${selected ? "border-amber-300/70" : "border-[#2d3d55]"}`}>
             <div className="crew-stage relative grid h-24 place-items-center">
               <CharacterPortrait characterId={character.id} size={88} className={available ? "" : "brightness-0"}/>
-              <span className="absolute left-2 top-1 text-xs tracking-wider" style={{ color: chestRarity ? TREASURE_RARITY_COLORS[chestRarity] : available ? character.color : "#8390a4" }}>{(chestRarity ?? character.grade).toUpperCase()}</span>
+              <span className="absolute left-2 top-1 text-xs tracking-wider" style={{ color: rarityLabelColor(chestRarity ?? character.grade) }}>{(chestRarity ?? character.grade).toUpperCase()}</span>
               {selected && <span className="absolute right-2 top-1 text-amber-300">✓</span>}
             </div>
             <div className="flex flex-1 flex-col p-2.5">

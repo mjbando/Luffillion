@@ -333,14 +333,14 @@
 .chest-card-mythic[data-unlocked='true'] .chest-stage::before { content: ''; position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 60%, #fbbf2418 0 10deg, transparent 10deg 30deg); animation: chest-spin 12s linear infinite; }
 @keyframes chest-spin { to { rotate: 360deg; } }
 @keyframes chest-mythic-border { to { background-position: 0 0, 300% 0; } }
-.portrait-legendary:not(.brightness-0) { animation: portrait-legendary 2.6s ease-in-out infinite; }
+/* Legendary art carries its glow inside the sprite. No CSS filter here: animating a filter on these
+   pixelated SVG images rendered them as black silhouettes on some browsers. */
 .portrait-mythic:not(.brightness-0) { animation: portrait-mythic 2s ease-in-out infinite; }
-@keyframes portrait-legendary { 50% { filter: drop-shadow(0 0 4px #fbbf24aa); } }
 @keyframes portrait-mythic {
   0%, 100% { filter: drop-shadow(0 0 3px #fb7185) drop-shadow(0 0 8px #fbbf2466); }
   50% { filter: drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 14px #a78bfa99); transform: translateY(-2px); }
 }
-@media (prefers-reduced-motion: reduce) { .portrait-legendary, .portrait-mythic, .chest-card-mythic, .chest-card-mythic .chest-stage::before { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .portrait-mythic, .chest-card-mythic, .chest-card-mythic .chest-stage::before { animation: none !important; } }
 
 /* Square buttons under the hamburger. */
 .rail-square {

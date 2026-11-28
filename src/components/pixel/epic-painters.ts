@@ -2,28 +2,21 @@ import type { ChestCharacterId } from "@/data/chest-characters";
 import type { Look } from "./chest-looks";
 import { ink, white, gold, shade } from "./kit";
 import { blob, type Detail, type Painter } from "./mythic-hd";
-import { strands, repaint, stubble, openFront, muscles, bareTorso, sword, wisps, wings } from "./legendary-hd";
+import { strands, openFront, muscles, bareTorso, sword, wisps, wings } from "./legendary-hd";
 
 // Hand-drawn detail passes for the Epic roster, painted on the 2× figure.
 // Left/right below are the viewer's unless it says "his/her left".
 
 /** Tweaks to the chest looks for the HD version (mostly: the painter draws its own weapon or effect). */
 export const EPIC_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
+  kaku: { x: [] },
   sabo: { x: ["scar:#d07a6a"], ow: true },
-  "eustass-kid": { x: ["^goggles:#f0c040", "lips:#5a2a4a"], t: "#2a2d3a" },
-  killer: { ow: true, x: ["killermask:#f2f2f2:#3a6ab8"] },
-  "rob-lucci": { x: [] },
-  "kaku-awakened": { ow: true, l: "#2a2d3a", sh: "#1e1e28" },
-  "luffy-enies-lobby": { x: ["scar:#c05a4a", "open:#f4c69c"] },
-  "luffy-gear-2": { x: ["open:#ff9a9a"] },
-  "luffy-gear-3": { x: ["open:#f4c69c"] },
   "gecko-moria": { x: [] },
   magellan: { t: "#3a2a4a", sl: "#3a2a4a", l: "#2a2030", x: ["^horns:#2a2030"] },
   ivankov: { x: [], t: "#2a2d3a", l: "#2a2d3a", coat: "#8a2a6a" },
   inazuma: { ow: true, h: "#f2f2f2", hs: "slick", x: ["shades:#1a1d28"], t: "#f2f2f2", l: "#2a2d3a" },
   shiryu: { x: ["goatee:#1e2230"], t: "#2a2d3a", coat: "#3a3f52", ow: true },
   "boa-hancock": { x: ["earrings:#f0c040"], l: "#d9445c" },
-  doflamingo: { x: ["grin"], l: "#f08a5a" },
   "charlotte-cracker": { x: [] },
   "charlotte-smoothie": { hs: "long", h: "#c8d0ec", t: "#2a2d3a", l: "#2a2d3a", coat: "#e8f2f8", x: [] },
   "charlotte-oven": { x: ["^horns:#f0763a"] },
@@ -49,8 +42,8 @@ export const EPIC_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
 
 /** Extra transparent canvas (HD pixels per side) for wide weapons and effects. */
 export const EPIC_MARGIN: Partial<Record<ChestCharacterId, number>> = {
-  sabo: 6, "eustass-kid": 6, killer: 8, "rob-lucci": 2, "kaku-awakened": 6, "luffy-enies-lobby": 12, "luffy-gear-2": 4, "luffy-gear-3": 10, "gecko-moria": 6,
-  magellan: 10, ivankov: 4, inazuma: 6, shiryu: 6, "boa-hancock": 10, doflamingo: 8, "charlotte-cracker": 6, "charlotte-smoothie": 6, "charlotte-oven": 6,
+  kaku: 10, sabo: 6, "gecko-moria": 6,
+  magellan: 10, ivankov: 4, inazuma: 6, shiryu: 6, "boa-hancock": 10, "charlotte-cracker": 6, "charlotte-smoothie": 6, "charlotte-oven": 6,
   "charlotte-daifuku": 10, "charlotte-perospero": 6, "charlotte-brulee": 8, pedro: 8, carrot: 6, wanda: 6, denjiro: 8, kinemon: 8, "ashura-doji": 8,
   kawamatsu: 4, kanjuro: 10, "x-drake": 8, "basil-hawkins": 10, "scratchmen-apoo": 8, urouge: 8, "capone-bege": 8, "jewelry-bonney": 6, sentomaru: 10,
 };
@@ -61,24 +54,8 @@ function flames(d: Detail, x: number, y: number, spread: number, h: number, oute
   for (let i = -spread; i <= spread; i++) d.flame(x + i * 2, y, Math.max(3, h - Math.abs(i) * 3 + ((i + 7) % 2)), [core, mid, outer]);
   return d;
 }
-/** Polka dots over a cloth colour. */
-function dots(d: Detail, family: string, c: string, every = 4, x = 0, y = d.ty, w = d.W, h = d.p.height - d.ty) {
-  return d.recolor(family, x, y, w, h, (i, j) => i % every === 1 && j % every === 1 ? c : null);
-}
 /** Puffs of steam drifting off the body. */
 function steam(d: Detail, list: [number, number, number][], c = "#f4eef0") { return wisps(d, list, c); }
-/** A crescent blade around a hand. `dir` = which way it curves out. */
-function crescent(d: Detail, x: number, y: number, r: number, dir: 1 | -1, steel = "#c8d2e0") {
-  d.asBody(() => {
-    for (let a = -70; a <= 70; a += 4) {
-      const t = (a * Math.PI) / 180, px = Math.round(x + dir * Math.cos(t) * r), py = Math.round(y + Math.sin(t) * r);
-      const w = Math.abs(a) < 30 ? 3 : Math.abs(a) < 55 ? 2 : 1;
-      for (let k = 0; k < w; k++) d.r(px - dir * k, py, 1, 1, k === 0 ? white : k === 1 ? steel : shade(steel, -0.4));
-    }
-    d.r(x - 1, y - 1, 3, 3, "#5a5f6a");
-  });
-  return d;
-}
 /** Thin speed lines trailing behind a moving part. */
 function speedLines(d: Detail, x0: number, x1: number, ys: number[], c = "#ffffffa0") {
   for (const y of ys) d.u(Math.min(x0, x1), y, Math.abs(x1 - x0), 1, c);
@@ -87,6 +64,46 @@ function speedLines(d: Detail, x0: number, x1: number, ys: number[], c = "#fffff
 
 // ---------- Painters ----------
 export const EPIC_PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
+  kaku: (d) => {
+    const { hx, hy, hw, hh, cx, tc, ty, tx, tw, th } = d;
+    const W1 = "#f4f4f6", W2 = "#d8dce6", W3 = "#b8bfcc", TIE = "#f0e08a";
+    // Wide, round, surprised eyes and a flat frown.
+    d.eyes("none");
+    for (const x of [d.L, d.R]) d.f(x, d.ey - 1, 3, 3, white).f(x, d.ey - 2, 3, 1, ink).f(x + 1, d.ey, 1, 1, ink);
+    d.f(cx - 3, hy + 13, 4, 1, shade(d.sk, -0.55)).f(cx - 4, hy + 14, 1, 1, shade(d.sk, -0.55)).f(cx + 1, hy + 14, 1, 1, shade(d.sk, -0.55));
+    // Orange hair showing at the sides, under a tall white knit cap with a rolled brim.
+    d.asBody(() => {
+      d.r(hx, hy + 3, 2, 8, "#d0803a").r(hx, hy + 3, 1, 8, "#a85a20").r(hx + hw - 2, hy + 3, 2, 5, "#d0803a");
+      d.r(hx, hy - 8, hw, 4, W1).r(hx + 1, hy - 9, hw - 2, 1, W1).r(hx - 1, hy - 4, hw + 2, 6, W1);
+      d.r(hx - 1, hy - 4, hw + 2, 1, white).r(hx - 1, hy + 1, hw + 2, 1, W2);
+      for (let i = 1; i < hw; i += 3) d.r(hx + i, hy - 7 + (i % 2), 1, 2, W2);
+      for (let i = 0; i < hw + 2; i += 4) d.r(hx - 1 + i, hy - 2, 1, 2, W3);
+    });
+    // That long, square nose pointing straight out.
+    d.asBody(() => d.r(cx, hy + 9, hw / 2 + 6, 4, ink).r(cx + 1, hy + 10, hw / 2 + 4, 2, d.sk).r(cx + 1, hy + 10, hw / 2 + 4, 1, shade(d.sk, 0.2)).d(cx + hw / 2 + 4, hy + 11, shade(d.sk, -0.25)));
+    // The huge rolled turtleneck swallowing his chin.
+    d.asBody(() => {
+      d.r(hx - 2, hy + hh + 1, hw + 4, 6, ink).r(hx - 1, hy + hh + 1, hw + 2, 5, W1).r(hx - 1, hy + hh + 4, hw + 2, 1, W2).r(hx - 1, hy + hh + 5, hw + 2, 1, W3);
+      d.r(hx + 3, hy + hh + 2, 1, 2, W2).r(hx + hw - 4, hy + hh + 2, 1, 2, W2);
+    });
+    // White shirt collar points and a long pale-yellow tie.
+    d.r(tc - 4, ty + 5, 3, 2, W2).r(tc + 1, ty + 5, 3, 2, W2);
+    d.r(tc - 1, ty + 5, 2, 2, shade(TIE, -0.15)).r(tc - 1, ty + 7, 2, th - 9, TIE).r(tc, ty + 7, 1, th - 9, shade(TIE, -0.12)).d(tc - 1, ty + th - 2, TIE);
+    // Arms folded across his chest, hands tucked in.
+    const ay = ty + 9;
+    d.asBody(() => {
+      d.r(tx - 2, ay, tw + 4, 6, ink).r(tx - 1, ay + 1, tw + 2, 4, W1).r(tx - 1, ay + 4, tw + 2, 1, W2).r(tc - 1, ay + 1, 1, 4, W3);
+      d.r(tx + 2, ay - 1, 3, 3, ink).r(tx + 3, ay, 2, 2, d.sk);
+      d.r(tx + tw - 5, ay + 3, 3, 3, ink).r(tx + tw - 4, ay + 3, 2, 2, d.sk);
+    });
+    d.r(tc - 1, ay + 5, 2, 3, TIE);
+    // A Rankyaku air blade: a crescent of cutting wind at his side.
+    for (let a = -70; a <= 70; a += 5) {
+      const t = (a * Math.PI) / 180, x = Math.round(tx + tw + 4 + Math.cos(t) * 6), y = Math.round(d.legY + 2 + Math.sin(t) * 11);
+      d.u(x, y, 1, 1, Math.abs(a) < 35 ? "#ffffff" : "#d8ecffc0").u(x - 1, y, 1, 1, Math.abs(a) < 50 ? "#a8d0f080" : "#00000000");
+    }
+    void tw;
+  },
   sabo: (d) => {
     const { hx, hy, hw, tc, ty, tx, tw, th } = d;
     // The burn scar around his left eye, under the eye itself.
@@ -112,142 +129,6 @@ export const EPIC_PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
     d.r(d.lx, d.lhy, d.aw, 3, "#ffb84a");
     for (const [x, y] of [[d.lx - 6, d.lhy - 12], [d.lx + 5, d.lhy - 15], [d.lx - 3, d.lhy - 18]]) d.u(x, y, 1, 1, "#ffcf6a");
     void tx; void tw;
-  },
-  "eustass-kid": (d) => {
-    const { hx, hy, hw, tc, ty, tx, tw, th } = d;
-    d.eyes("glare", "#e8c040", "#a82a1a").mouth("smirk");
-    d.f(d.cx - 2, hy + 12, 4, 2, "#5a2a4a").f(d.cx - 1, hy + 12, 2, 1, "#7a3a6a"); // dark lipstick
-    // Flaming red hair swept up by the goggles.
-    strands(d, "#e84b3c");
-    d.asBody(() => { for (let i = 0; i < 6; i++) d.r(hx + 1 + i * 3, hy - 8 + (i % 2) * 2, 2, 5 - (i % 2), i % 2 ? "#c8301e" : "#ff6a4a"); });
-    // Bare chest with a stitched scar, under a dark red fur coat with a black fur collar.
-    bareTorso(d, "#2a2d3a", 2);
-    for (let i = 0; i < 8; i++) d.d(tc - 5 + i, ty + 4 + Math.floor(i * 0.8), "#a85a4a").d(tc - 5 + i, ty + 3 + Math.floor(i * 0.8) + (i % 2 ? 2 : 0), "#e8b0a0");
-    d.recolor("#7a2a2a", 0, ty, d.W, d.p.height - ty, (x, y) => (x * 3 + y * 5) % 7 === 0 ? "#a83a32" : (x + y * 2) % 9 === 0 ? "#4a1818" : null);
-    d.asBody(() => { for (let i = 0; i < tw + 8; i += 2) d.r(tx - 4 + i, ty - 2 + (i % 4 === 0 ? 0 : 1), 2, 3, i % 4 ? "#1e1a1e" : "#3a323a"); });
-    d.belt("#1e1a1e", "#c8a050", ty + th - 5);
-    // His left arm: a heavy mechanical prosthetic with a magnetic scrap fist crackling red.
-    d.asBody(() => {
-      d.recolor(d.sk, d.rx - 1, ty - 1, d.aw + 2, d.rhy - ty + 4, (x, y) => y % 4 === 0 ? "#6a7280" : (x + y) % 3 === 0 ? "#e0e6ee" : "#a8b0bc");
-      const ax = d.rx - 2, ay = d.rhy - 2;
-      for (let j = 0; j < 11; j++) for (let i = 0; i < 11; i++) if ((i - 5) ** 2 + (j - 5) ** 2 <= 28) d.r(ax + i, ay + j, 1, 1, (i * 3 + j * 2) % 7 === 0 ? "#e8eef4" : (i + j) % 5 === 0 ? "#5a5f6a" : (i + j * 3) % 11 === 0 ? "#b05a2a" : "#8a909c");
-    });
-    d.bolt(d.rx + 9, d.rhy - 6, 1, 6, "#ff5a3c", "#6a1a0a").bolt(d.rx - 3, d.rhy - 8, -1, 5, "#ff5a3c", "#6a1a0a");
-    for (const [x, y] of [[d.rx + 11, d.rhy + 8], [d.rx + 4, d.rhy - 10]]) d.u(x, y, 2, 2, "#8a909c").u(x, y, 1, 1, "#e8eef4");
-  },
-  killer: (d) => {
-    const { hx, hy, hw, hh, tx, ty, tw } = d;
-    // The white helmet-mask: rows of dark breathing holes and a blue stripe down each side.
-    d.asBody(() => {
-      d.r(hx + 1, hy + 1, hw - 2, hh - 1, "#f2f2f2").r(hx + 1, hy + 1, 2, hh - 1, "#ffffff").r(hx + hw - 3, hy + 1, 2, hh - 1, "#c8ccd8");
-      for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) d.r(hx + 4 + i * 2 + (j % 2), hy + 4 + j * 2, 1, 1, "#1e2a4a");
-      d.r(hx + 2, hy + 3, 1, hh - 4, "#3a6ab8").r(hx + hw - 3, hy + 3, 1, hh - 4, "#3a6ab8").r(hx + 2, hy + hh - 1, hw - 4, 1, "#a8b0c4");
-    });
-    // A huge wild blond mane spilling over his shoulders.
-    const mane = new Map<string, string>();
-    for (let j = -6; j <= hh + 10; j++) for (let i = -6; i <= hw + 5; i++) {
-      const inHead = i >= 1 && i < hw - 1 && j >= 1;
-      const r = j < 2 ? 1 : 0;
-      if (inHead || r && (i < -3 + (j + 6) / 3 || i > hw + 2 - (j + 6) / 3)) continue;
-      if (j > hh + 2 && i > 1 && i < hw - 2) continue;
-      if (j > hh + 10 - ((i * 3) % 5)) continue;
-      mane.set(`${hx + i},${hy + j}`, (i * 2 + j) % 5 === 0 ? "#c8a050" : (i + j * 3) % 7 === 0 ? "#fff0b0" : "#f0d888");
-    }
-    blob(d, mane, (x, y) => y < hy + 1 || x < hx || x >= hx + hw);
-    // White shirt with black polka dots, blue trousers, a brown sash.
-    dots(d, "#f2f2f2", "#1e1e28", 4, tx, ty, tw, d.th);
-    d.r(tx, ty + d.th - 5, tw, 2, "#6a4a2a").r(tx, ty + d.th - 5, tw, 1, "#8a6a3a");
-    // Punisher: a scythe blade spinning out of each wrist.
-    crescent(d, d.lx + 1, d.lhy + 1, 8, -1);
-    crescent(d, d.rx + d.aw - 2, d.rhy + 1, 8, 1);
-  },
-  "rob-lucci": (d) => {
-    const { hx, hy, hw, cx, tc, ty, tx, tw } = d;
-    d.eyes("glare", "#3a2a1a", "#14141c").mouth("line");
-    // Long wavy black hair, a black top hat with a white band, a pointed goatee.
-    strands(d, "#2a2d3a");
-    d.asBody(() => { for (let i = 0; i < 4; i++) { d.r(hx - 2 + (i % 2), hy + 3 + i * 4, 2, 4, i % 2 ? "#3a3d4a" : "#1e1a22"); d.r(hx + hw - (i % 2), hy + 3 + i * 4, 2, 4, i % 2 ? "#1e1a22" : "#3a3d4a"); } });
-    d.asBody(() => d.r(hx - 1, hy - 3, hw + 2, 1, "#c8ccd8"));
-    d.f(cx - 3, hy + 11, 6, 1, "#1e1a22").f(cx - 1, hy + 13, 2, 1, "#1e1a22");
-    d.asBody(() => d.r(cx - 1, hy + d.hh, 2, 3, "#1e1a22").d(cx, hy + d.hh + 3, "#1e1a22"));
-    // Black suit with lapels, a white shirt and tie, black gloves.
-    d.suit("#f4f6fa", "#f4f6fa", "#3a3d4a");
-    d.r(tc - 1, ty + 2, 2, 8, "#e0e4ea").r(tc - 1, ty + 2, 2, 1, "#c8ccd8");
-    d.r(d.lx, d.lhy, d.aw, 3, "#1e1a22").r(d.rx, d.rhy, d.aw, 3, "#1e1a22");
-    // Hattori on his shoulder in his little tie, and Shigan: a finger jab leaving a white streak.
-    d.asBody(() => {
-      const bx = tx + tw - 2, by = ty - 7;
-      d.r(bx, by, 7, 6, "#ffffff").r(bx + 1, by + 1, 5, 4, "#f2f2f2").d(bx + 5, by + 1, ink).r(bx + 7, by + 2, 2, 1, "#f08a3a").r(bx + 2, by + 5, 2, 2, "#1e1e28").r(bx - 1, by + 2, 2, 3, "#e0e0e8");
-    });
-    speedLines(d, d.lx - 10, d.lx - 1, [d.lhy, d.lhy + 2], "#ffffffb0");
-  },
-  "kaku-awakened": (d) => {
-    const { hx, hy, hw, hh, cx, ty, tx, tw } = d;
-    // Giraffe hybrid: patchwork spots over all his fur, his famous long square nose.
-    d.recolor(d.sk, 0, 0, d.W, d.p.height, (x, y) => { const k = ((x >> 2) * 7 + (y >> 2) * 13) % 5; return k === 0 && (x + y) % 4 !== 0 ? "#a8642a" : null; });
-    d.eyes("stern", "#2a2a2a", "#7a4a1a");
-    // His long, square nose jutting straight out of his face.
-    d.asBody(() => d.r(cx - 1, hy + 10, hw / 2 + 9, 4, ink).r(cx, hy + 11, hw / 2 + 7, 2, "#f6cf80").r(cx, hy + 11, hw / 2 + 7, 1, "#ffe0a0").d(cx + hw / 2 + 6, hy + 12, "#7a4a1a"));
-    d.f(cx - 4, hy + 14, 3, 1, shade(d.sk, -0.55));
-    // Ossicones and a short mane down the back of his neck.
-    d.asBody(() => { for (const x of [hx + 2, hx + hw - 4]) d.r(x, hy - 6, 2, 6, "#c88a3a").r(x - 1, hy - 8, 4, 3, "#7a4a1a"); for (let j = 0; j < 8; j++) d.u(hx + hw, hy + 2 + j * 2, 2, 2, "#7a4a1a"); });
-    // Black CP0-style trousers and two katana held in a reverse grip for Amane Dachi.
-    sword(d, d.lx + 1, d.lhy, d.lx - 12, d.lhy - 18, { grip: "#2a2238" });
-    sword(d, d.rx + d.aw - 2, d.rhy, d.rx + d.aw + 11, d.rhy - 18, { grip: "#2a2238" });
-    void hh; void ty; void tx; void tw;
-  },
-  "luffy-enies-lobby": (d) => {
-    const { hx, hy, hw, tc, ty } = d;
-    d.wipeScar().eyes("glare", "#14141c", "#14141c").mouth("grin");
-    d.f(d.L + 1, d.ey + 3, 3, 1, "#b04a3a").f(d.L + 2, d.ey + 2, 1, 3, "#b04a3a"); // the scar under his eye
-    strands(d, "#1e2230");
-    // Straw hat with the red band.
-    d.asBody(() => d.r(hx - 1, hy - 3, hw + 2, 2, "#d83a3a").r(hx - 1, hy - 3, hw + 2, 1, "#ff6a5a"));
-    d.recolor("#e8c060", hx - 6, hy - 10, hw + 12, 10, (x, y) => (x + y) % 3 === 0 ? "#c8a040" : null);
-    // Open red vest over the bare chest, blue shorts with rolled cuffs.
-    d.r(tc - 1, ty + 4, 2, 1, shade(d.sk, -0.24));
-    // Gomu Gomu no Pistol: his arm stretched out to a fist, with speed lines.
-    d.asBody(() => {
-      const y = d.rhy - 4, x0 = d.rx + d.aw - 1, x1 = x0 + 14;
-      d.r(x0, y, x1 - x0, 4, ink).r(x0, y + 1, x1 - x0, 2, d.sk).r(x0, y + 1, x1 - x0, 1, shade(d.sk, 0.2));
-      d.r(x1, y - 2, 7, 8, ink).r(x1 + 1, y - 1, 5, 6, d.sk).r(x1 + 1, y - 1, 5, 1, shade(d.sk, 0.25)).r(x1 + 5, y, 1, 4, shade(d.sk, -0.3)).d(x1 + 3, y + 1, shade(d.sk, -0.3)).d(x1 + 3, y + 3, shade(d.sk, -0.3));
-    });
-    speedLines(d, d.rx + d.aw + 2, d.rx + d.aw + 14, [d.rhy - 7, d.rhy + 2, d.rhy + 4], "#ffffff90");
-    d.clear(d.rx, d.rhy, d.aw, 2);
-  },
-  "luffy-gear-2": (d) => {
-    const { hx, hy, hw, tc, ty } = d;
-    d.eyes("glare", "#14141c", "#14141c").mouth("grin");
-    d.f(d.L + 1, d.ey + 3, 3, 1, "#c0504a").f(d.L + 2, d.ey + 2, 1, 3, "#c0504a");
-    strands(d, "#1e2230");
-    d.asBody(() => d.r(hx - 1, hy - 3, hw + 2, 2, "#d83a3a").r(hx - 1, hy - 3, hw + 2, 1, "#ff6a5a"));
-    d.recolor("#e8c060", hx - 6, hy - 10, hw + 12, 10, (x, y) => (x + y) % 3 === 0 ? "#c8a040" : null);
-    // Flushed pink skin glistening with heat, steam pouring off his whole body.
-    d.recolor(d.sk, 0, 0, d.W, d.p.height, (x, y) => (x * 3 + y * 2) % 11 === 0 ? "#ffc8c8" : null);
-    d.r(tc - 1, ty + 4, 2, 1, shade(d.sk, -0.24));
-    steam(d, [[hx - 4, hy + 2, 3], [hx + hw + 3, hy - 2, 3], [hx - 6, ty + 8, 3], [hx + hw + 5, ty + 6, 3], [d.legX - 5, d.legY + 4, 2], [d.legX + d.gap + 12, d.legY + 2, 2], [hx + 3, hy - 13, 2], [hx + hw - 2, hy - 15, 2]]);
-    speedLines(d, d.lx - 6, d.lx - 1, [d.lhy - 6, d.lhy - 2], "#ffd0d090");
-  },
-  "luffy-gear-3": (d) => {
-    const { hx, hy, hw, tc, ty } = d;
-    d.eyes("glare", "#14141c", "#14141c").mouth("grin");
-    d.f(d.L + 1, d.ey + 3, 3, 1, "#b04a3a").f(d.L + 2, d.ey + 2, 1, 3, "#b04a3a");
-    strands(d, "#1e2230");
-    d.asBody(() => d.r(hx - 1, hy - 3, hw + 2, 2, "#d83a3a").r(hx - 1, hy - 3, hw + 2, 1, "#ff6a5a"));
-    d.recolor("#e8c060", hx - 6, hy - 10, hw + 12, 10, (x, y) => (x + y) % 3 === 0 ? "#c8a040" : null);
-    d.r(tc - 1, ty + 4, 2, 1, shade(d.sk, -0.24));
-    // Gigant Pistol: a colossal inflated fist with knuckles, swelling up from his arm.
-    d.asBody(() => {
-      const cx0 = d.rx + 6, cy0 = d.rhy - 6, R = 10;
-      for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
-        const q = i * i + j * j;
-        if (q > R * R + R) continue;
-        d.r(cx0 + i, cy0 + j, 1, 1, q > (R - 1) * (R - 1) + R - 1 ? ink : i + j < -R * 0.6 ? shade(d.sk, 0.28) : i + j > R * 0.7 ? shade(d.sk, -0.22) : d.sk);
-      }
-      for (let k = 0; k < 4; k++) d.r(cx0 - 6 + k * 4, cy0 - 7, 1, 5, shade(d.sk, -0.35)).r(cx0 - 7 + k * 4, cy0 - 8, 3, 1, shade(d.sk, 0.35));
-      d.r(cx0 - 8, cy0 + 1, 10, 1, shade(d.sk, -0.35)).r(cx0 - 8, cy0 + 2, 4, 3, shade(d.sk, -0.12));
-    });
-    steam(d, [[d.rx + 18, d.rhy - 18, 2], [d.rx - 2, d.rhy - 18, 2]]);
   },
   "gecko-moria": (d) => {
     const { hx, hy, hw, hh, cx, tc, ty, tx, tw, th } = d;
@@ -384,30 +265,6 @@ export const EPIC_PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
     for (const [x, y, c] of [[d.rx + 7, d.rhy - 8, "#ff6aa8"], [d.rx + 11, d.rhy - 15, "#ff9ac8"], [d.rx + 5, d.rhy - 18, "#ff6aa8"]] as [number, number, string][])
       d.u(x, y, 2, 1, c).u(x + 3, y, 2, 1, c).u(x - 1, y + 1, 7, 1, c).u(x, y + 2, 5, 1, c).u(x + 1, y + 3, 3, 1, c).u(x + 2, y + 4, 1, 1, c).u(x, y + 1, 1, 1, white);
     void tc;
-  },
-  doflamingo: (d) => {
-    const { hx, hy, hw, cx, tc, ty, tx, tw, th } = d;
-    d.mouth("grin");
-    // Short blond hair and wraparound red shades.
-    strands(d, "#f0d070");
-    d.r(hx + 1, d.ey - 1, hw - 2, 3, ink).r(hx + 2, d.ey, hw - 4, 1, "#ff4a4a").r(hx + 2, d.ey - 1, 3, 1, "#ff9a9a").d(cx, d.ey + 1, "#a82020");
-    // Open white shirt, striped three-quarter trousers.
-    openFront(d, 8, 3, "#d8dce6");
-    d.recolor("#f08a5a", 0, d.legY, d.W, d.legH + 4, (x) => x % 3 === 0 ? "#ffd0a0" : null);
-    // A huge pink feather coat, fluffy at every edge.
-    const coat = new Map<string, string>();
-    for (let y = ty + 1; y <= d.legY + 6; y++) for (let x = tx - 8; x < tx + tw + 8; x++) {
-      const inside = x > tx + 2 && x < tx + tw - 3 && y > ty + 3;
-      if (inside) continue;
-      const edgeL = tx - 8 + ((y * 3) % 4), edgeR = tx + tw + 7 - ((y * 5) % 4);
-      if (x < edgeL || x > edgeR) continue;
-      if (y > d.legY + 2 + ((x * 7) % 5)) continue;
-      coat.set(`${x},${y}`, (x * 3 + y * 2) % 7 === 0 ? "#ffb0d8" : (x + y * 3) % 5 === 0 ? "#d84a8a" : "#ff6fb2");
-    }
-    blob(d, coat, (x, y) => y < ty + 1 || x < tx + 1 || x > tx + tw - 2);
-    // Parasite: strings running from his raised fingers up out of frame.
-    for (let i = 0; i < 4; i++) d.line(d.rx + 1 + i, d.rhy, d.rx + 2 + i * 4, d.rhy - 34, "#ffffffa0", true);
-    void th;
   },
   "charlotte-cracker": (d) => {
     const { hx, hy, hw, tc, ty, tx, tw, th } = d;
@@ -768,4 +625,4 @@ export const EPIC_PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
   },
 };
 
-void stubble; void openFront; void muscles; void repaint;
+
