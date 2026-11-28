@@ -34,9 +34,9 @@ export default function AdventureMap({data,busy,error,onSelect,onResume,onAbando
       <div className="adv-layout">
         <aside className="adv-aside">
           <div className="adv-passport">
-            <div className="adv-passport-head"><CharacterPortrait characterId={data.equippedCharacter} size={68}/><div><p className="adv-eyebrow">{captain?`CAPTAIN ${captain.username}`:"YOUR JOURNEY STARTS HERE"}</p><h2>{profile.title}</h2><span>{profile.completed} / 100 levels cleared</span></div></div>
+            <div className="adv-passport-head"><CharacterPortrait characterId={data.equippedCharacter} size={68}/><div><p className="adv-eyebrow">{captain?`CAPTAIN ${captain.username}`:"YOUR JOURNEY STARTS HERE"}</p><h2>{profile.completed===100?"Grand Line conquered":"Grand Line Adventure"}</h2><span>{profile.completed} / 100 levels cleared</span></div></div>
             <div className="adv-progress"><div style={{width:`${profile.completed}%`}}/></div>
-            <p className="adv-next-title">{profile.nextTitle?<>Next title: <strong>{profile.nextTitle.title}</strong> at level {profile.nextTitle.level}</>:<>The Grand Line is yours. <strong>Pirate King.</strong></>}</p>
+            <p className="adv-next-title">{profile.completed<100?<>Next island: <strong>level {profile.unlockedThrough}</strong>. Titles are earned in <strong>Ranked</strong>.</>:<>The Grand Line is yours. <strong>All 100 islands.</strong></>}</p>
             <div className="adv-current-island"><IslandArt arc={next.arc}/></div>
             <p className="adv-eyebrow">{profile.completed===100?"FINAL ISLAND REACHED":"CURRENT COURSE"}</p>
             <h3>Level {next.number} · {next.name}</h3>
@@ -84,7 +84,7 @@ export default function AdventureMap({data,busy,error,onSelect,onResume,onAbando
                   </button>;
                 })}
               </div>
-              <div className="adv-saga-footer"><span>{cleared===10?"✓ Saga badge earned":`Clear level ${saga.number*10} to earn this saga's badge`}</span><span>{saga.number===10?"Final title: Pirate King":`Title: ${["Bounty Hunter","Rookie Pirate","Veteran Pirate","Notorious Pirate","Supernova","Commander","Legendary Pirate","Warlord","Emperor of the Sea"][saga.number-1]}`}</span></div>
+              <div className="adv-saga-footer"><span>{cleared===10?"✓ Saga badge earned":`Clear level ${saga.number*10} to earn this saga's badge`}</span></div>
             </section>;
           })}
           <footer className="adv-map-footer"><Anchor size={20}/><p>The journey is the treasure.</p><span>Laugh Tale is a fan-imagined destination; its full canonical appearance remains unrevealed.</span><Link href="/" onClick={playClick}>← Return to the daily voyage</Link></footer>

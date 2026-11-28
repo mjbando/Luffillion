@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, adventureAttempts, adventureClears, adventureProgress } from "@/db/schema";
-import { ADVENTURE_POINTS, ADVENTURE_QUESTIONS, ADVENTURE_SECONDS, ADVENTURE_SAGAS, ARC_NAMES, adventureLevel, adventureTitle, nextAdventureTitle } from "@/data/adventure/levels";
+import { ADVENTURE_POINTS, ADVENTURE_QUESTIONS, ADVENTURE_SECONDS, ADVENTURE_SAGAS, ARC_NAMES, adventureLevel } from "@/data/adventure/levels";
 import { adventureFact, answerAdventure, levelQuestions, suggestAdventure } from "@/data/adventure/questions";
 import { RequestProblem } from "./account-server";
 import { COINS_PER_ADVENTURE_LEVEL } from "./coins";
@@ -16,7 +16,7 @@ const isUUID = (value: unknown): value is string => typeof value === "string" &&
 export function adventureScore(state: AdventureState) { return Object.values(state.rounds).filter(r=>r.status==="solved").length * ADVENTURE_POINTS; }
 
 export function emptyAdventureProfile(): AdventureProfile {
-  return { completed:0,unlockedThrough:1,title:adventureTitle(0),nextTitle:nextAdventureTitle(0),clears:[],
+  return { completed:0,unlockedThrough:1,clears:[],
     badges:ADVENTURE_SAGAS.map(s=>({saga:s.number,name:`${s.name} Conqueror`,earned:false,emblem:s.emblem,atLevel:s.number*10})),
     ultimate:{id:"adventure-pirate-king",title:"Pirate King",earned:false} };
 }
@@ -24,7 +24,7 @@ async function profileFor(tx: Tx, accountId: string): Promise<AdventureProfile> 
   const [saved] = await tx.select().from(adventureProgress).where(eq(adventureProgress.accountId, accountId)).limit(1);
   const clears = await tx.select().from(adventureClears).where(eq(adventureClears.accountId, accountId)).orderBy(asc(adventureClears.level));
   const completed = saved?.completed ?? 0;
-  return { completed,unlockedThrough:Math.min(100,completed+1),title:adventureTitle(completed),nextTitle:nextAdventureTitle(completed),
+  return { completed,unlockedThrough:Math.min(100,completed+1),
     clears:clears.map(c=>({level:c.level,bestScore:c.bestScore,completedAt:c.clearedAt.toISOString()})),
     badges:ADVENTURE_SAGAS.map(s=>({saga:s.number,name:`${s.name} Conqueror`,earned:completed>=s.number*10,emblem:s.emblem,atLevel:s.number*10})),
     ultimate:{id:"adventure-pirate-king",title:"Pirate King",earned:completed===100} };

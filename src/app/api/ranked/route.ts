@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { currentCaptain, ensureGuest, failure, privateJson, readMutation, RequestProblem } from "@/lib/account-server";
-import { rankedAction, readRankedLobby } from "@/lib/ranked-server";
+import { rankedAction, readRankedLobby, settleRankedDailyHonors } from "@/lib/ranked-server";
 
 import { UPDATE_LIVE } from "@/lib/release";
 export const dynamic = "force-dynamic";
@@ -11,6 +11,8 @@ export async function GET(req: NextRequest) {
     const captain = await currentCaptain(req);
     const q = req.nextUrl.searchParams.get("q") ?? "";
     const matchId = req.nextUrl.searchParams.get("match");
+    // Award yesterday's end-of-day honors (cheap no-op once today's check has run).
+    await settleRankedDailyHonors().catch((err) => console.error("ranked honors", err));
     const lobby = await readRankedLobby(captain?.id ?? null, q, matchId);
     const res = privateJson({ captain, ...lobby });
     ensureGuest(req, res);

@@ -1,15 +1,14 @@
 import { and, desc, eq, gt, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, achievementUnlocks, adventureProgress, rankedChallenges, rankedFriends, rankedMatches, rankedProfiles } from "@/db/schema";
-import { achievementBountySql } from "./achievements-server";
-import { adventureTitle } from "@/data/adventure/levels";
+import { accounts, achievementUnlocks, adventureProgress, rankedChallenges, rankedDailyHonors, rankedFriends, rankedMatches, rankedProfiles } from "@/db/schema";
+import { UPDATE_LIVE } from "./release";
 import { isCharacterId, DEFAULT_CHARACTER, type CharacterId } from "@/data/playable-characters";
 import type { Tier } from "@/data/tiers";
 import { ORIGINAL_QUESTIONS, type Question } from "@/data/questions";
 import { ACHIEVEMENTS } from "./achievements";
 import { grantRankedStreakChests } from "./treasure-server";
 import { onlineCaptains, touchPresence } from "./presence-server";
-import { checkGuess, getQuestionById, parseEntries, suggestGuess } from "./daily";
+import { checkGuess, getQuestionById, parseEntries, suggestGuess, todayKey } from "./daily";
 import { RequestProblem } from "./account-server";
 import { COINS_PER_RANKED_WIN } from "./coins";
 import { creditCoins } from "./currency-server";
@@ -28,10 +27,15 @@ import {
   RANKED_TIER_BONUS_SECONDS,
   RANK_TIERS,
   RANKED_MAX_TIER_GAP,
+  botDifficulty,
+  botStyle,
+  bountyTitle,
   computeBotDelta,
   computeSingleDelta,
+  rankedBountyGain,
   rankIndexFor,
   rankTierFor,
+  type PlayerDeltaBreakdown,
 } from "./ranked";
 import type {
   OnlinePlayerSummary,
@@ -64,7 +68,6 @@ const BOT_CREWMATES: readonly [string, CharacterId][] = [
   ["Smoker", "smoker" as CharacterId],
   ["Fullbody", "fullbody" as CharacterId],
 ];
-const BOT_TIER_WEIGHTS: Record<Tier, number> = { common: 45, uncommon: 28, rare: 16, epic: 9, luffillion: 2 };
 
 /** The bot is a real (unloginable) account so match foreign keys hold; it never gets a ranked profile. */
 async function ensureBotAccount(tx: Tx): Promise<string> {
@@ -80,26 +83,31 @@ async function ensureBotAccount(tx: Tx): Promise<string> {
   return made.id;
 }
 
-/** Decide the bot's answer for a round: usually right, sometimes misses (which costs it a life). */
-function planBotPick(questionId: string, startedAt: number, endsAt: number, showdown: boolean): RankedRoundPick | null {
-  const chance = showdown ? 0.7 : 0.78;
-  if (Math.random() >= chance) return null;
+/**
+ * Decide the bot's answer for a round. `level` (0–0.95, see botDifficulty) sets how often it
+ * answers, how niche its picks are and how fast it is, so it gets tougher as you rank up and
+ * with every win in your current streak.
+ */
+function planBotPick(questionId: string, startedAt: number, endsAt: number, showdown: boolean, level = 0.1): RankedRoundPick | null {
+  const style = botStyle(level);
+  if (Math.random() >= (showdown ? style.showdownChance : style.answerChance)) return null;
   const question = getQuestionById(questionId);
   if (!question) return null;
   const entries = parseEntries(question);
   if (!entries.length) return null;
   const tiers = [...new Set(entries.map((e) => e.tier))];
-  const total = tiers.reduce((sum, t) => sum + BOT_TIER_WEIGHTS[t], 0);
+  const total = tiers.reduce((sum, t) => sum + style.weights[t], 0);
   let roll = Math.random() * total;
   let tier = tiers[0];
   for (const t of tiers) {
-    roll -= BOT_TIER_WEIGHTS[t];
+    roll -= style.weights[t];
     if (roll < 0) { tier = t; break; }
   }
   const options = entries.filter((e) => e.tier === tier);
   const pick = options[Math.floor(Math.random() * options.length)];
-  const latest = Math.max(startedAt + 2500, endsAt - 1200);
-  const answeredAt = Math.round(startedAt + 2500 + Math.random() * (latest - startedAt - 2500));
+  const earliest = startedAt + style.minDelayMs;
+  const window = Math.max(0, endsAt - 1200 - earliest) * style.spread;
+  const answeredAt = Math.round(earliest + Math.pow(Math.random(), style.skew) * window);
   return { answer: pick.name, tier: pick.tier, answeredAt };
 }
 
@@ -113,6 +121,7 @@ async function createBotMatch(tx: Tx, humanId: string): Promise<MatchRow> {
   if (existing) throw new RequestProblem(409, "You're already in an active match.");
   const botId = await ensureBotAccount(tx);
   const human = await buildPlayerCard(tx, humanId, RANKED_STARTING_LIVES);
+  const botLevel = botDifficulty(human.rankPoints, human.winStreak);
   const [name, characterId] = BOT_CREWMATES[Math.floor(Math.random() * BOT_CREWMATES.length)];
   const bot: RankedPlayerCard = {
     accountId: botId,
@@ -136,6 +145,7 @@ async function createBotMatch(tx: Tx, humanId: string): Promise<MatchRow> {
   const questions = pickMatchQuestions();
   const state: RankedMatchState = {
     mode: "bot",
+    botLevel,
     p1: human,
     p2: bot,
     questionIds: questions.map((q) => q.id),
@@ -155,7 +165,7 @@ async function createBotMatch(tx: Tx, humanId: string): Promise<MatchRow> {
         p2: null,
         p1Attempts: 0,
         p2Attempts: 0,
-        botPick: planBotPick(questions[0].id, roundStartAt, roundEndAt, false),
+        botPick: planBotPick(questions[0].id, roundStartAt, roundEndAt, false, botLevel),
       },
     },
   };
@@ -215,7 +225,7 @@ async function buildPlayerCard(tx: Tx, accountId: string, lives = RANKED_STARTIN
       losses: rankedProfiles.losses,
       draws: rankedProfiles.draws,
       winStreak: rankedProfiles.winStreak,
-      bounty: achievementBountySql(),
+      bounty: rankedProfiles.bounty,
       advCompleted: adventureProgress.completed,
     })
     .from(accounts)
@@ -229,7 +239,7 @@ async function buildPlayerCard(tx: Tx, accountId: string, lives = RANKED_STARTIN
   return {
     accountId: row.accountId,
     username: row.username,
-    title: adventureTitle(row.advCompleted ?? 0),
+    title: bountyTitle(row.bounty ?? 0),
     bounty: row.bounty ?? 0,
     rankPoints: row.points,
     rankTier: tier.id,
@@ -351,7 +361,7 @@ async function finalizeMatch(
   const [rp2Row] = vsBot ? [] : await tx.select().from(rankedProfiles).where(eq(rankedProfiles.accountId, fresh.player2Id)).limit(1);
   // The bot has no ranked profile; it mirrors the human's RP for the match.
   const rp2 = rp2Row ?? { ...rp1, accountId: fresh.player2Id, winStreak: 0, bestStreak: 0 };
-  const noRankChange = (points: number, streak: number) => {
+  const noRankChange = (points: number, streak: number): PlayerDeltaBreakdown => {
     const tier = rankTierFor(points);
     return {
       oldPoints: points,
@@ -366,67 +376,60 @@ async function finalizeMatch(
     };
   };
 
-  const p1Delta = friendly
+  const p1Delta: PlayerDeltaBreakdown = friendly
     ? noRankChange(rp1.points, rp1.winStreak)
     : vsBot
       ? computeBotDelta(rp1.points, rp1.winStreak, p1Outcome)
       : computeSingleDelta(rp1.points, rp2.points, rp1.winStreak, p1Outcome);
-  const p2Delta = friendly || vsBot ? noRankChange(rp2.points, rp2.winStreak) : computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
+  const p2Delta: PlayerDeltaBreakdown = friendly || vsBot ? noRankChange(rp2.points, rp2.winStreak) : computeSingleDelta(rp2.points, rp1.points, rp2.winStreak, p2Outcome);
 
   const nowDate = new Date();
   let p1Rewards: string[] = [];
   let p2Rewards: string[] = [];
-  if (vsBot) {
-    // Half RP only: W/L record, streaks, coins and achievements are for real opponents.
-    await tx.update(rankedProfiles).set({ points: p1Delta.newPoints, updatedAt: nowDate }).where(eq(rankedProfiles.accountId, fresh.player1Id));
-  } else if (!friendly) {
-    await tx
-      .update(rankedProfiles)
-      .set({
-        points: p1Delta.newPoints,
-        wins: rp1.wins + (p1Outcome === "win" ? 1 : 0),
-        losses: rp1.losses + (p1Outcome === "loss" ? 1 : 0),
-        draws: rp1.draws + (p1Outcome === "draw" ? 1 : 0),
-        winStreak: p1Delta.newStreak,
-        bestStreak: Math.max(rp1.bestStreak, p1Delta.newStreak),
-        updatedAt: nowDate,
-      })
-      .where(eq(rankedProfiles.accountId, fresh.player1Id));
-
-    await tx
-      .update(rankedProfiles)
-      .set({
-        points: p2Delta.newPoints,
-        wins: rp2.wins + (p2Outcome === "win" ? 1 : 0),
-        losses: rp2.losses + (p2Outcome === "loss" ? 1 : 0),
-        draws: rp2.draws + (p2Outcome === "draw" ? 1 : 0),
-        winStreak: p2Delta.newStreak,
-        bestStreak: Math.max(rp2.bestStreak, p2Delta.newStreak),
-        updatedAt: nowDate,
-      })
-      .where(eq(rankedProfiles.accountId, fresh.player2Id));
-
-    if (outcome !== "draw") {
-      await creditCoins(tx, outcome === "p1" ? fresh.player1Id : fresh.player2Id, { source: "ranked", ref: fresh.id, amount: COINS_PER_RANKED_WIN });
-    }
-    // Ranked win-streak achievements drop a reward chest into the winner's unopened chests.
-    if (p1Outcome === "win") p1Rewards = await grantRankedStreakChests(tx, fresh.player1Id, p1Delta.newStreak);
-    if (p2Outcome === "win") p2Rewards = await grantRankedStreakChests(tx, fresh.player2Id, p2Delta.newStreak);
-    // Giant Slayer: beat an opponent whose rank was higher when the battle started.
-    const tierIndex = rankIndexFor;
-    if (p1Outcome === "win" && tierIndex(rp2.points) > tierIndex(rp1.points)) await unlockRankedBerryAchievement(tx, fresh.player1Id, "ranked-giant-slayer");
-    if (p2Outcome === "win" && tierIndex(rp1.points) > tierIndex(rp2.points)) await unlockRankedBerryAchievement(tx, fresh.player2Id, "ranked-giant-slayer");
-    // Ranked win milestones (total wins) and the comeback win.
+  if (!friendly) {
+    // Ranked and bot battles both count: record, win streak, berries, bounty and achievements.
+    // The bot account itself has no ranked profile and never earns anything.
+    const sides = [
+      { id: fresh.player1Id, rp: rp1, opp: rp2, outcome: p1Outcome, delta: p1Delta, lives: fresh.state.p1.lives, comeback: fresh.state.comeback?.p1 },
+      ...(vsBot ? [] : [{ id: fresh.player2Id, rp: rp2, opp: rp1, outcome: p2Outcome, delta: p2Delta, lives: fresh.state.p2.lives, comeback: fresh.state.comeback?.p2 }]),
+    ];
     const winGoals = RANKED_BERRY_ACHIEVEMENTS.filter((a) => a.goal === "wins");
-    for (const [won, id, total] of [[p1Outcome === "win", fresh.player1Id, rp1.wins + 1], [p2Outcome === "win", fresh.player2Id, rp2.wins + 1]] as const) {
-      if (!won) continue;
-      for (const goal of winGoals) if (total >= goal.target) await unlockRankedBerryAchievement(tx, id, goal.id);
+    const rewards: string[][] = [];
+    for (const side of sides) {
+      const won = side.outcome === "win";
+      // Bounty: 10,000 a win (50,000 / 100,000 against a captain 1 / 2+ ranks higher), +5,000 for
+      // keeping all your lives. It only ever goes up.
+      const flawless = reason !== "forfeit" && side.lives >= RANKED_STARTING_LIVES;
+      const gain = won ? rankedBountyGain(side.rp.points, side.opp.points, flawless) : 0;
+      side.delta.bountyGain = gain;
+      await tx
+        .update(rankedProfiles)
+        .set({
+          points: side.delta.newPoints,
+          wins: side.rp.wins + (won ? 1 : 0),
+          losses: side.rp.losses + (side.outcome === "loss" ? 1 : 0),
+          draws: side.rp.draws + (side.outcome === "draw" ? 1 : 0),
+          winStreak: side.delta.newStreak,
+          bestStreak: Math.max(side.rp.bestStreak, side.delta.newStreak),
+          bounty: sql`${rankedProfiles.bounty} + ${gain}`,
+          updatedAt: nowDate,
+        })
+        .where(eq(rankedProfiles.accountId, side.id));
+      let earned: string[] = [];
+      if (won) {
+        await creditCoins(tx, side.id, { source: "ranked", ref: fresh.id, amount: COINS_PER_RANKED_WIN });
+        // Win-streak achievements drop a reward chest into the winner's unopened chests.
+        earned = await grantRankedStreakChests(tx, side.id, side.delta.newStreak);
+        // Giant Slayer: beat an opponent whose rank was higher when the battle started.
+        if (rankIndexFor(side.opp.points) > rankIndexFor(side.rp.points)) await unlockRankedBerryAchievement(tx, side.id, "ranked-giant-slayer");
+        for (const goal of winGoals) if (side.rp.wins + 1 >= goal.target) await unlockRankedBerryAchievement(tx, side.id, goal.id);
+        if (side.comeback) await unlockRankedBerryAchievement(tx, side.id, "ranked-comeback");
+      }
+      // Every berry achievement earned during this battle shows up on the results screen.
+      rewards.push([...earned, ...await rankedBerryUnlocksSince(tx, side.id, fresh.createdAt)]);
     }
-    if (p1Outcome === "win" && fresh.state.comeback?.p1) await unlockRankedBerryAchievement(tx, fresh.player1Id, "ranked-comeback");
-    if (p2Outcome === "win" && fresh.state.comeback?.p2) await unlockRankedBerryAchievement(tx, fresh.player2Id, "ranked-comeback");
-    // Every berry achievement earned during this battle shows up on the results screen.
-    p1Rewards = [...p1Rewards, ...await rankedBerryUnlocksSince(tx, fresh.player1Id, fresh.createdAt)];
-    p2Rewards = [...p2Rewards, ...await rankedBerryUnlocksSince(tx, fresh.player2Id, fresh.createdAt)];
+    p1Rewards = rewards[0] ?? [];
+    p2Rewards = rewards[1] ?? [];
   }
 
   const nextState: RankedMatchState = {
@@ -538,13 +541,17 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
     r.resolvedAt = Math.min(now, r.endsAt);
     r.loser = loser;
     r.decidedBy = decidedBy;
-    // Ranked-only achievements: a One in a Luffillion pull, and Showdown win streaks.
-    if (state.mode === "ranked") {
+    // Ranked (and bot) achievements: a One in a Luffillion pull, and Showdown win streaks.
+    // In bot battles only the human (player 1) can earn them.
+    if (state.mode === "ranked" || state.mode === "bot") {
+      const bot = state.mode === "bot";
+      const human = (id: string) => !bot || id === current.player1Id;
       if (r.p1?.tier === "luffillion") await unlockRankedBerryAchievement(tx, current.player1Id, "ranked-luffillion");
-      if (r.p2?.tier === "luffillion") await unlockRankedBerryAchievement(tx, current.player2Id, "ranked-luffillion");
-      if (r.showdown && loser === "both") await recordShowdownResult(tx, null, [current.player1Id, current.player2Id]);
+      if (!bot && r.p2?.tier === "luffillion") await unlockRankedBerryAchievement(tx, current.player2Id, "ranked-luffillion");
+      if (r.showdown && loser === "both") await recordShowdownResult(tx, null, [current.player1Id, current.player2Id].filter(human));
       else if (r.showdown && loser) {
-        await recordShowdownResult(tx, loser === "p1" ? current.player2Id : current.player1Id, [loser === "p1" ? current.player1Id : current.player2Id]);
+        const winnerId = loser === "p1" ? current.player2Id : current.player1Id, loserId = loser === "p1" ? current.player1Id : current.player2Id;
+        await recordShowdownResult(tx, human(winnerId) ? winnerId : null, [loserId].filter(human));
       }
     }
     changed = true;
@@ -590,7 +597,7 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
       p1Attempts: 0,
       p2Attempts: 0,
       showdown: nextShowdown,
-      ...(state.mode === "bot" ? { botPick: planBotPick(state.questionIds[nextIdx], nextStart, p2EndsAt, nextShowdown) } : {}),
+      ...(state.mode === "bot" ? { botPick: planBotPick(state.questionIds[nextIdx], nextStart, p2EndsAt, nextShowdown, state.botLevel) } : {}),
     };
     break;
   }
@@ -766,12 +773,13 @@ async function fetchLeaderboard(tx: Tx, viewerId: string | null): Promise<Ranked
       losses: rankedProfiles.losses,
       draws: rankedProfiles.draws,
       winStreak: rankedProfiles.winStreak,
-      bounty: achievementBountySql(),
+      bounty: rankedProfiles.bounty,
       advCompleted: adventureProgress.completed,
     })
     .from(rankedProfiles)
     .innerJoin(accounts, eq(accounts.id, rankedProfiles.accountId))
     .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
+    .where(ladderEligible())
     .orderBy(desc(rankedProfiles.points), desc(rankedProfiles.wins), accounts.username)
     .limit(50);
 
@@ -781,7 +789,7 @@ async function fetchLeaderboard(tx: Tx, viewerId: string | null): Promise<Ranked
       rank: idx + 1,
       accountId: row.accountId,
       username: row.username,
-      title: adventureTitle(row.advCompleted ?? 0),
+      title: bountyTitle(row.bounty ?? 0),
       bounty: row.bounty ?? 0,
       rankPoints: row.points,
       rankTier: tier.id,
@@ -808,7 +816,7 @@ export async function readRankedPublicProfile(accountId: string): Promise<Ranked
       draws: rankedProfiles.draws,
       winStreak: rankedProfiles.winStreak,
       bestStreak: rankedProfiles.bestStreak,
-      bounty: achievementBountySql(),
+      bounty: rankedProfiles.bounty,
       advCompleted: adventureProgress.completed,
     })
     .from(accounts)
@@ -831,7 +839,7 @@ export async function readRankedPublicProfile(accountId: string): Promise<Ranked
   return {
     accountId: row.accountId,
     username: row.username,
-    title: adventureTitle(row.advCompleted ?? 0),
+    title: bountyTitle(row.bounty ?? 0),
     bounty: row.bounty ?? 0,
     rankPoints: points,
     rankTier: tier.id,
@@ -857,34 +865,93 @@ export async function readRankedPublicProfile(accountId: string): Promise<Ranked
   };
 }
 
+/** Only captains who've played a ranked battle (bots count) appear on the leaderboard. */
+const ladderEligible = () => sql`(${rankedProfiles.wins} + ${rankedProfiles.losses} + ${rankedProfiles.draws}) > 0 AND ${accounts.usernameKey} NOT LIKE '~%'`;
+
 /**
- * The captain with the highest achievement bounty, for the lobby's WANTED poster.
- * Ties go to the higher-ranked captain, then the one who reached the bounty first.
+ * The Most Wanted captain is #1 on the ranked leaderboard (rank points, then wins), as long as
+ * they've won at least one battle. They get the WANTED poster and the "Pirate King" tag.
  */
 export async function readMostWanted(): Promise<RankedMostWanted | null> {
-  const bounty = achievementBountySql();
   const [top] = await db
-    .select({ accountId: accounts.id, bounty })
-    .from(accounts)
-    .leftJoin(rankedProfiles, eq(rankedProfiles.accountId, accounts.id))
-    .where(and(
-      sql`${accounts.usernameKey} NOT LIKE '~%'`,
-      sql`EXISTS (SELECT 1 FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id})`,
-    ))
-    .orderBy(desc(bounty), sql`${rankedProfiles.points} DESC NULLS LAST`,
-      sql`(SELECT max(u.unlocked_at) FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id})`)
+    .select({ accountId: accounts.id, wins: rankedProfiles.wins })
+    .from(rankedProfiles)
+    .innerJoin(accounts, eq(accounts.id, rankedProfiles.accountId))
+    .where(ladderEligible())
+    .orderBy(desc(rankedProfiles.points), desc(rankedProfiles.wins), accounts.username)
     .limit(1);
-  if (!top || top.bounty <= 0) return null;
+  if (!top || top.wins <= 0) return null;
+  const [profile, characterId] = await Promise.all([readRankedPublicProfile(top.accountId), equippedCharacterFor(top.accountId)]);
+  return { ...profile, characterId, ladderPosition: 1 };
+}
 
-  const [profile, characterId, [ladder]] = await Promise.all([
-    readRankedPublicProfile(top.accountId),
-    equippedCharacterFor(top.accountId),
-    db.select({ ahead: sql<number>`count(*)::int` }).from(rankedProfiles)
-      .where(sql`${rankedProfiles.points} > (SELECT points FROM ${rankedProfiles} p WHERE p.account_id = ${top.accountId})`),
-  ]);
-  const [hasRanked] = await db.select({ id: rankedProfiles.accountId }).from(rankedProfiles)
-    .where(eq(rankedProfiles.accountId, top.accountId)).limit(1);
-  return { ...profile, characterId, ladderPosition: hasRanked ? (ladder?.ahead ?? 0) + 1 : null };
+// ---------- End-of-day honors ----------
+/** First Eastern day that can be settled (Season 1 launch). */
+const HONORS_START_DAY = "2026-11-28";
+let honorsCheckedOn = "";
+
+function nextDayKey(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+/** The instant an Eastern day ends (midnight Eastern, i.e. 04:00 or 05:00 UTC). */
+function dayEndsAt(day: string): Date {
+  const [y, m, d] = day.split("-").map(Number);
+  const edt = new Date(Date.UTC(y, m - 1, d + 1, 4));
+  return todayKey(edt) !== day ? edt : new Date(Date.UTC(y, m - 1, d + 1, 5));
+}
+
+/** The ranked leaderboard's top 3 as it stood at `cutoff`, rebuilt from finished battles. */
+async function topThreeAt(tx: Tx, cutoff: Date): Promise<string[]> {
+  const result = await tx.execute(sql`
+    WITH m AS (
+      SELECT updated_at, player1_id AS acc, (state->'result'->'p1'->>'newPoints')::int AS pts, winner_id
+        FROM ${rankedMatches}
+       WHERE status = 'finished' AND updated_at < ${cutoff} AND COALESCE(state->>'mode', 'ranked') <> 'friendly'
+      UNION ALL
+      SELECT updated_at, player2_id, (state->'result'->'p2'->>'newPoints')::int, winner_id
+        FROM ${rankedMatches}
+       WHERE status = 'finished' AND updated_at < ${cutoff} AND COALESCE(state->>'mode', 'ranked') = 'ranked'
+    ), last AS (
+      SELECT DISTINCT ON (acc) acc, pts FROM m WHERE pts IS NOT NULL ORDER BY acc, updated_at DESC
+    ), w AS (
+      SELECT acc, count(*) FILTER (WHERE winner_id = acc)::int AS wins FROM m GROUP BY acc
+    )
+    SELECT last.acc AS acc
+      FROM last JOIN w ON w.acc = last.acc JOIN ${accounts} a ON a.id = last.acc
+     WHERE a.username_key NOT LIKE '~%' AND w.wins > 0
+     ORDER BY last.pts DESC, w.wins DESC, a.username
+     LIMIT 3`);
+  return (result.rows as { acc: string }[]).map((row) => row.acc);
+}
+
+/**
+ * Settles every finished Eastern day since launch exactly once: #1 earns "Most Wanted at Dawn"
+ * and the top 3 earn "Podium Finish" (one-time berry achievements). Runs lazily whenever ranked
+ * achievements or the lobby load, so no scheduled job is needed.
+ */
+export async function settleRankedDailyHonors(): Promise<void> {
+  if (!UPDATE_LIVE) return;
+  const today = todayKey();
+  if (honorsCheckedOn === today) return;
+  const days: string[] = [];
+  for (let day = HONORS_START_DAY; day < today; day = nextDayKey(day)) days.push(day);
+  if (days.length) {
+    const settled = new Set((await db.select({ day: rankedDailyHonors.dayKey }).from(rankedDailyHonors)
+      .where(inArray(rankedDailyHonors.dayKey, days))).map((row) => row.day));
+    for (const day of days) {
+      if (settled.has(day)) continue;
+      await db.transaction(async (tx) => {
+        const winners = await topThreeAt(tx, dayEndsAt(day));
+        const fresh = await tx.insert(rankedDailyHonors).values({ dayKey: day, winners }).onConflictDoNothing()
+          .returning({ day: rankedDailyHonors.dayKey });
+        if (!fresh.length) return; // another request settled it first
+        if (winners[0]) await unlockRankedBerryAchievement(tx, winners[0], "ranked-day-most-wanted");
+        for (const id of winners) await unlockRankedBerryAchievement(tx, id, "ranked-day-top3");
+      });
+    }
+  }
+  honorsCheckedOn = today;
 }
 
 async function buildLobbyData(
@@ -921,7 +988,7 @@ async function buildLobbyData(
     winStreak: rankedProfiles.winStreak,
     queuedAt: rankedProfiles.queuedAt,
     lastSeenAt: rankedProfiles.lastSeenAt,
-    bounty: achievementBountySql(),
+    bounty: rankedProfiles.bounty,
     advCompleted: adventureProgress.completed,
   };
   type SummaryRow = {
@@ -942,7 +1009,7 @@ async function buildLobbyData(
     return {
       accountId: row.accountId,
       username: row.username,
-      title: adventureTitle(row.advCompleted ?? 0),
+      title: bountyTitle(row.bounty ?? 0),
       bounty: row.bounty ?? 0,
       rankPoints: points,
       rankTier: tier.id,
@@ -1026,7 +1093,7 @@ async function buildLobbyData(
           points: rankedProfiles.points,
           winStreak: rankedProfiles.winStreak,
           queuedAt: rankedProfiles.queuedAt,
-          bounty: achievementBountySql(),
+          bounty: rankedProfiles.bounty,
           advCompleted: adventureProgress.completed,
         })
         .from(accounts)

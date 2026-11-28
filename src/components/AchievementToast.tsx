@@ -18,11 +18,11 @@ export default function AchievementToast({ unlocked, onDone }: { unlocked: Achie
     return () => clearTimeout(id);
   }, [current?.id]);
   if (!current) return null;
-  if (current.bounty !== undefined) {
-    const more = unlocked.slice(1).reduce((sum, a) => sum + (a.bounty ?? 0), 0);
+  if (current.berries !== undefined) {
+    const more = unlocked.slice(1).reduce((sum, a) => sum + (a.berries ?? 0), 0);
     return <div className="achievement-toast" role="status" aria-live="polite" aria-atomic="true">
       <div className="relative shrink-0 border border-amber-300/25 bg-amber-300/5 p-1"><PixelEmblem kind={current.emblem} size={52}/></div>
-      <div className="min-w-0 flex-1"><p className="text-xs tracking-[.2em] text-amber-300">BOUNTY EARNED</p><p className="text-xl leading-snug tabular-nums text-amber-100">{formatBerries(current.bounty)}</p>
+      <div className="min-w-0 flex-1"><p className="text-xs tracking-[.2em] text-amber-300">ACHIEVEMENT · CLAIM YOUR BERRIES</p><p className="text-xl leading-snug tabular-nums text-amber-100">{formatBerries(current.berries)}</p>
         <p className="text-sm text-slate-300">{current.title}</p>
         {unlocked.length > 1 && <p className="text-sm text-slate-400">+{unlocked.length - 1} more · {formatBerries(more)}</p>}
       </div>

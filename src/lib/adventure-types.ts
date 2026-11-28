@@ -15,7 +15,7 @@ export interface AdventureAttemptView {
 }
 export interface AdventureBadge { saga:number; name:string; earned:boolean; emblem:EmblemKind; atLevel:number }
 export interface AdventureProfile {
-  completed:number; unlockedThrough:number; title:string; nextTitle:{level:number;title:string}|null;
+  completed:number; unlockedThrough:number;
   clears:{level:number; bestScore:number; completedAt:string}[];
   badges:AdventureBadge[];
   ultimate:{id:"adventure-pirate-king"; title:"Pirate King"; earned:boolean};

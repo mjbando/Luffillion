@@ -1,7 +1,8 @@
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, achievementUnlocks, archiveRuns, checkpoints, runs } from "@/db/schema";
-import { achievementBounty, BOUNTY_ACHIEVEMENTS, evaluateAchievements, type AchievementReport, type RunLike } from "./achievements";
+import { accounts, achievementUnlocks, archiveRuns, checkpoints, coinLedger, runs } from "@/db/schema";
+import { BOUNTY_ACHIEVEMENTS, evaluateAchievements, type AchievementReport, type RunLike } from "./achievements";
+import { creditCoins } from "./currency-server";
 import { todayKey } from "./daily";
 import { RequestProblem } from "./account-server";
 import { UPDATE_LIVE } from "./release";
@@ -51,23 +52,32 @@ export async function evaluateAchievementsFor(tx: AchievementDB, accountId: stri
     .onConflictDoNothing().returning({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt }) : [];
   for (const row of inserted) existing.set(row.id, row.at);
   const result = evaluateAchievements(rows, existing, active.map(a => a.progress), archived);
-  return { ...result, newlyUnlocked: inserted.map(row => row.id) };
+  // Each earned achievement's berries can be claimed once (including ones earned before the update).
+  const claimed = UPDATE_LIVE ? new Set((await tx.select({ ref: coinLedger.ref }).from(coinLedger)
+    .where(and(eq(coinLedger.accountId, accountId), eq(coinLedger.source, VOYAGE_BADGE_SOURCE)))).map(row => row.ref)) : new Set<string>();
+  const achievements = result.achievements.map(a => UPDATE_LIVE
+    ? { ...a, claimed: claimed.has(a.id), claimable: a.unlocked && !!a.berries && !claimed.has(a.id) }
+    : a);
+  return { achievements, newlyUnlocked: inserted.map(row => row.id) };
 }
 
+/** coin_ledger source for Daily Voyage achievement rewards (ref = achievement id). */
+export const VOYAGE_BADGE_SOURCE = "voyage-badge" as const;
+
 /**
- * Claim the new berry (bounty) reward of an achievement earned under the old system.
- * The captain keeps the character it gave them; recording the new id adds its bounty.
+ * Claim a Daily Voyage achievement's berries (once). Works for achievements earned before the
+ * update too: the captain keeps the character it gave them and the new id is recorded.
  */
-export async function claimLegacyAchievement(accountId: string, id: unknown): Promise<AchievementReport> {
+export async function claimVoyageAchievement(accountId: string, id: unknown): Promise<AchievementReport & { paid: number }> {
   const def = BOUNTY_ACHIEVEMENTS.find((a) => a.id === id);
-  if (!UPDATE_LIVE || !def?.legacyId) throw new RequestProblem(400, "There's nothing to claim for that achievement.");
+  if (!UPDATE_LIVE || !def?.berries) throw new RequestProblem(400, "There's nothing to claim for that achievement.");
   return db.transaction(async tx => {
     await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).for("update");
-    const [old] = await tx.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks)
-      .where(and(eq(achievementUnlocks.accountId, accountId), eq(achievementUnlocks.achievementId, def.legacyId!))).limit(1);
-    if (!old) throw new RequestProblem(403, "Earn this achievement first.");
+    const before = await evaluateAchievementsFor(tx, accountId);
+    if (!before.achievements.find((a) => a.id === def.id)?.unlocked) throw new RequestProblem(403, "Earn this achievement first.");
     await tx.insert(achievementUnlocks).values({ accountId, achievementId: def.id }).onConflictDoNothing();
-    return evaluateAchievementsFor(tx, accountId);
+    const paid = await creditCoins(tx, accountId, { source: VOYAGE_BADGE_SOURCE, ref: def.id, amount: def.berries! });
+    return { ...await evaluateAchievementsFor(tx, accountId), paid };
   });
 }
 
@@ -77,34 +87,4 @@ export async function loadAchievements(accountId: string): Promise<AchievementRe
     await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).for("update");
     return evaluateAchievementsFor(tx, accountId);
   });
-}
-
-type Reader = Pick<typeof db, "select">;
-
-/** Treasure update: a captain's bounty is the sum paid by every achievement they've earned. */
-export async function achievementBountyFor(reader: Reader, accountId: string): Promise<number> {
-  const rows = await reader.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks)
-    .where(eq(achievementUnlocks.accountId, accountId));
-  return achievementBounty(rows.map((row) => row.id));
-}
-
-/** Bounty totals for many captains at once (ranked profiles and leaderboards). */
-export async function achievementBountiesFor(reader: Reader, accountIds: string[]): Promise<Map<string, number>> {
-  const ids = [...new Set(accountIds)];
-  const rows = ids.length ? await reader.select({ accountId: achievementUnlocks.accountId, id: achievementUnlocks.achievementId })
-    .from(achievementUnlocks).where(inArray(achievementUnlocks.accountId, ids)) : [];
-  const byAccount = new Map<string, string[]>(ids.map((id) => [id, []]));
-  for (const row of rows) byAccount.get(row.accountId)?.push(row.id);
-  return new Map([...byAccount].map(([id, unlocked]) => [id, achievementBounty(unlocked)]));
-}
-
-const BOUNTY_VALUES = BOUNTY_ACHIEVEMENTS.map((def) => `('${def.id}', ${def.bounty ?? 0})`).join(", ");
-
-/**
- * SQL column: the achievement bounty of the captain in `accounts.id`, for use inside selects.
- * Matches achievementBounty(): old unlocks only count once their reward has been claimed.
- */
-export function achievementBountySql() {
-  return sql<number>`(SELECT COALESCE(SUM(b.bounty), 0)::int FROM (VALUES ${sql.raw(BOUNTY_VALUES)}) AS b(id, bounty)
-    WHERE EXISTS (SELECT 1 FROM ${achievementUnlocks} u WHERE u.account_id = ${accounts.id} AND u.achievement_id = b.id))`;
 }

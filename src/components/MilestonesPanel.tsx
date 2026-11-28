@@ -96,6 +96,6 @@ export default function MilestonesPanel({ captain, onSignIn, onBerries }: {
         </li>;
       })}
     </ol>
-    <p className="mt-3 text-sm leading-snug text-slate-400">Your bounty comes from achievements (Daily Voyage › menu › Achievements). All {BOUNTY_MILESTONES.length} milestones pay {berriesLabel(totalBerries)} in total. Each one can be claimed once.</p>
+    <p className="mt-3 text-sm leading-snug text-slate-400">Bounty comes only from ranked wins (bot battles count): +฿10,000 a win, +฿5,000 if you keep every life, and ฿50,000 or ฿100,000 for beating a captain one or two ranks above you. All {BOUNTY_MILESTONES.length} milestones pay {berriesLabel(totalBerries)} in total. Each one can be claimed once.</p>
   </section>;
 }

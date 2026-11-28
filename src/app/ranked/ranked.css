@@ -905,3 +905,24 @@ button.rk-wanted:hover, button.rk-wanted:focus-visible { transform: translate(-2
   100% { opacity: 0; transform: translate(2px, calc(var(--sf-h) * -.55)); }
 }
 @media (prefers-reduced-motion: reduce) { .sf-strip, .sf-ember { animation: none; } }
+
+/* ---------- Ladder tags next to names (#N Ranked / Pirate King) ---------- */
+.rk-ladder-tag {
+  display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 0 5px;
+  vertical-align: middle; white-space: nowrap;
+  font-family: "VT323", monospace; font-size: 14px; font-weight: 400; line-height: 16px; letter-spacing: .04em;
+  color: #cbd5e1; border: 1px solid rgba(148, 163, 184, .45); background: rgba(15, 23, 42, .55);
+}
+.rk-ladder-tag.is-king {
+  color: #2a1700; border-color: #fde68a;
+  background: linear-gradient(100deg, #b45309, #fbbf24 30%, #fef3c7 50%, #fbbf24 70%, #b45309);
+  background-size: 220% 100%;
+  box-shadow: 0 0 8px rgba(251, 191, 36, .55);
+  animation: rk-king-shine 3.2s linear infinite;
+}
+.rk-ladder-crown { font-size: 13px; line-height: 1; }
+@keyframes rk-king-shine { from { background-position: 110% 0; } to { background-position: -110% 0; } }
+@media (prefers-reduced-motion: reduce) { .rk-ladder-tag.is-king { animation: none; } }
+.rk-poster-name .rk-ladder-tag { font-size: 16px; }
+.rk-poster-name .rk-ladder-tag:not(.is-king) { color: #2a180b; border-color: #2a180b66; background: transparent; }
+.rk-podium-name .rk-ladder-tag { display: flex; justify-content: center; width: fit-content; max-width: 100%; margin: 3px auto 0; white-space: normal; text-align: center; font-size: 13px; line-height: 14px; }

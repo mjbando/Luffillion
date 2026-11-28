@@ -71,6 +71,67 @@ export interface PlayerDeltaBreakdown {
   newStreak: number;
   oldTier: RankTierInfo["id"];
   newTier: RankTierInfo["id"];
+  /** Bounty earned in this battle (wins only; bounty never goes down). */
+  bountyGain?: number;
+}
+
+// ---------- Bounty (Season 1) ----------
+// Bounty only comes from winning ranked battles (bot battles included) and never goes down.
+export const BOUNTY_PER_WIN = 10_000;
+/** Extra bounty for winning without losing a single life. */
+export const BOUNTY_FLAWLESS_BONUS = 5_000;
+/** Beating an opponent one rank tier above you. */
+export const BOUNTY_UPSET_ONE = 50_000;
+/** Beating an opponent two or more rank tiers above you. */
+export const BOUNTY_UPSET_TWO = 100_000;
+
+/** Bounty for a ranked win, from both captains' RP when the battle started. */
+export function rankedBountyGain(myPoints: number, opponentPoints: number, flawless: boolean): number {
+  const gap = rankIndexFor(opponentPoints) - rankIndexFor(myPoints);
+  const base = gap >= 2 ? BOUNTY_UPSET_TWO : gap === 1 ? BOUNTY_UPSET_ONE : BOUNTY_PER_WIN;
+  return base + (flawless ? BOUNTY_FLAWLESS_BONUS : 0);
+}
+
+/** Titles are earned only through bounty, i.e. only in Ranked. */
+export const BASE_TITLE = "Aspiring Pirate";
+export const BOUNTY_TITLES: readonly { bounty: number; title: string }[] = [
+  { bounty: 50_000, title: "Rookie Pirate" },
+  { bounty: 250_000, title: "Notorious Pirate" },
+  { bounty: 1_000_000, title: "Supernova" },
+  { bounty: 2_000_000, title: "Warlord" },
+  { bounty: 5_000_000, title: "Yonko" },
+];
+export function bountyTitle(bounty: number): string {
+  return [...BOUNTY_TITLES].reverse().find((t) => bounty >= t.bounty)?.title ?? BASE_TITLE;
+}
+export function nextBountyTitle(bounty: number) {
+  return BOUNTY_TITLES.find((t) => t.bounty > bounty) ?? null;
+}
+
+// ---------- Practice bot difficulty ----------
+/**
+ * 0 (easiest) to 0.95 (hardest). Climbs with your rank tier and with every win in your
+ * current streak: a Bronze captain on a 2-win streak should usually win, while a 10-win
+ * streak makes the bot a real fight. Higher ranks start harder.
+ */
+export function botDifficulty(points: number, winStreak: number): number {
+  return Math.max(0, Math.min(0.95, 0.06 + rankIndexFor(points) * 0.1 + Math.max(0, winStreak) * 0.045));
+}
+/** How a bot of difficulty `d` plays: answer chances, how niche its picks are, and how fast it answers. */
+export function botStyle(d: number) {
+  const mix = (a: number, b: number) => a + (b - a) * d;
+  return {
+    answerChance: mix(0.85, 0.99),
+    showdownChance: mix(0.74, 0.98),
+    weights: {
+      common: mix(58, 12), uncommon: mix(27, 22), rare: mix(11, 32), epic: mix(3.5, 26), luffillion: mix(0.5, 8),
+    } as Record<Tier, number>,
+    /** Earliest answer (ms after the round opens) and how far into the round answers spread. */
+    minDelayMs: Math.round(mix(2600, 1300)),
+    spread: mix(1, 0.45),
+    /** Exponent > 1 skews answers toward the start of the window. */
+    skew: mix(1, 2.6),
+  };
 }
 
 /** Ranked matchmaking only pairs captains at most this many rank tiers apart. */
@@ -153,8 +214,9 @@ export function computeSingleDelta(
 export const BOT_RP_FACTOR = 0.5;
 
 /**
- * Bot battle RP: half of an even-match result (win +15, loss -10, draw +5).
- * No streak bonus, and the win streak is left untouched, so bots can't farm streak chests.
+ * Bot battle RP: half of an even-match result (win +15, loss -10, draw +5), with no streak bonus.
+ * Bot battles do count for the win streak (wins extend it, losses reset it); the bot gets
+ * harder with every win in the streak, so it can't be farmed.
  */
 export function computeBotDelta(playerPoints: number, streak: number, outcome: "win" | "loss" | "draw"): PlayerDeltaBreakdown {
   const oldRp = Math.max(0, playerPoints);
@@ -167,7 +229,7 @@ export function computeBotDelta(playerPoints: number, streak: number, outcome: "
     baseDelta,
     streakBonus: 0,
     oldStreak: streak,
-    newStreak: streak,
+    newStreak: outcome === "win" ? streak + 1 : outcome === "loss" ? 0 : streak,
     oldTier: rankTierFor(oldRp).id,
     newTier: rankTierFor(newPoints).id,
   };

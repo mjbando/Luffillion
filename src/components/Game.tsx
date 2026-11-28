@@ -329,7 +329,7 @@ export default function Game() {
             setAchievementRevision(n => n + 1);
             berries = data.berriesEarned ?? 0;
           }
-          setSaveMessage(`✓ Archive voyage saved. It counts toward achievements and bounty${berries ? ` · +${berries} berries` : ""}.`);
+          setSaveMessage(`✓ Archive voyage saved. It counts toward achievements${berries ? ` · +${berries} berries` : ""}.`);
           return;
         }
         // Backfill old guest score-only recaps if the browser still has the answers.
@@ -1451,7 +1451,7 @@ function ArchiveDoneScreen({ day, score, solved, saveMessage, onToday, onArchive
         </p>
         <p className="text-base text-slate-400">{solved} of {DAILY_QUESTION_COUNT} answered</p>
         <p className="mt-3 border-y border-white/10 py-2 text-sm leading-snug text-slate-300">
-          Counts toward your achievements and bounty. Archive voyages never enter the daily leaderboard or Top 50 Scores.
+          Counts toward your achievements. Archive voyages never enter the daily leaderboard or Top 50 Scores.
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-3">
           <button type="button" onClick={onClose} className="px-btn h-11 bg-amber-400 px-5 text-xl tracking-[0.2em] text-amber-950 hover:bg-amber-300">VIEW ANSWERS</button>

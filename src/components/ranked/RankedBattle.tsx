@@ -11,6 +11,7 @@ import BerryMark from "../BerryMark";
 import { TREASURE_RARITY_COLORS } from "@/lib/treasure";
 import { TIER_CONFIG, type Tier } from "@/data/tiers";
 import {
+  BOUNTY_FLAWLESS_BONUS, BOUNTY_PER_WIN, BOUNTY_UPSET_ONE, BOUNTY_UPSET_TWO,
   RANKED_MAX_ROUNDS, RANKED_SECONDS, RANKED_SHOWDOWN_STREAK, RANKED_STARTING_LIVES, RANKED_TIER_BONUS_SECONDS, rankTierFor,
 } from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPlayerCard, RankedRoundPick } from "@/lib/ranked-types";
@@ -535,10 +536,19 @@ export default function RankedBattle({
                       <span className="text-cyan-200">Bronze 0 RP floor protected</span>
                     )}
                   </div>
+                  {(result.you.bountyGain ?? 0) > 0 && (
+                    <p className="rk-bounty-gain mt-3 border-t border-white/10 pt-2 text-lg text-amber-200">
+                      BOUNTY <strong className="font-normal tabular-nums text-amber-100">+฿{result.you.bountyGain!.toLocaleString()}</strong>
+                      <span className="block text-sm text-slate-400">
+                        {result.you.bountyGain! >= BOUNTY_UPSET_TWO ? "Giant upset: beat a captain 2+ ranks above you" : result.you.bountyGain! >= BOUNTY_UPSET_ONE ? "Upset: beat a captain a rank above you" : "Ranked win"}
+                        {result.you.bountyGain! % BOUNTY_PER_WIN === BOUNTY_FLAWLESS_BONUS ? ` · +฿${BOUNTY_FLAWLESS_BONUS.toLocaleString()} for keeping every life` : ""}
+                      </span>
+                    </p>
+                  )}
                 </div>
               )}
 
-              {match.mode === "ranked" && result.rewards.length > 0 && (
+              {match.mode !== "friendly" && result.rewards.length > 0 && (
                 <div className="rk-reward-list mx-auto mt-3 max-w-md">
                   {result.rewards.map((id) => {
                     const berry = RANKED_BERRY_ACHIEVEMENTS.find((a) => a.id === id);
@@ -594,7 +604,7 @@ export default function RankedBattle({
                             )}
                           </span>
                           <span>
-                            <RankedUsername username={match.opponent.username} />:{" "}
+                            <RankedUsername username={match.opponent.username} plain />:{" "}
                             {h.opponentPick ? (
                               <span className={TIER_CONFIG[h.opponentPick.tier].text}>{h.opponentPick.answer} (+{RANKED_TIER_BONUS_SECONDS[h.opponentPick.tier]}s){h.decidedBy === "speed" && <span className="text-slate-400"> · {answerSeconds(h.opponentPick, h.startedAt)}s</span>}</span>
                             ) : (
@@ -628,15 +638,15 @@ export default function RankedBattle({
                   ? "Nobody answered. Double hit!"
                   : reveal.showdown
                     ? loser === "opponent"
-                      ? !reveal.opponentPick ? <><RankedUsername username={match.opponent.username} /> froze in the Showdown!</>
+                      ? !reveal.opponentPick ? <><RankedUsername username={match.opponent.username} plain /> froze in the Showdown!</>
                         : reveal.decidedBy === "speed" ? "Showdown won! Same rarity, but you answered first." : "Showdown won! Your pull was rarer."
                       : loser === "you"
                         ? !reveal.yourPick ? "You froze in the Showdown!"
-                          : reveal.decidedBy === "speed" ? <>Showdown lost! Same rarity, but <RankedUsername username={match.opponent.username} /> answered first.</>
-                          : <>Showdown lost! <RankedUsername username={match.opponent.username} />&apos;s pull was rarer.</>
+                          : reveal.decidedBy === "speed" ? <>Showdown lost! Same rarity, but <RankedUsername username={match.opponent.username} plain /> answered first.</>
+                          : <>Showdown lost! <RankedUsername username={match.opponent.username} plain />&apos;s pull was rarer.</>
                         : "Standoff! Same rarity, same instant."
                     : loser === "opponent"
-                      ? <><RankedUsername username={match.opponent.username} /> didn&apos;t answer. Takes a hit!</>
+                      ? <><RankedUsername username={match.opponent.username} plain /> didn&apos;t answer. Takes a hit!</>
                       : loser === "you"
                         ? "No answer. You took a hit!"
                         : "Both landed! No life lost."}
@@ -644,7 +654,7 @@ export default function RankedBattle({
               <div key={revealKey} className="rk-pulls">
                 <PullCard who="YOUR ATTACK" pick={reveal.yourPick} side="left" won={loser === "opponent" ? true : loser === "you" ? false : null} />
                 <span className="rk-pulls-vs">VS</span>
-                <PullCard who={<><RankedUsername username={match.opponent.username.toUpperCase()} />&apos;S ATTACK</>} pick={reveal.opponentPick} side="right" won={loser === "you" ? true : loser === "opponent" ? false : null} />
+                <PullCard who={<><RankedUsername username={match.opponent.username.toUpperCase()} plain />&apos;S ATTACK</>} pick={reveal.opponentPick} side="right" won={loser === "you" ? true : loser === "opponent" ? false : null} />
               </div>
               {reveal.decidedBy === "speed" && reveal.yourPick && reveal.opponentPick && (
                 <p className="rk-initiative">
@@ -681,7 +691,7 @@ export default function RankedBattle({
                     <span className={TIER_CONFIG[round.yourPick.tier].text}>(+{RANKED_TIER_BONUS_SECONDS[round.yourPick.tier]}s next round)</span>
                   </p>
                   <p className="mt-1 text-base text-slate-300">
-                    {round.opponentLocked ? "Both locked. Here it comes…" : <>Waiting for <RankedUsername username={match.opponent.username} />…</>}
+                    {round.opponentLocked ? "Both locked. Here it comes…" : <>Waiting for <RankedUsername username={match.opponent.username} plain />…</>}
                   </p>
                 </div>
               ) : (

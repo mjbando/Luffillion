@@ -59,6 +59,8 @@ export interface RankedMatchResult {
 
 export interface RankedMatchState {
   mode?: "ranked" | "friendly" | "bot";
+  /** Bot battles: difficulty 0–0.95, fixed at the start from the captain's rank and win streak. */
+  botLevel?: number;
   p1: RankedPlayerCard;
   p2: RankedPlayerCard;
   questionIds: string[];

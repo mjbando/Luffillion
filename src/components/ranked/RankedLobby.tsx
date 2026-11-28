@@ -11,7 +11,7 @@ import WantedPoster from "./WantedPoster";
 import RankedMenu from "./RankedMenu";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { RETIRED_RECRUITS } from "@/data/roster";
-import { BOT_RP_FACTOR, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
+import { BOT_RP_FACTOR, BOUNTY_TITLES, nextBountyTitle, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
 
 /** After this long in the queue, offer a half-RP bot battle. */
 const BOT_OFFER_SECONDS = 10;
@@ -20,6 +20,7 @@ const BOT_LOSS_RP = -Math.round(RP_EVEN_LOSS * BOT_RP_FACTOR);
 const BOT_DRAW_RP = Math.round(RP_EVEN_DRAW * BOT_RP_FACTOR);
 import type { FriendSummary, RankedLobbyResponse, RankedMatchView, RankedPublicProfile } from "@/lib/ranked-types";
 import { voyageRequest } from "@/lib/voyage-client";
+import { formatBerries } from "@/lib/achievements";
 import { playClick, playMapUnroll, playQueueHorn, playSonar } from "@/lib/sound";
 
 function RankBadge({ points }: { points: number }) {
@@ -252,7 +253,7 @@ export default function RankedLobby({
             {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
           </button>
           <button type="button" onClick={onAccount} className="rk-account">
-            {captain ? <RankedUsername username={captain.username} /> : "Sign in / Create account"}
+            {captain ? <RankedUsername username={captain.username} plain /> : "Sign in / Create account"}
           </button>
         </div>
       </header>
@@ -298,7 +299,7 @@ export default function RankedLobby({
                 </>
               ) : (
                 <button ref={wantedTrigger} type="button" className="rk-wanted" onClick={() => { playMapUnroll(); setWantedOpen(true); }}
-                  aria-label="Open the Most Wanted poster" title="Most Wanted: the captain with the highest bounty">
+                  aria-label="Open the Most Wanted poster" title="Most Wanted: the #1 captain on the ranked ladder">
                   <small>WANTED</small>
                   <span>?</span>
                   <small>CHALLENGER</small>
@@ -418,6 +419,10 @@ export default function RankedLobby({
                       <p className="rk-eyebrow">CAPTAIN CARD</p>
                       <h2 className="rk-username"><RankedUsername username={profile.username} /></h2>
                       <p className="text-base text-amber-200">{profile.title}</p>
+                      {(() => {
+                        const next = nextBountyTitle(profile.bounty);
+                        return <p className="text-sm text-slate-400">{next ? `${formatBerries(next.bounty - profile.bounty)} bounty to ${next.title}` : "Highest title reached"}</p>;
+                      })()}
                     </div>
                   </div>
 
@@ -519,6 +524,8 @@ export default function RankedLobby({
                 <p>• Rank gap and RP gap both count.</p>
                 <p>• Win streaks: +10 (3 wins), +20 (5 wins), +50 (10 wins)</p>
                 <p>• Matchmaking: closest rank first, never more than {RANKED_MAX_TIER_GAP} ranks apart.</p>
+                <p>• Bounty (never goes down): +฿10,000 a win, +฿5,000 more if you keep every life. Beat a captain 1 rank above you for ฿50,000, or 2+ ranks above for ฿100,000.</p>
+                <p>• Titles by bounty: {BOUNTY_TITLES.map((t) => `${t.title} ${formatBerries(t.bounty)}`).join(" · ")}.</p>
               </div>
             </div>
 
@@ -634,7 +641,7 @@ export default function RankedLobby({
                         <span className="rk-duel-chip">{outcome === "win" ? "WIN" : outcome === "loss" ? "LOSS" : "DRAW"}</span>
                         <CharacterPortrait characterId={m.opponent.characterId} size={30} />
                         <span className="min-w-0 flex-1 truncate text-base">
-                          vs <strong className="font-normal text-white"><RankedUsername username={m.opponent.username} /></strong>{" "}
+                          vs <strong className="font-normal text-white"><RankedUsername username={m.opponent.username} plain /></strong>{" "}
                           <span className="text-slate-400">({m.opponent.rankName}{m.mode === "friendly" ? " · friendly" : m.mode === "bot" ? " · bot" : ""})</span>
                         </span>
                         <span className="shrink-0 text-base text-cyan-200">
@@ -671,7 +678,7 @@ export default function RankedLobby({
                     <span className="rk-podium-char">
                       <CharacterPortrait characterId={entry.characterId} size={place === 1 ? 64 : 50} />
                     </span>
-                    <span className="rk-podium-name"><RankedUsername username={entry.username} />{entry.winStreak > 1 && <StreakFlame streak={entry.winStreak} size={20} className="ml-1" />}</span>
+                    <span className="rk-podium-name"><RankedUsername username={entry.username} kingOnly />{entry.winStreak > 1 && <StreakFlame streak={entry.winStreak} size={20} className="ml-1" />}</span>
                     <span className="rk-podium-rp" style={{ color: rankTierFor(entry.rankPoints).color }}>{entry.rankPoints} RP</span>
                     <span className="rk-podium-block">{place}</span>
                   </button>
@@ -718,7 +725,7 @@ export default function RankedLobby({
                       <CharacterPortrait characterId={entry.characterId} size={30} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-base text-white">
-                          <RankedUsername username={entry.username} /> {entry.winStreak > 1 && <StreakFlame streak={entry.winStreak} size={20} />} {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
+                          <RankedUsername username={entry.username} kingOnly /> {entry.winStreak > 1 && <StreakFlame streak={entry.winStreak} size={20} />} {entry.isYou && <span className="text-xs text-amber-300">YOU</span>}
                         </p>
                         <p className="truncate text-xs text-slate-400">
                           {entry.rankName} · {entry.wins}W-{entry.losses}L
@@ -741,11 +748,11 @@ export default function RankedLobby({
             <p className="rk-eyebrow">STRUGGLING TO FIND A MATCH?</p>
             <h2 id="rk-bot-offer-title" className="font-pixel-display text-2xl text-white">No captains in range yet</h2>
             <p className="mt-2 text-base leading-snug text-slate-300">
-              We&apos;ve been searching for {elapsed}s for a captain within {RANKED_MAX_TIER_GAP} ranks of you. Want to battle a practice bot instead?
+              We&apos;ve been searching for {elapsed}s for a captain within {RANKED_MAX_TIER_GAP} ranks of you. Want to battle a bot instead? It gets tougher as you rank up and as your win streak grows.
             </p>
             <ul className="rk-bot-offer-rules">
               <li><b>½</b><span>Half RP: win <strong className="text-emerald-300">+{BOT_WIN_RP}</strong> · loss <strong className="text-rose-300">{BOT_LOSS_RP}</strong> · draw <strong>+{BOT_DRAW_RP}</strong></span></li>
-              <li><b>🔥</b><span>Doesn&apos;t change your win streak, record or berries.</span></li>
+              <li><b>🔥</b><span>Counts for your record, win streak, berries and bounty (+฿10,000 a win).</span></li>
             </ul>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <button type="button" autoFocus disabled={busy} onClick={onPlayBot} className="rk-btn-gold h-11 px-5">

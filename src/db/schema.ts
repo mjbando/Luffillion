@@ -173,6 +173,8 @@ export const rankedProfiles = pgTable("ranked_profiles", {
   bestStreak: integer("best_streak").notNull().default(0),
   /** Consecutive Showdowns won in ranked battles (resets on a lost Showdown). */
   showdownStreak: integer("showdown_streak").notNull().default(0),
+  /** Season bounty: earned only by winning ranked battles (bots included); never goes down. */
+  bounty: integer("bounty").notNull().default(0),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   queuedAt: timestamp("queued_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -209,6 +211,14 @@ export const rankedMatches = pgTable("ranked_matches", {
   index("ranked_matches_p1_idx").on(t.player1Id, t.status),
   index("ranked_matches_p2_idx").on(t.player2Id, t.status),
 ]);
+
+// End-of-day ranked honors: who finished each Eastern day #1 (Most Wanted) and top 3 on the
+// ranked leaderboard. One row per settled day, so each day is only worked out once.
+export const rankedDailyHonors = pgTable("ranked_daily_honors", {
+  dayKey: varchar("day_key", { length: 10 }).primaryKey(),
+  winners: jsonb("winners").$type<string[]>().notNull(),
+  settledAt: timestamp("settled_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // Friends list for friendly battles. One row per direction: (account adds friend).
 export const rankedFriends = pgTable("ranked_friends", {

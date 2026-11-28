@@ -130,7 +130,7 @@ export default function ArchivePanel({
               : `Every voyage by ${captain.username}. Each new day adds a row.`
             : "Every voyage played on this device. Each new day adds a row."}
         </p>
-        {replayable && captain && <p className="mt-1 text-xs leading-snug text-slate-500">Archive voyages count toward achievements and bounty, never the daily leaderboard or Top 50 Scores. A day you missed pays +10 berries.{openDays ? ` ${openDays} day${openDays === 1 ? "" : "s"} left to sail.` : ""}</p>}
+        {replayable && captain && <p className="mt-1 text-xs leading-snug text-slate-500">Archive voyages count toward achievements, never the daily leaderboard or Top 50 Scores. A day you missed pays +10 berries.{openDays ? ` ${openDays} day${openDays === 1 ? "" : "s"} left to sail.` : ""}</p>}
         {UPDATE_LIVE && !captain && onSignIn && <p className="mt-1 text-sm text-slate-400"><button type="button" onClick={() => { playClick(); onSignIn(); }} className="text-amber-200 underline underline-offset-2">Sign in</button> to replay past voyages from the Archive.</p>}
       </div>
 

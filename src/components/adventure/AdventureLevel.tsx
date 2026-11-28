@@ -6,7 +6,7 @@ import IslandArt from "./IslandArt";
 import PixelEmblem from "../pixel-emblems";
 import { portraitSprite } from "../pixel/runners";
 import { spriteDataUrl } from "../pixel/sprite-image";
-import { ADVENTURE_LEVELS, ADVENTURE_MAX, ADVENTURE_POINTS, ADVENTURE_QUESTIONS, ADVENTURE_SECONDS, ADVENTURE_SAGAS, ADVENTURE_TITLES } from "@/data/adventure/levels";
+import { ADVENTURE_LEVELS, ADVENTURE_MAX, ADVENTURE_POINTS, ADVENTURE_QUESTIONS, ADVENTURE_SECONDS, ADVENTURE_SAGAS } from "@/data/adventure/levels";
 import type { AdventureAction, AdventureResponse } from "@/lib/adventure-types";
 import { characterById, type CharacterId } from "@/data/playable-characters";
 import { playAchievement, playClick, playNext, playPull, playSetSail, playTick, playTimeout, playWrong, startRunSound } from "@/lib/sound";
@@ -66,7 +66,6 @@ export default function AdventureLevel({data,busy,error,muted,onMute,onMap,onAct
   },[data.feedback?.kind,data.serverNow,attempt.id,attempt.cursor,attempt.lastResult?.depth,passed]);
 
   function submit(e:FormEvent){e.preventDefault();if(!guess.trim()||busy)return;playClick();void onAction('guess',guess.trim());setGuess('');}
-  const titleAward=ADVENTURE_TITLES.find(t=>t.level===level.number);
   const last=attempt.lastResult;
   return <main className={`adv-play adv-play-saga-${level.saga}`} style={{'--saga-color':saga.color} as CSSProperties}>
     <div className="adv-play-island"><IslandArt arc={level.arc}/></div><div className="adv-play-shore"/>
@@ -78,7 +77,7 @@ export default function AdventureLevel({data,busy,error,muted,onMute,onMap,onAct
         <p className="adv-eyebrow">{passed?'ISLAND CLEARED':attempt.status==='abandoned'?'VOYAGE ABANDONED':'NOT QUITE THERE YET'}</p>
         <h2>{passed?(level.number===100?'You are the Pirate King!':level.boss?'Boss defeated!':'Onward, captain.'):"Another voyage awaits."}</h2>
         <p>{attempt.correct}/7 correct · <strong>{attempt.score}/{ADVENTURE_MAX} points</strong> · {passed?'Target reached.':`${level.target} points needed.`}</p>
-        {passed&&titleAward&&<div className="adv-earned-title"><PixelEmblem kind={level.number===100?'pirate-king':'seal'} size={36}/><span><small>ADVENTURE TITLE EARNED</small><strong>{titleAward.title}</strong></span></div>}
+        {passed&&level.number===100&&<div className="adv-earned-title"><PixelEmblem kind="pirate-king" size={36}/><span><small>ULTIMATE ADVENTURE</small><strong>All 100 islands conquered</strong></span></div>}
         {passed&&level.boss&&<p className="adv-badge-note">✓ {saga.name} badge added to your Captain&apos;s Log.</p>}
         {passed&&level.number<100&&<p className="adv-badge-note">Level {level.number+1} · {ADVENTURE_LEVELS[level.number].name} is unlocked.</p>}
         <div className="adv-result-actions"><button type="button" className="adv-primary" disabled={busy} onClick={()=>{playNext();onSelect(passed&&level.number<100?level.number+1:level.number);}}>{passed&&level.number<100?'NEXT LEVEL ▸':'RETRY LEVEL ↻'}</button><button type="button" className="adv-secondary" onClick={()=>{playClick();onMap();}}>VIEW MAP</button></div>

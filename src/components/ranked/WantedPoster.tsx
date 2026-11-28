@@ -12,7 +12,7 @@ import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
 
 /**
- * Full-size WANTED poster for the captain with the highest achievement bounty.
+ * Full-size WANTED poster for the Most Wanted captain: #1 on the ranked ladder (Pirate King).
  * Opened from the little CHALLENGER poster in the Ranked lobby.
  */
 export default function WantedPoster({ viewerId, onClose }: { viewerId: string | null; onClose: () => void }) {
@@ -65,7 +65,7 @@ export default function WantedPoster({ viewerId, onClose }: { viewerId: string |
         {wanted === undefined && !error && <p role="status" className="rk-poster-note">Searching the bounty records…</p>}
         {error && <p role="alert" className="rk-poster-note">{error}</p>}
         {wanted === null && (
-          <p className="rk-poster-note">No captain has a bounty yet. Earn achievements to put your name on this poster.</p>
+          <p className="rk-poster-note">No captain has won a ranked battle yet. Climb to #1 to put your name on this poster.</p>
         )}
 
         {wanted && tier && character && (

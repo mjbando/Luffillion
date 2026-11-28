@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import RankedLobby from "./RankedLobby";
+import { LadderProvider } from "./RankedUsername";
 import RankedBattle from "./RankedBattle";
 import CaptainLog from "../CaptainLog";
 import type { Captain, FinishedVoyage, Progress } from "@/lib/voyage";
@@ -166,7 +167,7 @@ export default function Ranked() {
   const currentMatch: RankedMatchView | null = data.activeMatch;
 
   return (
-    <>
+    <LadderProvider leaderboard={data.leaderboard}>
       {accountOpen && (
         <CaptainLog
           captain={data.captain}
@@ -193,7 +194,7 @@ export default function Ranked() {
             const prompt = currentMatch.mode === "friendly"
               ? "Forfeit this friendly battle?"
               : currentMatch.mode === "bot"
-              ? "Forfeit this bot battle? You will lose a little RP."
+              ? "Forfeit this bot battle? You will lose a little RP and your win streak."
               : "Forfeit this ranked match? You will lose rank points.";
             if (window.confirm(prompt)) {
               void act({ action: "forfeit", matchId: currentMatch.id });
@@ -265,6 +266,6 @@ export default function Ranked() {
           }}
         />
       )}
-    </>
+    </LadderProvider>
   );
 }

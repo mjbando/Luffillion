@@ -49,4 +49,17 @@ CREATE INDEX IF NOT EXISTS ranked_matches_p2_idx ON ranked_matches(player2_id, s
 ALTER TABLE ranked_profiles
   ADD COLUMN IF NOT EXISTS showdown_streak integer NOT NULL DEFAULT 0;
 
+-- Season 1 bounty: only ranked wins (bot battles included) raise it, and it never goes down.
+-- Everyone starts at 0.
+ALTER TABLE ranked_profiles
+  ADD COLUMN IF NOT EXISTS bounty integer NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS ranked_profiles_bounty_idx ON ranked_profiles(bounty);
+
+-- End-of-day ranked honors (#1 = Most Wanted, top 3), settled once per Eastern day.
+CREATE TABLE IF NOT EXISTS ranked_daily_honors (
+  day_key varchar(10) PRIMARY KEY,
+  winners jsonb NOT NULL,
+  settled_at timestamptz NOT NULL DEFAULT now()
+);
+
 COMMIT;

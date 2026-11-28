@@ -24,7 +24,7 @@ const dateLabel = (iso: string) => new Date(iso).toLocaleDateString("en-US", { m
 type Collection = AchievementReport & {
   equippedCharacter: CharacterId;
   chestUnlockedCharacterIds: string[];
-  /** Treasure update: everything this captain can equip, and their achievement bounty. */
+  /** Treasure update: everything this captain can equip, and their ranked bounty. */
   ownedCharacterIds?: string[];
   bounty?: number;
   berries?: number;
@@ -91,11 +91,11 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
     playClick(); setClaiming(id); setError(""); setNotice("");
     try {
       if (kind === "legacy") {
-        const data = await voyageRequest<AchievementReport & { bounty: number; milestones: MilestoneReport }>("/api/account/achievements", "POST", { claim: "legacy", id });
+        const data = await voyageRequest<AchievementReport & { paid: number; berries: number }>("/api/account/achievements", "POST", { claim: "voyage", id });
         if (!live.current) return;
-        const def = data.achievements.find(a => a.id === id);
-        setReport(r => r ? { ...r, achievements: data.achievements, bounty: data.bounty, milestones: data.milestones } : r);
-        setNotice(`Redeemed ${formatBerries(def?.bounty ?? 0)} berries. Your bounty is now ${formatBerries(data.bounty)}.`);
+        setReport(r => r ? { ...r, achievements: data.achievements, berries: data.berries } : r);
+        setNotice(data.paid ? `+${berriesLabel(data.paid)} added. You have ${berriesLabel(data.berries)}.` : "Already claimed.");
+        onBerries?.(data.berries);
       } else {
         const data = await voyageRequest<{ paid: number; berries: number; rankedBerryAchievements: RankedBerryAchievementStatus[] }>("/api/account/achievements", "POST", { claim: "ranked", id });
         if (!live.current) return;
@@ -169,13 +169,13 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
   return <section ref={section} className="p-4" aria-labelledby="achievement-title">
     <header className="flex items-center gap-3">
       <div className="grid h-14 w-14 shrink-0 place-items-center border border-amber-300/25 bg-amber-300/[.06]"><PixelEmblem kind="seal" size={40}/></div>
-      <div className="flex-1"><p className="text-xs tracking-[.25em] text-amber-300">CAPTAIN&apos;S COLLECTION</p><h2 id="achievement-title" className="font-pixel-display text-xl text-white">{heading}</h2><p className="text-base text-slate-400">{!UPDATE_LIVE ? "Earn emblems. Recruit legends." : mode === "voyage" ? "Earn emblems. Raise your bounty." : mode === "ranked" ? "Battle for berries and treasure chests." : "Equip any captain you've recruited."}</p></div>
+      <div className="flex-1"><p className="text-xs tracking-[.25em] text-amber-300">CAPTAIN&apos;S COLLECTION</p><h2 id="achievement-title" className="font-pixel-display text-xl text-white">{heading}</h2><p className="text-base text-slate-400">{!UPDATE_LIVE ? "Earn emblems. Recruit legends." : mode === "voyage" ? "Earn emblems. Claim berries." : mode === "ranked" ? "Battle for berries and treasure chests." : "Equip any captain you've recruited."}</p></div>
       {(!UPDATE_LIVE || shown === "badges") && <span className="text-2xl text-amber-200" aria-label={`${earned} of ${total} achievements earned`}>{earned}<small className="text-base text-slate-500">/{total}</small></span>}
       {shown === "ranked" && <span className="text-2xl text-amber-200" aria-label={`${rankedEarned} of ${rankedTotal} ranked achievements earned`}>{rankedEarned}<small className="text-base text-slate-500">/{rankedTotal}</small></span>}
     </header>
-    {UPDATE_LIVE && mode === "voyage" && <p className="mt-2 flex items-baseline justify-between border border-amber-300/25 bg-amber-300/[.06] px-2.5 py-1" aria-label="Achievement bounty">
-      <span className="text-xs tracking-[.25em] text-amber-300">BOUNTY</span>
-      <span className="text-2xl tabular-nums text-amber-100">{formatBerries(report?.bounty ?? 0)}</span>
+    {UPDATE_LIVE && mode === "voyage" && <p className="mt-2 flex items-baseline justify-between border border-amber-300/25 bg-amber-300/[.06] px-2.5 py-1" aria-label="Berries waiting to be claimed">
+      <span className="text-xs tracking-[.25em] text-amber-300">READY TO CLAIM</span>
+      <span className="text-2xl tabular-nums text-amber-100">{formatBerries((report?.achievements ?? []).reduce((n, a) => n + (a.claimable ? a.berries ?? 0 : 0), 0))}</span>
     </p>}
     {UPDATE_LIVE && mode === "ranked" && <p className="mt-2 flex items-baseline justify-between border border-amber-300/25 bg-amber-300/[.06] px-2.5 py-1" aria-label="Your berries">
       <span className="text-xs tracking-[.25em] text-amber-300">YOUR BERRIES</span>
@@ -199,7 +199,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
 
     {shown === "ranked" && UPDATE_LIVE ? <>
       <h3 className="mb-1 font-pixel-display text-base text-amber-100">Berry Bounties</h3>
-      <p className="mb-3 text-base leading-tight text-slate-400">Ranked battles only (no friendly or bot battles). Claim the berries, then spend them in the Shop.</p>
+      <p className="mb-3 text-base leading-tight text-slate-400">Ranked battles only (bot battles count, friendly battles don't). Claim the berries, then spend them in the Shop.</p>
       {report && <div className="mb-5 space-y-2" aria-label="Ranked berry achievements">
         {rankedBerry.map(a => {
           const claimable = a.unlocked && !a.claimed;
@@ -353,22 +353,22 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
       </div>
       {report && <div className="space-y-2">
         {badges.length === 0 && <p className="border border-dashed border-white/20 p-5 text-center text-slate-400">{filter === "earned"
-          ? UPDATE_LIVE ? "Your first bounty is waiting. Set sail!" : "Your first recruit is waiting. Set sail!"
+          ? UPDATE_LIVE ? "Your first reward is waiting. Set sail!" : "Your first recruit is waiting. Set sail!"
           : UPDATE_LIVE ? "Every emblem earned. The whole world knows your name." : "Every emblem earned. The entire crew is yours."}</p>}
         {UPDATE_LIVE && badges.map(a => <article key={a.id} className={`achievement-card flex gap-3 p-3 ${a.unlocked ? "achievement-earned" : ""}`} data-achievement={a.id} data-earned={a.unlocked}>
           <div className={`grid h-12 w-12 shrink-0 place-items-center border border-white/10 bg-[#081326] ${a.unlocked ? "" : "grayscale"}`}><PixelEmblem kind={a.emblem} size={40} dim={!a.unlocked}/></div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2"><h3 className={`font-pixel-display text-base leading-snug ${a.unlocked ? "text-amber-100" : "text-slate-200"}`}>{a.title}</h3><span className={`shrink-0 text-sm ${a.unlocked ? "text-amber-300" : "text-slate-500"}`}>{a.unlocked ? "✓" : "◇"}</span></div>
             <p className="mt-0.5 text-base leading-tight text-slate-400">{a.description}</p>
-            <p className="mt-1 text-base leading-tight">Reward: <span className={a.unlocked ? "text-amber-200" : "text-slate-300"}>{formatBerries(a.bounty ?? 0)} berries</span></p>
-            {a.unlocked ? <p className="mt-1 text-sm text-emerald-300">Earned{a.unlockedAt ? ` · ${dateLabel(a.unlockedAt)}` : ""}{a.claimable && <span className="text-amber-200"> · reward ready to redeem</span>}</p> : <>
+            <p className="mt-1 text-base leading-tight">Reward: <span className={a.unlocked ? "text-amber-200" : "text-slate-300"}>{formatBerries(a.berries ?? 0)} berries</span></p>
+            {a.unlocked ? <p className="mt-1 text-sm text-emerald-300">Earned{a.unlockedAt ? ` · ${dateLabel(a.unlockedAt)}` : ""}{a.claimed && <span className="text-slate-400"> · berries claimed</span>}</p> : <>
               <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.progressLabel}</p>
               <div role="progressbar" aria-label={`${a.title} progress`} aria-valuemin={0} aria-valuemax={a.target} aria-valuenow={a.progress} className="mt-1 h-1 bg-[#24334a]">
                 <div className="h-full bg-cyan-400/80 transition-[width]" style={{ width: `${Math.min(100, a.progress / a.target * 100)}%` }}/>
               </div>
             </>}
             {a.claimable && <button type="button" disabled={!!claiming} onClick={() => claim("legacy", a.id)} className="px-btn ach-claim mt-2 h-9 w-full bg-amber-400 text-base tracking-wider text-amber-950 hover:bg-amber-300 disabled:opacity-60">
-              {claiming === a.id ? "Redeeming…" : `REDEEM ${formatBerries(a.bounty ?? 0)} BERRIES ▸`}
+              {claiming === a.id ? "Claiming…" : `CLAIM ${formatBerries(a.berries ?? 0)} BERRIES ▸`}
             </button>}
             <p className="mt-1.5 text-xs leading-snug text-slate-500">{a.detail}</p>
           </div>
@@ -406,7 +406,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
         })}
       </div>}
     </>}
-    {UPDATE_LIVE && mode === "voyage" && report?.achievements.some(a => a.claimable) && <p className="mt-3 border-l-2 border-amber-300 px-2 py-1 text-sm leading-snug text-amber-100">You earned some of these before the update and kept their characters. Redeem them to add their berries to your bounty.</p>}
-    <p className="mt-4 text-sm leading-snug text-slate-400">Characters are cosmetic: same timer, score and travel distance. {UPDATE_LIVE ? "Characters, bounty" : "All recruits"} and your selected character are saved to your account. Niche means Rare or better. Leaderboard medals settle after the Eastern daily reset.</p>
+    {UPDATE_LIVE && mode === "voyage" && report?.achievements.some(a => a.claimable) && <p className="mt-3 border-l-2 border-amber-300 px-2 py-1 text-sm leading-snug text-amber-100">Claim your earned achievements to collect their berries for Treasure Chests. Achievements you earned before the update count too. Bounty now comes only from winning ranked battles.</p>}
+    <p className="mt-4 text-sm leading-snug text-slate-400">Characters are cosmetic: same timer, score and travel distance. {UPDATE_LIVE ? "Characters, berries" : "All recruits"} and your selected character are saved to your account. Niche means Rare or better. Leaderboard medals settle after the Eastern daily reset.</p>
   </section>;
 }

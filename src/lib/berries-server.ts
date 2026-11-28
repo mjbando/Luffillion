@@ -1,7 +1,6 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, achievementUnlocks, coinLedger, rankedProfiles } from "@/db/schema";
-import { achievementBountyFor } from "./achievements-server";
 import { ownedCharacterIdsFor } from "./crew-server";
 import { creditCoins } from "./currency-server";
 import { RequestProblem } from "./account-server";
@@ -25,6 +24,12 @@ async function balanceOf(tx: Executor, accountId: string) {
   return row?.coins ?? 0;
 }
 
+/** Season bounty: only ranked wins (bots included) raise it. */
+export async function rankedBountyFor(tx: Executor, accountId: string): Promise<number> {
+  const [row] = await tx.select({ bounty: rankedProfiles.bounty }).from(rankedProfiles).where(eq(rankedProfiles.accountId, accountId)).limit(1);
+  return row?.bounty ?? 0;
+}
+
 async function claimedRefs(tx: Executor, accountId: string, source: string) {
   const rows = await tx.select({ ref: coinLedger.ref }).from(coinLedger)
     .where(and(eq(coinLedger.accountId, accountId), eq(coinLedger.source, source)));
@@ -34,7 +39,7 @@ async function claimedRefs(tx: Executor, accountId: string, source: string) {
 // ---------- Bounty milestones ----------
 
 export async function loadMilestones(tx: Executor, accountId: string): Promise<MilestoneReport> {
-  const [bounty, claimed] = await Promise.all([achievementBountyFor(tx, accountId), claimedRefs(tx, accountId, MILESTONE_SOURCE)]);
+  const [bounty, claimed] = await Promise.all([rankedBountyFor(tx, accountId), claimedRefs(tx, accountId, MILESTONE_SOURCE)]);
   return {
     bounty,
     milestones: BOUNTY_MILESTONES.map((m) => ({ ...m, reached: bounty >= m.bounty, claimed: claimed.has(String(m.bounty)) })),
@@ -46,7 +51,7 @@ export async function claimMilestone(accountId: string, bounty: unknown) {
   if (!UPDATE_LIVE || !milestone) throw new RequestProblem(400, "Choose a bounty milestone to claim.");
   return db.transaction(async (tx) => {
     await tx.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).for("update");
-    const total = await achievementBountyFor(tx, accountId);
+    const total = await rankedBountyFor(tx, accountId);
     if (total < milestone.bounty) throw new RequestProblem(403, "Raise your bounty to reach this milestone first.");
     const paid = await creditCoins(tx, accountId, { source: MILESTONE_SOURCE, ref: String(milestone.bounty), amount: milestone.berries });
     return { paid, berries: await balanceOf(tx, accountId), milestones: await loadMilestones(tx, accountId) };
@@ -131,7 +136,7 @@ export async function rankedBerryUnlocksSince(tx: Executor, accountId: string, s
   if (!UPDATE_LIVE || accountId.startsWith("~")) return [];
   const rows = await tx.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks).where(and(
     eq(achievementUnlocks.accountId, accountId),
-    inArray(achievementUnlocks.achievementId, RANKED_BERRY_ACHIEVEMENTS.filter((a) => a.goal !== "crew" && a.goal !== "straw-hats").map((a) => a.id)),
+    inArray(achievementUnlocks.achievementId, RANKED_BERRY_ACHIEVEMENTS.filter((a) => !["crew", "straw-hats", "day-most-wanted", "day-top3"].includes(a.goal)).map((a) => a.id)),
     gte(achievementUnlocks.unlockedAt, since),
   ));
   return rows.map((row) => row.id);

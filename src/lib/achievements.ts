@@ -15,8 +15,8 @@ export interface AchievementDef {
   goal: string;
   /** Legacy system: the character recruited by this achievement. */
   rewardCharacter?: CharacterId;
-  /** Treasure-update system: bounty in berries paid by this achievement. */
-  bounty?: number;
+  /** Treasure-update system: berries this achievement pays once claimed (bounty only comes from Ranked). */
+  berries?: number;
   /** Treasure-update system: an old achievement id whose past unlock also counts (no character is granted). */
   legacyId?: string;
 }
@@ -43,50 +43,44 @@ export const LEGACY_ACHIEVEMENTS: AchievementDef[] = ([
 export const HIGH_SCORE_TARGET = 350;
 
 /**
- * Treasure update: achievements pay a bounty instead of a character. The former achievement
+ * Treasure update: achievements pay berries (claimed once) instead of a character. (They used to
+ * pay bounty; bounty now only comes from ranked wins. The ids keep their old "bounty-" prefix.) The former achievement
  * characters now drop from Treasure Chests; anyone who already earned one keeps it.
  * New ids keep new unlocks separate from the old character-granting ones, while `legacyId`
  * lets an achievement earned under the old system still count (and pay its bounty).
  */
 export const BOUNTY_ACHIEVEMENTS: AchievementDef[] = [
-  { id: "bounty-first-voyage", legacyId: "first-voyage", goal: "first-voyage", bounty: 50_000, emblem: "first-voyage",
+  { id: "bounty-first-voyage", legacyId: "first-voyage", goal: "first-voyage", berries: 50, emblem: "first-voyage",
     title: "First Voyage", description: "Complete your first Daily Voyage.", detail: "Finish all seven questions, answered or timed out." },
-  { id: "bounty-rookie-pirate", legacyId: "rookie-pirate", goal: "rookie-pirate", bounty: 150_000, emblem: "rookie",
+  { id: "bounty-rookie-pirate", legacyId: "rookie-pirate", goal: "rookie-pirate", berries: 150, emblem: "rookie",
     title: "Rookie Pirate", description: "Complete 10 Daily Voyages.", detail: "Ten completed daily challenges; they don't have to be consecutive." },
-  { id: "bounty-high-score", goal: "high-score", bounty: 50_000, emblem: "rising",
+  { id: "bounty-high-score", goal: "high-score", berries: 50, emblem: "rising",
     title: "Supernova", description: `Score ${HIGH_SCORE_TARGET} or higher.`, detail: `Earn at least ${HIGH_SCORE_TARGET} points in a single voyage.` },
-  { id: "bounty-laugh-tale", legacyId: "laugh-tale", goal: "laugh-tale", bounty: 100_000, emblem: "treasure",
+  { id: "bounty-laugh-tale", legacyId: "laugh-tale", goal: "laugh-tale", berries: 100, emblem: "treasure",
     title: "Laugh Tale", description: "Reach Laugh Tale (500 points).", detail: "Reach 500 points in a single voyage. Unlocks as soon as the score is saved." },
-  { id: "bounty-perfect-run", legacyId: "perfect-run", goal: "rare-perfect", bounty: 100_000, emblem: "perfect",
+  { id: "bounty-perfect-run", legacyId: "perfect-run", goal: "rare-perfect", berries: 100, emblem: "perfect",
     title: "Perfect Run", description: "Answer all 7 questions correctly with Rare answers or better.", detail: "Every one of the seven answers in a single voyage must be Rare, Epic or One in a Luffillion. Wrong guesses are allowed." },
-  { id: "bounty-no-mistakes", legacyId: "no-mistakes", goal: "no-mistakes", bounty: 50_000, emblem: "no-mistakes",
+  { id: "bounty-no-mistakes", legacyId: "no-mistakes", goal: "no-mistakes", berries: 50, emblem: "no-mistakes",
     title: "No Mistakes", description: "Complete a voyage without a wrong answer.", detail: "Seven correct answers, zero rejected guesses and no timeouts." },
-  { id: "bounty-daily-dedication", legacyId: "daily-dedication", goal: "daily-dedication", bounty: 300_000, emblem: "dedicated",
+  { id: "bounty-daily-dedication", legacyId: "daily-dedication", goal: "daily-dedication", berries: 250, emblem: "dedicated",
     title: "Daily Dedication", description: "Play 7 days in a row.", detail: "Start a question on seven consecutive daily challenges. Days follow the game's Eastern reset." },
-  { id: "bounty-unstoppable", legacyId: "unstoppable", goal: "unstoppable", bounty: 1_500_000, emblem: "unstoppable",
+  { id: "bounty-unstoppable", legacyId: "unstoppable", goal: "unstoppable", berries: 1000, emblem: "unstoppable",
     title: "Unstoppable", description: "Play 30 days in a row.", detail: "Start a question on thirty consecutive daily challenges. Earned achievements never reset." },
-  { id: "bounty-grand-line-explorer", legacyId: "grand-line-explorer", goal: "grand-line-explorer", bounty: 500_000, emblem: "explorer",
+  { id: "bounty-grand-line-explorer", legacyId: "grand-line-explorer", goal: "grand-line-explorer", berries: 500, emblem: "explorer",
     title: "Grand Line Explorer", description: "Complete 25 Daily Voyages.", detail: "Twenty-five completed daily challenges, consecutive or not." },
-  { id: "bounty-the-will-of-d", legacyId: "the-will-of-d", goal: "the-will-of-d", bounty: 3_000_000, emblem: "will",
+  { id: "bounty-the-will-of-d", legacyId: "the-will-of-d", goal: "the-will-of-d", berries: 2000, emblem: "will",
     title: "The Will of D.", description: "Complete 100 Daily Voyages.", detail: "One hundred completed daily challenges. Every saved voyage counts once." },
-  { id: "bounty-encyclopedia", legacyId: "encyclopedia", goal: "encyclopedia", bounty: 300_000, emblem: "encyclopedia",
+  { id: "bounty-encyclopedia", legacyId: "encyclopedia", goal: "encyclopedia", berries: 250, emblem: "encyclopedia",
     title: "Encyclopedia", description: "Answer 100 questions correctly.", detail: "Correct answers accumulate across your saved daily voyages, including the current one." },
-  { id: "bounty-deep-lore", legacyId: "deep-lore", goal: "epic-lore", bounty: 500_000, emblem: "deep-lore",
+  { id: "bounty-deep-lore", legacyId: "deep-lore", goal: "epic-lore", berries: 500, emblem: "deep-lore",
     title: "Deep Lore", description: "Correctly answer 50 questions with Epic answers or better.", detail: "Epic and One in a Luffillion answers count. Progress is cumulative." },
-  { id: "bounty-yonko-status", legacyId: "yonko-status", goal: "yonko-status", bounty: 100_000, emblem: "yonko",
+  { id: "bounty-yonko-status", legacyId: "yonko-status", goal: "yonko-status", berries: 100, emblem: "yonko",
     title: "Yonko Status", description: "Beat 90% of players in a Daily Voyage.", detail: "Score strictly higher than at least 90% of the other players. Awarded after the daily leaderboard closes; ties are not wins." },
-  { id: "bounty-pirate-king", legacyId: "pirate-king", goal: "pirate-king", bounty: 250_000, emblem: "pirate-king",
+  { id: "bounty-pirate-king", legacyId: "pirate-king", goal: "pirate-king", berries: 250, emblem: "pirate-king",
     title: "Pirate King", description: "Finish #1 on the Daily Leaderboard.", detail: "Hold the highest score when the daily leaderboard closes. Tied winners share #1. At least one other player must finish." },
 ];
 
 export const ACHIEVEMENTS: AchievementDef[] = UPDATE_LIVE ? BOUNTY_ACHIEVEMENTS : LEGACY_ACHIEVEMENTS;
-
-/** Total bounty (berries) for a set of unlocked achievement ids, counting each achievement once. */
-export function achievementBounty(unlockedIds: Iterable<string>): number {
-  const ids = new Set(unlockedIds);
-  // Only recorded (earned or claimed) treasure-update ids pay; an old unlock pays once it's claimed.
-  return BOUNTY_ACHIEVEMENTS.reduce((sum, def) => sum + (ids.has(def.id) ? def.bounty ?? 0 : 0), 0);
-}
 
 export const formatBerries = (n: number) => `฿${n.toLocaleString("en-US")}`;
 
@@ -109,8 +103,10 @@ export interface RunLike {
 }
 export interface AchievementStatus extends AchievementDef {
   unlocked: boolean;
-  /** Earned under the old system (kept its character); its new berry reward is waiting to be claimed. */
+  /** Earned (now or under the old system) and its berry reward is waiting to be claimed. */
   claimable: boolean;
+  /** The berry reward has been claimed. */
+  claimed?: boolean;
   unlockedAt: string | null;
   progress: number;
   target: number;
