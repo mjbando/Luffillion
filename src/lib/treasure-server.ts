@@ -1,13 +1,15 @@
 import { randomInt } from "node:crypto";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { db } from "@/db";
 import { accounts, achievementUnlocks, characterUnlocks, rankedProfiles, rewardChests, treasureChestOpenings } from "@/db/schema";
 import { characterById } from "@/data/playable-characters";
 import { rosterEntry } from "@/data/roster";
+import { RANK_TIERS } from "./ranked";
+import { UPDATE_LIVE } from "./release";
 import { CHARACTER_POOLS, CHEST_PRICES, TREASURE_CHESTS, rollRarity, type ChestRarity, type TreasureRarity } from "./treasure";
 import {
   RANKED_ACHIEVEMENTS,
-  RANKED_REWARD_SOURCE,
+  RANK_CHEST_SOURCE,
   rewardChestLabel,
   type RankedAchievementStatus,
   type UnopenedChest,
@@ -50,16 +52,22 @@ export async function rollChestFor(tx: Tx, accountId: string, chest: ChestRarity
   return { chestRarity: chest, rewardRarity, characterId: character.id, characterName: character.name, duplicateCoins, cost };
 }
 
-/** Grants every ranked streak chest the streak has reached (once each). Returns the newly granted achievement ids. */
-export async function grantRankedStreakChests(tx: Executor, accountId: string, streak: number): Promise<string[]> {
-  const reached = RANKED_ACHIEVEMENTS.filter((a) => streak >= a.streak);
+/**
+ * Grants the chest for every rank up to the one `points` reaches (once each; Bronze is free for
+ * everyone). Returns the newly earned rank-chest achievement ids.
+ */
+export async function grantRankChests(tx: Executor, accountId: string, points: number): Promise<string[]> {
+  if (!UPDATE_LIVE || accountId.startsWith("~")) return [];
+  const reached = RANKED_ACHIEVEMENTS.filter((a) => rankTierMin(a.tier) <= Math.max(0, points));
   if (!reached.length) return [];
   const inserted = await tx.insert(rewardChests)
-    .values(reached.map((a) => ({ accountId, chestRarity: a.chest, source: RANKED_REWARD_SOURCE, ref: a.id })))
+    .values(reached.map((a) => ({ accountId, chestRarity: a.chest, source: RANK_CHEST_SOURCE, ref: a.tier })))
     .onConflictDoNothing()
     .returning({ ref: rewardChests.ref });
-  return inserted.map((row) => row.ref);
+  return inserted.map((row) => `rank-${row.ref}`);
 }
+
+const rankTierMin = (tier: string) => RANK_TIERS.find((t) => t.id === tier)?.min ?? Infinity;
 
 export async function listUnopenedChests(tx: Executor, accountId: string): Promise<UnopenedChest[]> {
   const rows = await tx.select().from(rewardChests)
@@ -77,25 +85,24 @@ export async function listUnopenedChests(tx: Executor, accountId: string): Promi
     }));
 }
 
-/** Ranked achievement progress. Also grants any chest already earned (e.g. a streak reached before this shipped). */
+/** Rank chest progress. Also grants any rank chest already earned (Bronze for everyone, or a rank reached before this shipped). */
 export async function loadRankedAchievements(tx: Executor, accountId: string): Promise<RankedAchievementStatus[]> {
-  const [profile] = await tx.select({ winStreak: rankedProfiles.winStreak, bestStreak: rankedProfiles.bestStreak })
+  const [profile] = await tx.select({ points: rankedProfiles.points })
     .from(rankedProfiles).where(eq(rankedProfiles.accountId, accountId)).limit(1);
-  const best = Math.max(profile?.bestStreak ?? 0, profile?.winStreak ?? 0);
-  await grantRankedStreakChests(tx, accountId, best);
+  await grantRankChests(tx, accountId, profile?.points ?? 0);
   const rows = await tx.select().from(rewardChests).where(and(
     eq(rewardChests.accountId, accountId),
-    eq(rewardChests.source, RANKED_REWARD_SOURCE),
-    inArray(rewardChests.ref, RANKED_ACHIEVEMENTS.map((a) => a.id)),
+    eq(rewardChests.source, RANK_CHEST_SOURCE),
   ));
   const byRef = new Map(rows.map((row) => [row.ref, row]));
   return RANKED_ACHIEVEMENTS.map((a) => {
-    const row = byRef.get(a.id);
+    const row = byRef.get(a.tier);
     return {
       ...a,
       unlocked: Boolean(row),
       unlockedAt: row ? row.createdAt.toISOString() : null,
-      progress: Math.min(a.streak, row ? a.streak : profile?.winStreak ?? 0),
+      minPoints: rankTierMin(a.tier),
+      progress: Math.min(rankTierMin(a.tier), Math.max(0, profile?.points ?? 0)),
       unopenedChestId: row && !row.openedAt ? row.id : null,
     };
   });

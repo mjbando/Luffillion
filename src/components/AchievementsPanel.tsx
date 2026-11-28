@@ -210,7 +210,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
               <p className="mt-0.5 text-base leading-tight text-slate-400">{a.description}</p>
               <p className="mt-1 text-base leading-tight">Reward: <span className={a.unlocked ? "text-amber-200" : "text-slate-300"}>฿{a.berries.toLocaleString()} berries</span></p>
               {a.unlocked ? <p className="mt-1 text-sm text-emerald-300">Earned{a.unlockedAt ? ` · ${dateLabel(a.unlockedAt)}` : ""}{a.claimed && <span className="text-slate-400"> · berries claimed</span>}</p> : <>
-                {a.target > 1 && <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.goal === "crew" ? `${a.progress}/${a.target} characters unlocked` : a.goal === "straw-hats" ? `${a.progress}/${a.target} Straw Hats recruited` : a.goal === "wins" ? `${a.progress}/${a.target} ranked wins` : `Current run: ${a.progress}/${a.target} Showdowns won`}</p>}
+                {a.target > 1 && <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.goal === "crew" ? `${a.progress}/${a.target} characters unlocked` : a.goal === "straw-hats" ? `${a.progress}/${a.target} Straw Hats recruited` : a.goal === "wins" ? `${a.progress}/${a.target} ranked wins` : a.goal === "streak" ? `Current streak: ${a.progress}/${a.target} wins in a row` : `Current run: ${a.progress}/${a.target} Showdowns won`}</p>}
                 {a.target > 1 && <div role="progressbar" aria-label={`${a.title} progress`} aria-valuemin={0} aria-valuemax={a.target} aria-valuenow={a.progress} className="mt-1 h-1 bg-[#24334a]">
                   <div className="h-full bg-cyan-400/80 transition-[width]" style={{ width: `${Math.min(100, a.progress / a.target * 100)}%` }}/>
                 </div>}
@@ -223,10 +223,10 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
           </article>;
         })}
       </div>}
-      <h3 className="mb-1 font-pixel-display text-base text-amber-100">Win Streak Chests</h3>
-      <p className="mb-3 text-base leading-tight text-slate-400">Win ranked battles in a row to earn Treasure Chests. Rewards wait in your unopened chests until you open them.</p>
+      <h3 className="mb-1 font-pixel-display text-base text-amber-100">Rank Chests</h3>
+      <p className="mb-3 text-base leading-tight text-slate-400">Every rank you reach earns a Treasure Chest, and Bronze is free. Rewards wait in your unopened chests until you open them.</p>
       {report && <UnopenedChests chests={unopened} coins={report.berries ?? 0} onOpened={rewardOpened} compact />}
-      {report && <div className="space-y-2" aria-label="Ranked achievements">
+      {report && <div className="space-y-2" aria-label="Rank chests">
         {ranked.map(a => {
           const color = TREASURE_RARITY_COLORS[a.chest];
           return <article key={a.id} data-ranked-achievement={a.id} className={`achievement-card flex gap-3 p-3 ${a.unlocked ? "achievement-earned" : ""}`}>
@@ -236,9 +236,9 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
               <p className="mt-0.5 text-base leading-tight text-slate-400">{a.description}</p>
               <p className="mt-1 text-base leading-tight">Reward: <span className="capitalize" style={{ color }}>{a.chest} Chest</span></p>
               {a.unlocked ? <p className="mt-1 text-sm text-emerald-300">Earned{a.unlockedAt ? ` · ${dateLabel(a.unlockedAt)}` : ""}{a.unopenedChestId ? <span className="text-amber-200"> · chest waiting to be opened</span> : <span className="text-slate-400"> · chest opened</span>}</p> : <>
-                <p className="mt-1 text-sm leading-tight text-cyan-200/70">Current streak: {a.progress}/{a.streak} wins</p>
-                <div role="progressbar" aria-label={`${a.title} progress`} aria-valuemin={0} aria-valuemax={a.streak} aria-valuenow={a.progress} className="mt-1 h-1 bg-[#24334a]">
-                  <div className="h-full bg-cyan-400/80 transition-[width]" style={{ width: `${Math.min(100, a.progress / a.streak * 100)}%` }}/>
+                <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.progress.toLocaleString()}/{a.minPoints.toLocaleString()} RP</p>
+                <div role="progressbar" aria-label={`${a.title} progress`} aria-valuemin={0} aria-valuemax={a.minPoints} aria-valuenow={a.progress} className="mt-1 h-1 bg-[#24334a]">
+                  <div className="h-full bg-cyan-400/80 transition-[width]" style={{ width: `${Math.min(100, a.minPoints ? a.progress / a.minPoints * 100 : 100)}%` }}/>
                 </div>
               </>}
               <p className="mt-1.5 text-xs leading-snug text-slate-500">{a.detail}</p>

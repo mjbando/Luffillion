@@ -99,20 +99,23 @@ export async function loadRankedBerryAchievements(tx: Executor, accountId: strin
     tx.select({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt }).from(achievementUnlocks)
       .where(and(eq(achievementUnlocks.accountId, accountId), inArray(achievementUnlocks.achievementId, ids))),
     claimedRefs(tx, accountId, RANKED_BADGE_SOURCE),
-    tx.select({ showdownStreak: rankedProfiles.showdownStreak, wins: rankedProfiles.wins }).from(rankedProfiles).where(eq(rankedProfiles.accountId, accountId)).limit(1),
+    tx.select({ showdownStreak: rankedProfiles.showdownStreak, wins: rankedProfiles.wins, winStreak: rankedProfiles.winStreak, bestStreak: rankedProfiles.bestStreak }).from(rankedProfiles).where(eq(rankedProfiles.accountId, accountId)).limit(1),
   ]);
   const unlockedAt = new Map(unlocks.map((row) => [row.id, row.at]));
   // Win milestones count every ranked win ever, including ones from before they existed and bot wins
   // from before bot battles counted toward your record; wins never go down.
   const wins = Math.max(profile?.wins ?? 0, await lifetimeRankedWins(tx, accountId));
+  // Streak goals count your best streak ever, so streaks from before they paid berries count too.
+  const bestStreak = Math.max(profile?.bestStreak ?? 0, profile?.winStreak ?? 0);
   for (const def of RANKED_BERRY_ACHIEVEMENTS) {
-    if (def.goal !== "wins" || unlockedAt.has(def.id) || wins < def.target) continue;
+    const have = def.goal === "wins" ? wins : def.goal === "streak" ? bestStreak : null;
+    if (have === null || unlockedAt.has(def.id) || have < def.target) continue;
     if (await unlockRankedBerryAchievement(tx, accountId, def.id)) unlockedAt.set(def.id, new Date());
   }
   return RANKED_BERRY_ACHIEVEMENTS.map((def) => {
     const at = unlockedAt.get(def.id);
     const progress = at ? def.target : characterProgress(def.goal)
-      ?? (def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : def.goal === "wins" ? wins : 0);
+      ?? (def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : def.goal === "wins" ? wins : def.goal === "streak" ? profile?.winStreak ?? 0 : 0);
     return { ...def, unlocked: Boolean(at), unlockedAt: at?.toISOString() ?? null, claimed: claimed.has(def.id), progress: Math.min(progress, def.target) };
   });
 }

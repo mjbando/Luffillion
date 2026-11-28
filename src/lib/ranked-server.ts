@@ -4,11 +4,15 @@ import { accounts, achievementUnlocks, adventureProgress, rankedChallenges, rank
 import { UPDATE_LIVE } from "./release";
 import { isCharacterId, DEFAULT_CHARACTER, type CharacterId } from "@/data/playable-characters";
 import type { Tier } from "@/data/tiers";
-import { ORIGINAL_QUESTIONS, type Question } from "@/data/questions";
+import type { Question } from "@/data/questions";
+import { RANKED_QUESTIONS, getRankedQuestion } from "./ranked-questions";
 import { ACHIEVEMENTS } from "./achievements";
-import { grantRankedStreakChests } from "./treasure-server";
+import { grantRankChests } from "./treasure-server";
 import { onlineCaptains, touchPresence } from "./presence-server";
 import { checkGuess, getQuestionById, parseEntries, suggestGuess, todayKey } from "./daily";
+
+/** A Ranked question by id (falls back to the main bank for matches started before the Ranked pool). */
+const rankedQuestion = (id: string): Question | undefined => getRankedQuestion(id) ?? getQuestionById(id);
 import { RequestProblem } from "./account-server";
 import { COINS_PER_RANKED_WIN } from "./coins";
 import { creditCoins } from "./currency-server";
@@ -94,7 +98,7 @@ async function ensureBotAccount(tx: Tx): Promise<string> {
 function planBotPick(questionId: string, startedAt: number, endsAt: number, showdown: boolean, level = 0.1): RankedRoundPick | null {
   const style = botStyle(level);
   if (Math.random() >= (showdown ? style.showdownChance : style.answerChance)) return null;
-  const question = getQuestionById(questionId);
+  const question = rankedQuestion(questionId);
   if (!question) return null;
   const entries = parseEntries(question);
   if (!entries.length) return null;
@@ -185,23 +189,21 @@ async function createBotMatch(tx: Tx, humanId: string): Promise<MatchRow> {
 const isUuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
 
 function pickMatchQuestions(): Question[] {
-  const pool = [...ORIGINAL_QUESTIONS];
+  // Every Ranked question has 5+ answers with one in every rarity, so draw from the whole pool
+  // (500+ prompts) for maximum variety.
+  const pool = [...RANKED_QUESTIONS];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  // Prefer questions with plenty of answers so a 10-second duel feels rich and fair.
-  const rich = pool.filter((q) => Object.values(q.tiers).flat().length >= 12);
-  const rest = pool.filter((q) => Object.values(q.tiers).flat().length < 12);
-  return [...rich, ...rest].slice(0, RANKED_MAX_ROUNDS);
+  return pool.slice(0, RANKED_MAX_ROUNDS);
 }
 
 /** Overtime needs more questions than the regulation set: pick an unused one. */
 function extraQuestionId(used: string[]): string {
   const seen = new Set(used);
-  const rich = ORIGINAL_QUESTIONS.filter((q) => !seen.has(q.id) && Object.values(q.tiers).flat().length >= 12);
-  const pool = rich.length ? rich : ORIGINAL_QUESTIONS.filter((q) => !seen.has(q.id));
-  const list = pool.length ? pool : ORIGINAL_QUESTIONS;
+  const pool = RANKED_QUESTIONS.filter((q) => !seen.has(q.id));
+  const list = pool.length ? pool : RANKED_QUESTIONS;
   return list[Math.floor(Math.random() * list.length)].id;
 }
 
@@ -213,7 +215,10 @@ async function lockAccounts(tx: Tx, ids: string[]) {
 }
 
 async function ensureRankedProfile(tx: Tx, accountId: string) {
-  await tx.insert(rankedProfiles).values({ accountId }).onConflictDoNothing();
+  const created = await tx.insert(rankedProfiles).values({ accountId }).onConflictDoNothing().returning({ id: rankedProfiles.accountId });
+  // Every captain starts in Bronze, and Bronze comes with a free chest (existing captains get theirs
+  // when they open their achievements or finish a battle).
+  if (created.length) await grantRankChests(tx, accountId, 0);
 }
 
 async function buildPlayerCard(tx: Tx, accountId: string, lives = RANKED_STARTING_LIVES): Promise<RankedPlayerCard> {
@@ -399,6 +404,7 @@ async function finalizeMatch(
       ...(vsBot ? [] : [{ id: fresh.player2Id, rp: rp2, opp: rp1, outcome: p2Outcome, delta: p2Delta, lives: fresh.state.p2.lives, comeback: fresh.state.comeback?.p2 }]),
     ];
     const winGoals = RANKED_BERRY_ACHIEVEMENTS.filter((a) => a.goal === "wins");
+    const streakGoals = RANKED_BERRY_ACHIEVEMENTS.filter((a) => a.goal === "streak");
     const rewards: string[][] = [];
     for (const side of sides) {
       const won = side.outcome === "win";
@@ -420,11 +426,12 @@ async function finalizeMatch(
           updatedAt: nowDate,
         })
         .where(eq(rankedProfiles.accountId, side.id));
-      let earned: string[] = [];
+      // Reaching a rank drops that rank's chest (and any lower one still missing) into the unopened chests.
+      const earned = await grantRankChests(tx, side.id, side.delta.newPoints);
       if (won) {
         await creditCoins(tx, side.id, { source: "ranked", ref: fresh.id, amount: COINS_PER_RANKED_WIN });
-        // Win-streak achievements drop a reward chest into the winner's unopened chests.
-        earned = await grantRankedStreakChests(tx, side.id, side.delta.newStreak);
+        // Win-streak achievements pay berries (3, 5 and 10 wins in a row).
+        for (const goal of streakGoals) if (side.delta.newStreak >= goal.target) await unlockRankedBerryAchievement(tx, side.id, goal.id);
         // Giant Slayer: beat an opponent whose rank was higher when the battle started.
         if (rankIndexFor(side.opp.points) > rankIndexFor(side.rp.points)) await unlockRankedBerryAchievement(tx, side.id, "ranked-giant-slayer");
         for (const goal of winGoals) if (side.rp.wins + 1 >= goal.target) await unlockRankedBerryAchievement(tx, side.id, goal.id);
@@ -623,7 +630,7 @@ function toReveal(
   r: RankedRoundState,
   youRole: "p1" | "p2",
 ): RankedRoundReveal {
-  const q = getQuestionById(r.questionId);
+  const q = rankedQuestion(r.questionId);
   const yourPick = youRole === "p1" ? r.p1 ?? null : r.p2 ?? null;
   const oppPick = youRole === "p1" ? r.p2 ?? null : r.p1 ?? null;
   const loser = !r.loser ? null : r.loser === "both" ? "both" : r.loser === youRole ? "you" : "opponent";
@@ -655,7 +662,7 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
   if (match.status === "active") {
     const r = state.rounds[state.roundIndex];
     if (r) {
-      const q = getQuestionById(r.questionId);
+      const q = rankedQuestion(r.questionId);
       const yourPick = youRole === "p1" ? r.p1 ?? null : r.p2 ?? null;
       const oppPick = youRole === "p1" ? r.p2 ?? null : r.p1 ?? null;
       const phase: "intro" | "answering" | "reveal" = now < r.startedAt ? (state.roundIndex === 0 ? "intro" : "reveal") : "answering";
@@ -1466,7 +1473,7 @@ export async function rankedAction(
         return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
       }
 
-      const question = getQuestionById(r.questionId);
+      const question = rankedQuestion(r.questionId);
       if (!question) throw new RequestProblem(500, "Question missing.");
 
       if (role === "p1") r.p1Attempts++;

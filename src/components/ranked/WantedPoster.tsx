@@ -6,7 +6,7 @@ import CharacterPortrait from "../CharacterPortrait";
 import RankedUsername from "./RankedUsername";
 import { characterById } from "@/data/playable-characters";
 import { ACHIEVEMENTS, formatBerries } from "@/lib/achievements";
-import { rankTierFor } from "@/lib/ranked";
+import { rankTierFor, titleClass } from "@/lib/ranked";
 import type { RankedMostWanted } from "@/lib/ranked-types";
 import { voyageRequest } from "@/lib/voyage-client";
 import { playClick } from "@/lib/sound";
@@ -71,7 +71,7 @@ export default function WantedPoster({ viewerId, onClose }: { viewerId: string |
         {wanted && tier && character && (
           <>
             <p className="rk-poster-name"><RankedUsername username={wanted.username} /></p>
-            <p className="rk-poster-epithet">&ldquo;{wanted.title}&rdquo; · sails as {character.name}</p>
+            <p className="rk-poster-epithet">&ldquo;<span className={titleClass(wanted.title)}>{wanted.title}</span>&rdquo; · sails as {character.name}</p>
             <p className="rk-poster-bounty" aria-label={`Bounty ${wanted.bounty.toLocaleString()} berries`}>
               {formatBerries(wanted.bounty)}<span>-</span>
             </p>

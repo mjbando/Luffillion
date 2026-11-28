@@ -53,7 +53,7 @@ export interface RankedMatchResult {
   reason: "knockout" | "rounds" | "forfeit";
   p1: PlayerDeltaBreakdown;
   p2: PlayerDeltaBreakdown;
-  /** Ranked achievement ids newly earned in this match (each drops a reward chest). */
+  /** Achievement ids newly earned in this match: rank chests ("rank-<tier>") and berry achievements. */
   rewards?: { p1: string[]; p2: string[] };
 }
 

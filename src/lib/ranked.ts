@@ -35,10 +35,10 @@ export const RANK_TIERS: RankTierInfo[] = [
   { id: "bronze", name: "Bronze", min: 0, nextMin: 250, color: "#cd7f32", badge: "bg-amber-900/40 text-amber-200 ring-amber-600/60", border: "border-amber-700/60" },
   { id: "silver", name: "Silver", min: 250, nextMin: 500, color: "#cbd5e1", badge: "bg-slate-400/20 text-slate-100 ring-slate-300/60", border: "border-slate-300/60" },
   { id: "gold", name: "Gold", min: 500, nextMin: 1000, color: "#ffd700", badge: "bg-yellow-400/20 text-yellow-200 ring-yellow-300/70", border: "border-yellow-300/70" },
-  { id: "platinum", name: "Platinum", min: 1000, nextMin: 1500, color: "#5eead4", badge: "bg-teal-400/20 text-teal-100 ring-teal-300/70", border: "border-teal-300/70" },
-  { id: "diamond", name: "Diamond", min: 1500, nextMin: 2000, color: "#60a5fa", badge: "bg-sky-400/20 text-sky-100 ring-sky-300/70", border: "border-sky-300/70" },
-  { id: "champion", name: "Champion", min: 2000, nextMin: 3000, color: "#e879f9", badge: "bg-fuchsia-500/20 text-fuchsia-100 ring-fuchsia-300/70", border: "border-fuchsia-400/70" },
-  { id: "legend", name: "Legend", min: 3000, nextMin: null, color: "#fb7185", badge: "bg-gradient-to-r from-amber-300 via-rose-400 to-fuchsia-400 text-slate-950 ring-amber-200", border: "border-rose-400" },
+  { id: "platinum", name: "Platinum", min: 1000, nextMin: 2000, color: "#5eead4", badge: "bg-teal-400/20 text-teal-100 ring-teal-300/70", border: "border-teal-300/70" },
+  { id: "diamond", name: "Diamond", min: 2000, nextMin: 3000, color: "#60a5fa", badge: "bg-sky-400/20 text-sky-100 ring-sky-300/70", border: "border-sky-300/70" },
+  { id: "champion", name: "Champion", min: 3000, nextMin: 5000, color: "#e879f9", badge: "bg-fuchsia-500/20 text-fuchsia-100 ring-fuchsia-300/70", border: "border-fuchsia-400/70" },
+  { id: "legend", name: "Legend", min: 5000, nextMin: null, color: "#fb7185", badge: "bg-gradient-to-r from-amber-300 via-rose-400 to-fuchsia-400 text-slate-950 ring-amber-200", border: "border-rose-400" },
 ];
 
 export function rankIndexFor(points: number): number {
@@ -118,7 +118,8 @@ export const BASE_TITLE = "Aspiring Pirate";
 export const BOUNTY_TITLES: readonly { bounty: number; title: string }[] = [
   { bounty: 50_000, title: "Rookie Pirate" },
   { bounty: 250_000, title: "Notorious Pirate" },
-  { bounty: 1_000_000, title: "Supernova" },
+  { bounty: 500_000, title: "Supernova" },
+  { bounty: 1_000_000, title: "Commander" },
   { bounty: 2_000_000, title: "Warlord" },
   { bounty: 5_000_000, title: "Yonko" },
 ];
@@ -127,6 +128,19 @@ export function bountyTitle(bounty: number): string {
 }
 export function nextBountyTitle(bounty: number) {
   return BOUNTY_TITLES.find((t) => t.bounty > bounty) ?? null;
+}
+/**
+ * How prestigious a title is: 0 for the base title, then 1 (Rookie Pirate) up to 6 (Yonko).
+ * Titles look flashier the harder they are to earn.
+ */
+export function titleLevel(title: string | null | undefined): number {
+  if (!title) return 0;
+  const i = BOUNTY_TITLES.findIndex((t) => t.title === title);
+  return i + 1;
+}
+/** CSS classes (see ranked.css) that style a title by how hard it is to earn. */
+export function titleClass(title: string | null | undefined): string {
+  return `rk-title rk-title-${titleLevel(title)}`;
 }
 
 // ---------- Practice bot difficulty ----------

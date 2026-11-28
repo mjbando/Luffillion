@@ -1,48 +1,55 @@
 import type { ChestRarity } from "./treasure";
 
-/** Ranked achievements: each pays out a reward chest once, kept unopened until the player opens it. */
+import type { RankTierInfo } from "./ranked";
+
+/**
+ * Rank chests: reaching each rank pays out a reward chest once, kept unopened until the player
+ * opens it. Bronze is free for every captain.
+ */
 export interface RankedAchievementDef {
-  id: "ranked-streak-3" | "ranked-streak-5" | "ranked-streak-10";
+  id: `rank-${RankTierInfo["id"]}`;
+  tier: RankTierInfo["id"];
   title: string;
   description: string;
   detail: string;
-  streak: number;
   chest: ChestRarity;
 }
 
+const rankChest = (tier: RankTierInfo["id"], name: string, chest: ChestRarity, detail: string): RankedAchievementDef => ({
+  id: `rank-${tier}`,
+  tier,
+  title: `${name} Rank`,
+  description: tier === "bronze" ? "Every captain starts in Bronze: this chest is on the house." : `Reach ${name} rank in Ranked.`,
+  detail,
+  chest,
+});
+
 export const RANKED_ACHIEVEMENTS: readonly RankedAchievementDef[] = [
-  {
-    id: "ranked-streak-3",
-    title: "Winning Streak",
-    description: "Win 3 ranked battles in a row.",
-    detail: "Three ranked wins without a loss in between. Bot battles count; draws don't break the streak; friendly battles don't count.",
-    streak: 3,
-    chest: "uncommon",
-  },
-  {
-    id: "ranked-streak-5",
-    title: "Unbeatable Crew",
-    description: "Win 5 ranked battles in a row.",
-    detail: "Five ranked wins without a loss in between. Bot battles count; draws don't break the streak; friendly battles don't count.",
-    streak: 5,
-    chest: "rare",
-  },
-  {
-    id: "ranked-streak-10",
-    title: "Conqueror's Haki",
-    description: "Win 10 ranked battles in a row.",
-    detail: "Ten ranked wins without a loss in between. Bot battles count; draws don't break the streak; friendly battles don't count.",
-    streak: 10,
-    chest: "legendary",
-  },
+  rankChest("bronze", "Bronze", "uncommon", "A free welcome chest for every captain."),
+  rankChest("silver", "Silver", "uncommon", "Reach 250 RP. Ranked and bot battles both count."),
+  rankChest("gold", "Gold", "rare", "Reach 500 RP. Ranked and bot battles both count."),
+  rankChest("platinum", "Platinum", "epic", "Reach 1,000 RP. Ranked and bot battles both count."),
+  rankChest("diamond", "Diamond", "epic", "Reach 2,000 RP. Ranked and bot battles both count."),
+  rankChest("champion", "Champion", "legendary", "Reach 3,000 RP. Ranked and bot battles both count."),
+  rankChest("legend", "Legend", "mythic", "Reach 5,000 RP. Ranked and bot battles both count."),
 ];
 
-/** reward_chests.source for ranked achievement chests (ref = achievement id). */
+/** reward_chests.source for rank chests (ref = rank tier id). */
+export const RANK_CHEST_SOURCE = "ranked-rank";
+/** reward_chests.source for the retired win-streak chests (ref = old achievement id). */
 export const RANKED_REWARD_SOURCE = "ranked-ach";
+const LEGACY_STREAK_CHEST_TITLES: Record<string, string> = {
+  "ranked-streak-3": "Winning Streak",
+  "ranked-streak-5": "Unbeatable Crew",
+  "ranked-streak-10": "Conqueror's Haki",
+};
 
 export interface RankedAchievementStatus extends RankedAchievementDef {
   unlocked: boolean;
   unlockedAt: string | null;
+  /** RP needed to reach this rank. */
+  minPoints: number;
+  /** The captain's current RP, capped at minPoints. */
   progress: number;
   /** Id of the reward chest if it is still waiting to be opened. */
   unopenedChestId: string | null;
@@ -58,10 +65,11 @@ export interface UnopenedChest {
 }
 
 export function rewardChestLabel(source: string, ref: string): string {
-  if (source === RANKED_REWARD_SOURCE) {
-    const def = RANKED_ACHIEVEMENTS.find((a) => a.id === ref);
+  if (source === RANK_CHEST_SOURCE) {
+    const def = RANKED_ACHIEVEMENTS.find((a) => a.tier === ref);
     if (def) return `Ranked · ${def.title}`;
   }
+  if (source === RANKED_REWARD_SOURCE && LEGACY_STREAK_CHEST_TITLES[ref]) return `Ranked · ${LEGACY_STREAK_CHEST_TITLES[ref]}`;
   if (source === "code") return `Code · ${ref.split(":")[0]}`;
   return "Reward";
 }
@@ -71,7 +79,7 @@ export function rewardChestLabel(source: string, ref: string): string {
  * achievement_unlocks under these ids; the reward is claimed into the berry ledger
  * (source "ranked-badge", ref = id), so it can only ever be paid once.
  */
-export type RankedBerryGoal = "wins" | "comeback" | "day-most-wanted" | "day-top3" | "luffillion" | "giant-slayer" | "showdowns" | "crew" | "straw-hats";
+export type RankedBerryGoal = "wins" | "streak" | "comeback" | "day-most-wanted" | "day-top3" | "luffillion" | "giant-slayer" | "showdowns" | "crew" | "straw-hats";
 
 /** The base version of every Straw Hat: owning all of them earns "Straw Hat Crew". */
 export const STRAW_HAT_CREW = ["luffy", "zoro", "nami", "usopp", "sanji", "chopper", "robin", "franky", "brook", "jinbe-warlord"] as const;
@@ -98,6 +106,15 @@ export const RANKED_BERRY_ACHIEVEMENTS: readonly RankedBerryAchievementDef[] = [
   { id: "ranked-wins-100", goal: "wins", target: 100, berries: 1_000, title: "Pirate Emperor",
     description: "Win 100 ranked battles.",
     detail: "Total ranked wins, not in a row. Bot battles count; friendly battles don't." },
+  { id: "ranked-streak-3", goal: "streak", target: 3, berries: 100, title: "Winning Streak",
+    description: "Win 3 ranked battles in a row.",
+    detail: "Three ranked wins without a loss in between. Bot battles count; draws don't break the streak; friendly battles don't count." },
+  { id: "ranked-streak-5", goal: "streak", target: 5, berries: 200, title: "Unbeatable Crew",
+    description: "Win 5 ranked battles in a row.",
+    detail: "Five ranked wins without a loss in between. Bot battles count; draws don't break the streak; friendly battles don't count." },
+  { id: "ranked-streak-10", goal: "streak", target: 10, berries: 500, title: "Conqueror's Haki",
+    description: "Win 10 ranked battles in a row.",
+    detail: "Ten ranked wins without a loss in between. Bot battles count; draws don't break the streak; friendly battles don't count." },
   { id: "ranked-comeback", goal: "comeback", target: 1, berries: 100, title: "Never Give Up",
     description: "Win a ranked battle after being down to 1 life while your opponent had all 3.",
     detail: "Fall to your last life while your opponent still has 3, then come back and win. Ranked battles only." },

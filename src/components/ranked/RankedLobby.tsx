@@ -12,7 +12,7 @@ import RankedMenu from "./RankedMenu";
 import SeasonCountdown, { useSeasonClock } from "./SeasonCountdown";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { RETIRED_RECRUITS } from "@/data/roster";
-import { BOT_RP_FACTOR, BOUNTY_TITLES, LEADERBOARD_SIZE, nextBountyTitle, RANKED_SEASON, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
+import { BOT_RP_FACTOR, BOUNTY_TITLES, LEADERBOARD_SIZE, nextBountyTitle, RANKED_SEASON, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor, titleClass } from "@/lib/ranked";
 
 /** After this long in the queue, offer a half-RP bot battle. */
 const BOT_OFFER_SECONDS = 10;
@@ -79,7 +79,7 @@ function FriendRow({
           {p.winStreak > 1 && <StreakFlame streak={p.winStreak} size={26} />}
         </div>
         <p className="text-sm text-slate-400">
-          {p.inMatch ? "In battle" : p.online ? "Online" : "Offline"} · {p.title}
+          {p.inMatch ? "In battle" : p.online ? "Online" : "Offline"} · <span className={titleClass(p.title)}>{p.title}</span>
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
@@ -390,7 +390,7 @@ export default function RankedLobby({
                       {ch.direction === "incoming" ? "⚔ CHALLENGE! FRIENDLY BATTLE INVITE" : "INVITE SENT"} · {sec}S
                     </p>
                     <p className="rk-challenge-title">
-                      <strong><RankedUsername username={ch.opponent.username} /></strong> · {ch.opponent.title} ·{" "}
+                      <strong><RankedUsername username={ch.opponent.username} /></strong> · <span className={titleClass(ch.opponent.title)}>{ch.opponent.title}</span> ·{" "}
                       <span style={{ color: rankTierFor(ch.opponent.rankPoints).color }}>
                         {ch.opponent.rankName} ({ch.opponent.rankPoints} RP)
                       </span>{" "}
@@ -429,7 +429,7 @@ export default function RankedLobby({
                     <div className="min-w-0 flex-1">
                       <p className="rk-eyebrow">CAPTAIN CARD</p>
                       <h2 className="rk-username"><RankedUsername username={profile.username} /></h2>
-                      <p className="text-base text-amber-200">{profile.title}</p>
+                      <p className="text-base text-amber-200"><span className={titleClass(profile.title)}>{profile.title}</span></p>
                       {(() => {
                         const next = nextBountyTitle(profile.bounty);
                         return <p className="text-sm text-slate-400">{next ? `${formatBerries(next.bounty - profile.bounty)} bounty to ${next.title}` : "Highest title reached"}</p>;
@@ -533,10 +533,20 @@ export default function RankedLobby({
                 <p>• Loss: -20 RP vs an even captain. Within your rank it stays between -12 and -28 depending on the RP gap; losing to lower ranks costs more (up to -80), losing to higher ranks costs little.</p>
                 <p>• Draw: +10 RP, more vs stronger captains.</p>
                 <p>• Rank gap and RP gap both count.</p>
-                <p>• Win streaks: +10 (3 wins), +20 (5 wins), +50 (10 wins)</p>
+                <p>• Win streaks: +10 RP (3 wins), +20 RP (5 wins), +50 RP (10 wins), plus a one-time Berry Bounty of 100, 200 and 500 berries.</p>
+                <p>• Rank chests: reach a rank to earn its treasure chest (Bronze is free for everyone, Legend is mythic).</p>
                 <p>• Matchmaking: closest rank first, never more than {RANKED_MAX_TIER_GAP} ranks apart.</p>
                 <p>• Bounty (never goes down): +฿10,000 a win, +฿5,000 more if you keep every life. Beat a captain 1 rank above you for ฿50,000, or 2+ ranks above for ฿100,000.</p>
-                <p>• Titles by bounty: {BOUNTY_TITLES.map((t) => `${t.title} ${formatBerries(t.bounty)}`).join(" · ")}.</p>
+                <p>
+                  • Titles by bounty:{" "}
+                  {BOUNTY_TITLES.map((t, i) => (
+                    <span key={t.title}>
+                      {i > 0 && " · "}
+                      <span className={titleClass(t.title)}>{t.title}</span> {formatBerries(t.bounty)}
+                    </span>
+                  ))}
+                  .
+                </p>
               </div>
             </div>
 
@@ -817,7 +827,7 @@ export default function RankedLobby({
                     <CharacterPortrait characterId={viewedProfile.characterId} size={88} />
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate font-pixel-display text-2xl text-white"><RankedUsername username={viewedProfile.username} /></h3>
-                      <p className="text-base text-amber-200">{viewedProfile.title}</p>
+                      <p className="text-base text-amber-200"><span className={titleClass(viewedProfile.title)}>{viewedProfile.title}</span></p>
                       <p className="text-base" style={{ color: character.color }}>{character.name} · {character.epithet}</p>
                     </div>
                     <span className="shrink-0 text-right font-pixel-display text-2xl font-bold" style={{ color: rankColor }}>

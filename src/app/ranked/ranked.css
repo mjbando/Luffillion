@@ -962,3 +962,57 @@ button.rk-wanted:hover, button.rk-wanted:focus-visible { transform: translate(-2
 @media (prefers-reduced-motion: reduce) {
   .rk-season-clock-sep, .rk-season-clock.is-final .rk-season-clock-label { animation: none; }
 }
+
+/* ---------- Titles: the harder a title is to earn, the flashier it looks ---------- */
+.rk-title { display: inline-block; line-height: 1.1; white-space: nowrap; }
+.rk-title-0 { color: #94a3b8; }
+.rk-title-1 { color: #fde68a; }
+.rk-title-2 { color: #fdba74; text-shadow: 0 0 6px rgba(251, 146, 60, .55); }
+.rk-title-3, .rk-title-4, .rk-title-5, .rk-title-6 {
+  background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+}
+.rk-title-3 { /* Supernova */
+  background-image: linear-gradient(90deg, #fef08a, #fb923c, #fef08a);
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, .6));
+}
+.rk-title-4 { /* Commander */
+  background-image: linear-gradient(90deg, #a5f3fc, #38bdf8, #e0f2fe, #38bdf8);
+  background-size: 200% 100%;
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, .7));
+  animation: rk-title-sheen 3.2s linear infinite;
+  letter-spacing: .04em;
+}
+.rk-title-5, .rk-title-6 { position: relative; padding: 0 6px; letter-spacing: .06em; text-transform: uppercase; }
+.rk-title-5 { /* Warlord */
+  background-image: linear-gradient(90deg, #e9d5ff, #a855f7, #f0abfc, #a855f7, #e9d5ff);
+  background-size: 250% 100%;
+  filter: drop-shadow(0 0 6px rgba(168, 85, 247, .85));
+  animation: rk-title-sheen 2.6s linear infinite;
+}
+.rk-title-6 { /* Yonko */
+  background-image: linear-gradient(90deg, #fde047, #f97316, #ef4444, #e879f9, #fde047, #f97316);
+  background-size: 300% 100%;
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, .9)) drop-shadow(0 0 12px rgba(239, 68, 68, .55));
+  animation: rk-title-sheen 2s linear infinite, rk-title-pulse 1.6s ease-in-out infinite;
+  font-weight: 700;
+}
+.rk-title-5::before, .rk-title-5::after, .rk-title-6::before, .rk-title-6::after {
+  -webkit-text-fill-color: currentColor; font-size: .8em; vertical-align: .1em;
+}
+.rk-title-5::before { content: "\2694\FE0E  "; color: #d8b4fe; }
+.rk-title-5::after { content: "  \2694\FE0E"; color: #d8b4fe; }
+.rk-title-6::before { content: "\2726 "; color: #fde047; }
+.rk-title-6::after { content: " \2726"; color: #fde047; }
+@keyframes rk-title-sheen { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+@keyframes rk-title-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .rk-title { animation: none !important; } }
+
+/* On the parchment WANTED poster, keep the ink readable. */
+.rk-poster-epithet .rk-title { filter: none; text-shadow: none; }
+.rk-poster-epithet .rk-title-0, .rk-poster-epithet .rk-title-1, .rk-poster-epithet .rk-title-2 { color: #6b4520; -webkit-text-fill-color: #6b4520; }
+.rk-poster-epithet .rk-title-3 { background-image: linear-gradient(90deg, #92400e, #c2410c, #92400e); }
+.rk-poster-epithet .rk-title-4 { background-image: linear-gradient(90deg, #0c4a6e, #0369a1, #0c4a6e, #0369a1); }
+.rk-poster-epithet .rk-title-5 { background-image: linear-gradient(90deg, #4c1d95, #7e22ce, #86198f, #7e22ce, #4c1d95); }
+.rk-poster-epithet .rk-title-6 { background-image: linear-gradient(90deg, #991b1b, #c2410c, #b91c1c, #86198f, #991b1b, #c2410c); }
+.rk-poster-epithet .rk-title-5::before, .rk-poster-epithet .rk-title-5::after { color: #6b21a8; }
+.rk-poster-epithet .rk-title-6::before, .rk-poster-epithet .rk-title-6::after { color: #b45309; }

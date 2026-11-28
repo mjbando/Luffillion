@@ -12,7 +12,7 @@ import { TREASURE_RARITY_COLORS } from "@/lib/treasure";
 import { TIER_CONFIG, type Tier } from "@/data/tiers";
 import {
   BOUNTY_FLAWLESS_BONUS, BOUNTY_PER_WIN, BOUNTY_UPSET_ONE, BOUNTY_UPSET_TWO,
-  RANKED_MAX_ROUNDS, RANKED_SECONDS, RANKED_SHOWDOWN_STREAK, RANKED_STARTING_LIVES, RANKED_TIER_BONUS_SECONDS, rankTierFor,
+  RANKED_MAX_ROUNDS, RANKED_SECONDS, RANKED_SHOWDOWN_STREAK, RANKED_STARTING_LIVES, RANKED_TIER_BONUS_SECONDS, rankTierFor, titleClass,
 } from "@/lib/ranked";
 import type { RankedLobbyResponse, RankedMatchView, RankedPlayerCard, RankedRoundPick } from "@/lib/ranked-types";
 import {
@@ -479,9 +479,9 @@ export default function RankedBattle({
             />
             {phase === "intro" && prepSec >= 3 && (
               <div className="rk-vs-splash">
-                <div className="rk-vs-plate is-left"><RankedUsername username={match.you.username} /><small>{match.you.title}</small></div>
+                <div className="rk-vs-plate is-left"><RankedUsername username={match.you.username} /><small className={titleClass(match.you.title)}>{match.you.title}</small></div>
                 <div className="rk-vs-big">VS</div>
-                <div className="rk-vs-plate is-right"><RankedUsername username={match.opponent.username} /><small>{match.opponent.title}</small></div>
+                <div className="rk-vs-plate is-right"><RankedUsername username={match.opponent.username} /><small className={titleClass(match.opponent.title)}>{match.opponent.title}</small></div>
               </div>
             )}
             {announcingShowdown && round && (
@@ -572,7 +572,7 @@ export default function RankedBattle({
                       <div key={id} className="rk-reward" style={{ "--rk-reward": TREASURE_RARITY_COLORS[def.chest] } as CSSProperties}>
                         <PixelChest chest={def.chest} size={48} className="shrink-0" />
                         <div className="min-w-0 flex-1 text-left">
-                          <p className="rk-eyebrow">ACHIEVEMENT UNLOCKED · {def.title.toUpperCase()}</p>
+                          <p className="rk-eyebrow">{def.tier === "bronze" ? "WELCOME GIFT" : "RANK REACHED"} · {def.title.toUpperCase()}</p>
                           <p className="text-base text-white">
                             <span style={{ color: TREASURE_RARITY_COLORS[def.chest] }} className="capitalize">{def.chest} Chest</span> added to your unopened chests.
                           </p>
