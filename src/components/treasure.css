@@ -181,10 +181,6 @@
   60% { transform: translate(-5px, -3px); } 80% { transform: translate(4px, 5px); }
 }
 
-/* Lightning for Legendary and Mythic. */
-.tc-bolt { position: absolute; top: 0; width: 18vw; max-width: 140px; height: 70vh; z-index: 2; pointer-events: none; opacity: 0; animation: tc-bolt .5s steps(3) 2 both; }
-.tc-bolt polyline { fill: none; stroke: #fff; stroke-width: 2.5; filter: drop-shadow(0 0 4px var(--tc-glow)) drop-shadow(0 0 10px var(--tc-glow)); vector-effect: non-scaling-stroke; }
-@keyframes tc-bolt { 0% { opacity: 0; } 20% { opacity: 1; } 50% { opacity: .2; } 70% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Rarity banner. */
 .tc-banner {
@@ -242,12 +238,6 @@
 @keyframes tc-mythic-glow { 50% { box-shadow: 0 0 0 4px rgba(0,0,0,.4), 0 0 70px #fbbf24, 0 0 120px #c084fc66; } }
 @keyframes tc-mythic-border { to { background-position: 0 0, 300% 0; } }
 @keyframes tc-card-in { 0% { transform: perspective(600px) rotateY(90deg) scale(.6); opacity: 0; } 60% { transform: perspective(600px) rotateY(-12deg) scale(1.05); opacity: 1; } 100% { transform: none; } }
-.tc-card-halo {
-  position: absolute; left: 50%; top: 78px; width: 220px; height: 220px; translate: -50% -50%; z-index: -1; pointer-events: none; border-radius: 50%;
-  background: repeating-conic-gradient(color-mix(in srgb, var(--tc-glow) 50%, transparent) 0 12deg, transparent 12deg 30deg);
-  mask-image: radial-gradient(circle, #000 20%, transparent 70%); animation: tc-spin 8s linear infinite;
-}
-.tc-reward-mythic .tc-card-halo { animation: tc-spin 4s linear infinite, tc-hue 3s linear infinite; }
 .tc-portrait { filter: drop-shadow(0 0 10px var(--tc-glow)); animation: tc-float 2.4s ease-in-out infinite; }
 .tc-portrait .portrait-mythic, .tc-portrait .portrait-legendary { animation: none; }
 @keyframes tc-float { 50% { transform: translateY(-5px); } }
@@ -280,16 +270,6 @@
   12% { opacity: 1; }
   100% { transform: translate(var(--drift), -105vh); opacity: 0; }
 }
-/* Columns of light shooting up behind the chest while it strains. */
-.tc-pillars { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-.tc-pillars span {
-  position: absolute; bottom: 38%; width: 30px; height: 70vh; translate: -50% 0; transform-origin: 50% 100%; opacity: 0;
-  background: linear-gradient(to top, color-mix(in srgb, var(--c) 70%, #fff), color-mix(in srgb, var(--c) 85%, transparent) 15%, color-mix(in srgb, var(--c) 35%, transparent) 55%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
-  animation: tc-pillar 1.1s ease-out infinite;
-}
-.tc-rank-5 .tc-pillars span { width: 16px; animation-duration: .8s; }
-@keyframes tc-pillar { 0% { transform: scaleY(0); opacity: 0; } 25% { opacity: .9; } 100% { transform: scaleY(1); opacity: 0; } }
 /* Spiked starburst at the moment of the burst. */
 .tc-nova {
   position: absolute; z-index: 1; width: 380px; aspect-ratio: 1; pointer-events: none;
@@ -299,57 +279,55 @@
 }
 .tc-nova-late { animation-delay: .4s; opacity: 0; background: repeating-conic-gradient(from 11deg, #fb7185 0 3deg, transparent 3deg 15deg, #60a5fa 15deg 18deg, transparent 18deg 30deg, #fbbf24 30deg 33deg, transparent 33deg 45deg); }
 @keyframes tc-nova { 0% { scale: .1; opacity: 1; rotate: 0deg; } 100% { scale: 2.6; opacity: 0; rotate: 40deg; } }
-/* Orbiting sparks around the reveal card. */
-.tc-orbit { position: absolute; left: 50%; top: 42%; width: 0; height: 0; z-index: 2; pointer-events: none; transform: scaleY(.42); }
-.tc-orbit span { position: absolute; left: 0; top: 0; box-shadow: 0 0 8px currentColor, 0 0 2px #fff; animation: tc-orbit 4s linear infinite; }
-@keyframes tc-orbit {
-  from { transform: rotate(var(--a)) translateX(var(--r)) scaleY(2.4); }
-  to { transform: rotate(calc(var(--a) + 360deg)) translateX(var(--r)) scaleY(2.4); }
+/* ── Legendary: royal treasure vault ──
+   Warm gold light floods out of the chest, gold dust drifts up, the lid blasts off in a clean gold
+   flash and a jewelled crown rises out of the treasure, then sits on top of the reveal card. */
+.tc-royal-glow { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse 60% 55% at 50% 48%, #fde68a55 0, #f59e0b22 40%, transparent 70%);
+  animation: tc-royal-in var(--tc-crack-ms) ease-in forwards; }
+.tc-royal-burst, .tc-royal-rise { opacity: 1; animation: tc-royal-breathe 2.4s ease-in-out infinite;
+  background: radial-gradient(ellipse 65% 60% at 50% 48%, #fde68a66 0, #f59e0b26 45%, transparent 75%); }
+.tc-royal-reveal { opacity: .8; animation: tc-royal-breathe 3s ease-in-out infinite; }
+@keyframes tc-royal-in { to { opacity: 1; } }
+@keyframes tc-royal-breathe { 50% { opacity: .65; } }
+.tc-phase-crack.tc-rank-4 .tc-chest { filter: drop-shadow(0 0 10px #fbbf24) drop-shadow(0 0 2px #fff7d6); }
+.tc-rank-4 .tc-flash { background: radial-gradient(circle at 50% 46%, #fffdf2, #fde68a 45%, #f59e0b); }
+.tc-rank-4 .tc-embers span { box-shadow: 0 0 5px currentColor; }
+
+.tc-crown { position: absolute; left: 50%; pointer-events: none; filter: drop-shadow(0 0 1px #5b3305) drop-shadow(0 0 1px #5b3305) drop-shadow(0 0 12px #fbbf24aa); }
+.tc-crown svg { display: block; width: 100%; height: 100%; }
+.tc-crown-burst, .tc-crown-rise { top: -18px; width: 104px; height: 82px; z-index: 4; translate: -50% 0; animation: tc-crown-rise 1s cubic-bezier(.2, 1.4, .4, 1) both; }
+.tc-crown-rise { top: -78px; animation: tc-crown-hover 1.6s ease-in-out infinite; }
+@keyframes tc-crown-rise { 0% { transform: translateY(70px) scale(.2); opacity: 0; } 60% { opacity: 1; } 100% { transform: translateY(-50px) scale(1); opacity: 1; } }
+@keyframes tc-crown-hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.tc-crown-card { top: -34px; left: -26px; width: 64px; height: 50px; z-index: 4; rotate: -22deg; animation: tc-crown-land .7s cubic-bezier(.2, 1.5, .4, 1) .25s both; }
+@keyframes tc-crown-land { 0% { transform: translateY(-60px) scale(1.4); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+/* Four-point sparkles that twinkle in place around the card. */
+.tc-twinkles { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 4; pointer-events: none; }
+.tc-twinkles span {
+  position: absolute; translate: -50% -50%; scale: 0; background: #fff7d6;
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  filter: drop-shadow(0 0 4px #fbbf24); animation: tc-twinkle 2.2s ease-in-out infinite;
 }
-/* ── Legendary: Conqueror's Haki ──
-   The screen dims to crimson-black, black lightning with a red glow crackles around the chest and
-   Haki waves pulse out with the heartbeat; the burst is a golden flash with a Haki shockwave. */
-.tc-haki-dim { position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  background: radial-gradient(circle at 50% 46%, #3a0710aa 0, #12020688 35%, #000000e6 75%);
-  animation: tc-haki-dim .5s ease-out forwards, tc-haki-throb .5s ease-in-out .5s infinite; }
-.tc-phase-burst .tc-haki-dim { animation: tc-haki-lift 1s ease-out .15s forwards; opacity: 1; }
-@keyframes tc-haki-dim { to { opacity: 1; } }
-@keyframes tc-haki-throb { 0%, 100% { opacity: 1; } 35% { opacity: .78; } }
-@keyframes tc-haki-lift { to { opacity: 0; } }
-.tc-haki-waves { position: absolute; left: 50%; top: 46%; width: 0; height: 0; z-index: 1; pointer-events: none; }
-.tc-haki-waves span {
-  position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; opacity: 0;
-  border: 6px solid #0a0003; box-shadow: 0 0 0 3px #e11d48, 0 0 24px #e11d48, inset 0 0 18px #e11d4888;
-  animation: tc-haki-wave 1.35s cubic-bezier(.15, .6, .3, 1) infinite;
-}
-.tc-haki-waves.is-burst span { border-width: 10px; box-shadow: 0 0 0 4px #fbbf24, 0 0 30px #e11d48, inset 0 0 24px #fbbf2488; animation: tc-haki-wave 1.1s cubic-bezier(.1, .7, .3, 1) forwards; }
-@keyframes tc-haki-wave { 0% { transform: scale(.3); opacity: 1; } 100% { transform: scale(7); opacity: 0; } }
-.tc-haki { position: absolute; left: 50%; top: 50%; width: 380px; height: 380px; translate: -50% -50%; z-index: 3; overflow: visible; pointer-events: none; }
-.tc-haki-reveal { width: 470px; height: 470px; z-index: 2; opacity: .75; }
-.tc-haki-rise { translate: -50% -62%; }
-.tc-haki g { opacity: 0; animation: tc-haki-flicker .4s steps(2) infinite; }
-.tc-haki polyline { fill: none; stroke-linejoin: bevel; vector-effect: non-scaling-stroke; }
-.tc-haki-glow { stroke: #ff1f4b; stroke-width: 7; opacity: .85; }
-.tc-haki-core { stroke: #08000a; stroke-width: 3; }
-.tc-haki-reveal .tc-haki-glow { stroke-width: 5; }
-.tc-haki-reveal .tc-haki-core { stroke-width: 2; }
-@keyframes tc-haki-flicker { 0% { opacity: 1; } 50% { opacity: 0; } }
-.tc-phase-crack.tc-rank-4 .tc-chest { filter: drop-shadow(0 0 6px #ff1f4b) drop-shadow(0 0 18px #fbbf24); }
-.tc-rank-4 .tc-flash { background: radial-gradient(circle at 50% 46%, #fffbe8, #fde68a 40%, #f59e0b); }
-.tc-rank-4 .tc-bolt polyline { stroke: #08000a; stroke-width: 3.5; filter: drop-shadow(0 0 2px #ff1f4b) drop-shadow(0 0 9px #ff1f4b); }
-/* Gold banner with a black-and-crimson Haki edge and a moving shine. */
+@keyframes tc-twinkle { 0%, 60%, 100% { scale: 0; rotate: 0deg; } 30% { scale: 1; rotate: 45deg; } }
+
+/* Gold banner with a clean dark-gold outline and a moving shine. */
 .tc-reward-legendary .tc-banner {
   font-size: clamp(34px, 12vw, 58px); text-shadow: none; color: transparent;
-  background: linear-gradient(100deg, #b7791f 15%, #fde68a 38%, #ffffff 50%, #fde68a 62%, #b7791f 85%); background-size: 250% 100%;
+  background: linear-gradient(100deg, #d97706 15%, #fde68a 38%, #ffffff 50%, #fde68a 62%, #d97706 85%); background-size: 250% 100%;
   -webkit-background-clip: text; background-clip: text;
-  filter: drop-shadow(2px 0 0 #08000a) drop-shadow(-2px 0 0 #08000a) drop-shadow(0 2px 0 #08000a) drop-shadow(0 -2px 0 #08000a) drop-shadow(0 0 10px #ff1f4b);
-  animation: tc-banner .9s cubic-bezier(.2, 1.5, .4, 1) forwards, tc-gold-shine 1.3s linear infinite;
+  filter: drop-shadow(2px 0 0 #5b3305) drop-shadow(-2px 0 0 #5b3305) drop-shadow(0 2px 0 #5b3305) drop-shadow(0 -2px 0 #5b3305) drop-shadow(0 0 14px #fbbf2499);
+  animation: tc-banner .9s cubic-bezier(.2, 1.5, .4, 1) forwards, tc-gold-shine 1.6s linear infinite;
 }
 @keyframes tc-gold-shine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
-.tc-reward-legendary .tc-card { box-shadow: 0 0 0 4px rgba(0,0,0,.5), 0 0 34px #fbbf2499, 0 0 70px #e11d4844; animation: tc-card-in .7s cubic-bezier(.2, 1.3, .4, 1), tc-legend-glow 1.6s ease-in-out infinite; }
-@keyframes tc-legend-glow { 50% { box-shadow: 0 0 0 4px rgba(0,0,0,.5), 0 0 50px #fbbf24cc, 0 0 100px #e11d4866; } }
+.tc-reward-legendary .tc-card {
+  border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(0,0,0,.45), inset 0 0 0 2px #fde68a33, 0 0 34px #fbbf2488;
+  animation: tc-card-in .7s cubic-bezier(.2, 1.3, .4, 1), tc-legend-glow 2.4s ease-in-out infinite;
+}
+@keyframes tc-legend-glow { 50% { box-shadow: 0 0 0 4px rgba(0,0,0,.45), inset 0 0 0 2px #fde68a55, 0 0 52px #fbbf24bb; } }
 
-/* Mythic: blackout, vortex, glitches, cracked reality, warp streaks, meteors and a summoning seal. */
+/* Mythic: blackout, vortex, glitches, warp streaks, meteors and a summoning seal. */
 .tc-blackout { position: absolute; inset: 0; background: #000; pointer-events: none; opacity: 0; animation: tc-blackout var(--tc-crack-ms) ease-in forwards; }
 .tc-phase-burst .tc-blackout { opacity: .85; animation: tc-blackout-lift .9s ease-out .2s forwards; }
 @keyframes tc-blackout { to { opacity: .85; } }
@@ -372,12 +350,6 @@
 @keyframes tc-levitate { 0% { translate: 0 0; scale: 1; } 100% { translate: 0 -46px; scale: 1.14; } }
 .tc-whiteout { position: absolute; inset: 0; z-index: 6; background: #fff; pointer-events: none; animation: tc-whiteout .7s ease-out forwards; }
 @keyframes tc-whiteout { 0%, 25% { opacity: 1; } 100% { opacity: 0; } }
-.tc-cracks { position: absolute; inset: 0; z-index: 5; width: 100%; height: 100%; pointer-events: none; animation: tc-fade-out 1.6s ease-in .5s forwards; }
-.tc-cracks polyline {
-  fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1;
-  filter: drop-shadow(0 0 4px #e9d5ff); animation: tc-crack-draw .3s ease-out forwards;
-}
-@keyframes tc-crack-draw { to { stroke-dashoffset: 0; } }
 @keyframes tc-fade-out { to { opacity: 0; } }
 .tc-warp { position: absolute; left: 50%; top: 46%; z-index: 2; width: 0; height: 0; pointer-events: none; }
 .tc-warp span {
@@ -408,7 +380,6 @@
 .tc-phase-rise .tc-seal-floor { opacity: .5; }
 @keyframes tc-seal-in { from { scale: 0; opacity: 0; } }
 @keyframes tc-seal-blast { 0% { scale: 1; opacity: 1; } 30% { scale: 1.35; opacity: 1; } 100% { scale: 1.1; opacity: .55; } }
-.tc-seal-card { left: 50%; top: 50%; width: 440px; height: 440px; translate: -50% -50%; z-index: 2; opacity: .7; filter: drop-shadow(0 0 8px #c084fc); animation: tc-seal-in 1s ease-out .3s both; }
 .tc-letter {
   display: inline-block; color: transparent;
   background: linear-gradient(90deg, #fb7185, #fbbf24, #4ade80, #60a5fa, #c084fc, #fb7185); background-size: 600% 100%;
@@ -426,8 +397,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tc-overlay *, .tc-overlay *::before, .tc-overlay *::after, .ts-card-chest { animation: none !important; transition: none !important; }
-  .tc-rays, .tc-flash, .tc-particles, .tc-ring, .tc-bolt, .tc-confetti, .tc-orbs, .tc-leaks, .tc-stars,
-  .tc-embers, .tc-pillars, .tc-nova, .tc-orbit, .tc-haki, .tc-haki-waves, .tc-haki-dim, .tc-vortex, .tc-glitch, .tc-whiteout, .tc-cracks, .tc-warp, .tc-meteors, .tc-blackout { display: none; }
+  .tc-rays, .tc-flash, .tc-particles, .tc-ring, .tc-confetti, .tc-orbs, .tc-leaks, .tc-stars,
+  .tc-embers, .tc-nova, .tc-royal-glow, .tc-twinkles, .tc-vortex, .tc-glitch, .tc-whiteout, .tc-warp, .tc-meteors, .tc-blackout { display: none; }
 }
 
 /* Unopened reward chests */

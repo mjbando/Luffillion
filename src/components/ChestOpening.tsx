@@ -46,12 +46,11 @@ const BANNERS: Partial<Record<TreasureRarity, string>> = {
 interface Particle { id: number; dx: number; dy: number; size: number; delay: number; dur: number; color: string; star: boolean }
 interface Orb { id: number; angle: number; dist: number; delay: number; dur: number; size: number }
 interface Confetti { id: number; left: number; delay: number; dur: number; color: string; drift: number; spin: number }
-interface Bolt { id: number; points: string; delay: number; left: number }
 interface Ember { id: number; left: number; delay: number; dur: number; size: number; drift: number; color: string }
 interface Streak { id: number; angle: number; delay: number; len: number; color: string }
 interface Meteor { id: number; top: number; left: number; delay: number; dur: number; color: string }
 interface Bar { id: number; top: number; height: number; delay: number; color: string }
-interface Spark { id: number; angle: number; radius: number; size: number; color: string; dur: number }
+interface Twinkle { id: number; x: number; y: number; size: number; delay: number }
 
 const RAINBOW = ["#fb7185", "#fbbf24", "#4ade80", "#60a5fa", "#c084fc", "#ffffff"];
 const GOLDS = ["#fbbf24", "#fde68a", "#f59e0b", "#ffffff"];
@@ -84,6 +83,38 @@ function Seal({ className }: { className: string }) {
           <circle r="30" strokeWidth="1.5" />
           {Array.from({ length: 6 }, (_, i) => { const a = (i * Math.PI) / 3 - Math.PI / 2; return <circle key={i} cx={Math.cos(a) * 64} cy={Math.sin(a) * 64} r="5" fill="#0b0618" />; })}
         </g>
+      </svg>
+    </div>
+  );
+}
+
+/** Legendary: a pixel-art gold crown with pearls and sapphires and a light glint sweeping across it. */
+const CROWN = [
+  "......w......",
+  "..w..wlw..w..",
+  ".wlw..y..wlw.",
+  "..y..yly..y..",
+  "..yy.yly.yy..",
+  "..ylyylyylyy.",
+  ".dyyyyyyyyyd.",
+  ".dybywybywyd.",
+  ".dyyyyyyyyyd.",
+  "..ddddddddd..",
+];
+const CROWN_INK: Record<string, string> = { y: "#fbbf24", l: "#fef3c7", d: "#b45309", w: "#ffffff", b: "#3b82f6" };
+function Crown({ className }: { className: string }) {
+  const cells = CROWN.flatMap((row, y) => [...row].map((c, x) => ({ c, x, y })).filter((p) => p.c !== "."));
+  return (
+    <div className={className} aria-hidden="true">
+      <svg viewBox="-0.5 -0.5 14 11" shapeRendering="crispEdges">
+        <defs>
+          <linearGradient id="tc-crown-glint" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="5" y2="10">
+            <stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset=".5" stopColor="#fff" stopOpacity=".9" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
+            <animateTransform attributeName="gradientTransform" type="translate" values="-8 0; 18 0; 18 0" keyTimes="0; .45; 1" dur="2.4s" repeatCount="indefinite" />
+          </linearGradient>
+        </defs>
+        {cells.map((p) => <rect key={`${p.x}-${p.y}`} x={p.x} y={p.y} width="1.02" height="1.02" fill={CROWN_INK[p.c]} />)}
+        {cells.map((p) => <rect key={`g${p.x}-${p.y}`} x={p.x} y={p.y} width="1.02" height="1.02" fill="url(#tc-crown-glint)" />)}
       </svg>
     </div>
   );
@@ -190,7 +221,7 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
         size: 4 + random() * (3 + rank * 1.5),
         delay: random() * 0.15 + (rank >= 4 && i % 2 ? 0.45 : 0),
         dur: 0.8 + random() * 0.6 + rank * 0.1,
-        color: colors[i % Math.min(colors.length, 3)], star: rank >= 2 && i % 3 === 0,
+        color: rank === 4 ? GOLDS[i % GOLDS.length] : colors[i % Math.min(colors.length, 3)], star: rank >= 2 && i % 3 === 0,
       };
     });
     const orbs: Orb[] = Array.from({ length: 28 }, (_, i) => ({
@@ -201,19 +232,13 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
       color: rank >= 5 ? ["#fb7185", "#fbbf24", "#4ade80", "#60a5fa", "#c084fc", "#ffffff"][i % 6] : [TREASURE_RARITY_COLORS[TREASURE_CHESTS[rank]], "#ffffff", "#fde68a"][i % 3],
       drift: (random() - 0.5) * 120, spin: 360 + random() * 720,
     }));
-    const bolts: Bolt[] = Array.from({ length: rank >= 5 ? 5 : rank >= 4 ? 2 : 0 }, (_, i) => {
-      let x = 20 + random() * 20;
-      const pts = [`${x},0`];
-      for (let y = 12; y <= 100; y += 12) { x += (random() - 0.5) * 22; pts.push(`${x.toFixed(1)},${y}`); }
-      return { id: i, points: pts.join(" "), delay: i * 0.22 + random() * 0.1, left: 5 + (i * 90) / Math.max(1, (rank >= 5 ? 5 : 2) - 1) - 25 + random() * 10 };
-    });
     // Legendary+: embers drifting up through the whole scene (gold, or rainbow for Mythic).
     const palette = rank >= 5 ? RAINBOW : GOLDS;
-    const embers: Ember[] = Array.from({ length: rank >= 5 ? 36 : 0 }, (_, i) => ({
+    const embers: Ember[] = Array.from({ length: rank >= 5 ? 36 : rank === 4 ? 18 : 0 }, (_, i) => ({
       id: i, left: random() * 100, delay: random() * 3, dur: 2.4 + random() * 2.6, size: 2 + Math.round(random() * (rank >= 5 ? 4 : 3)),
       drift: (random() - 0.5) * 140, color: palette[i % palette.length],
     }));
-    // Mythic: warp streaks bursting outward, meteors over the reveal, glitch bars, screen cracks, orbiting sparks.
+    // Mythic: warp streaks bursting outward, meteors over the reveal and glitch bars.
     const streaks: Streak[] = Array.from({ length: rank >= 5 ? 36 : 0 }, (_, i) => ({
       id: i, angle: (i / 36) * 360 + random() * 6, delay: random() * 0.9, len: 60 + random() * 120, color: RAINBOW[i % 5],
     }));
@@ -223,30 +248,11 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
     const bars: Bar[] = Array.from({ length: rank >= 5 ? 8 : 0 }, (_, i) => ({
       id: i, top: random() * 92, height: 1 + random() * 5, delay: random() * 0.6, color: RAINBOW[i % 5],
     }));
-    const cracks = rank >= 5 ? Array.from({ length: 11 }, (_, i) => {
-      let a = (i / 11) * Math.PI * 2 + random() * 0.3, r = 0, x = 0, y = 0;
-      const pts = ["0,0"];
-      while (r < 150) { r += 14 + random() * 22; a += (random() - 0.5) * 0.5; x = Math.cos(a) * r; y = Math.sin(a) * r; pts.push(`${x.toFixed(1)},${y.toFixed(1)}`); }
-      return { id: i, points: pts.join(" "), delay: random() * 0.12 };
-    }) : [];
-    const sparks: Spark[] = Array.from({ length: rank >= 5 ? 12 : 0 }, (_, i) => ({
-      id: i, angle: (i / 12) * 360, radius: 150 + (i % 3) * 14, size: 4 + (i % 3) * 2, color: palette[i % palette.length], dur: rank >= 5 ? 3.2 : 5,
-    }));
-    // Legendary: Conqueror's Haki — black lightning with a crimson glow crackling around the chest.
-    const haki = rank === 4 ? Array.from({ length: 9 }, (_, i) => {
-      const pts: string[] = [];
-      if (i % 3 === 2) {
-        // An arc hugging the chest.
-        const a0 = random() * Math.PI * 2, span = 0.9 + random() * 0.9, r0 = 58 + random() * 20;
-        for (let k = 0; k <= 7; k++) { const a = a0 + (span * k) / 7, r = r0 + (random() - 0.5) * 16; pts.push(`${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`); }
-      } else {
-        // A forked bolt crackling outward.
-        let a = (i / 9) * Math.PI * 2 + random() * 0.4, r = 34;
-        while (r < 98) { pts.push(`${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`); r += 9 + random() * 12; a += (random() - 0.5) * 0.55; }
-      }
-      return { id: i, points: pts.join(" "), delay: random() * 0.5, dur: 0.28 + random() * 0.3 };
-    }) : [];
-    return { particles, orbs, confetti, bolts, embers, streaks, meteors, bars, cracks, sparks, haki };
+    // Legendary: still sparkles that twinkle in place around the reveal card.
+    const twinkles: Twinkle[] = rank === 4 ? [[-150, -70], [148, -40], [-132, 92], [140, 110], [-60, -150], [72, 158]].map(([x, y], i) => ({
+      id: i, x, y, size: 14 + Math.round(random() * 8), delay: i * 0.37 + random() * 0.2,
+    })) : [];
+    return { particles, orbs, confetti, embers, streaks, meteors, bars, twinkles };
   }, [reward, rank, chest]);
 
   // Landed but the server hasn't answered yet.
@@ -285,28 +291,13 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
           {fx.bars.map((b) => <span key={b.id} style={{ top: `${b.top}%`, height: `${b.height}%`, animationDelay: `${b.delay}s`, "--c": b.color } as CSSProperties} />)}
         </div>
       )}
-      {rank >= 5 && (phase === "crack" || opened) && fx.embers.length > 0 && (
+      {rank >= 4 && (phase === "crack" || opened) && fx.embers.length > 0 && (
         <div className="tc-embers" aria-hidden="true">
           {fx.embers.map((e) => <span key={e.id} style={{ left: `${e.left}%`, width: e.size, height: e.size, background: e.color, color: e.color, animationDelay: `${e.delay}s`, animationDuration: `${e.dur}s`, "--drift": `${e.drift}px` } as CSSProperties} />)}
         </div>
       )}
-      {rank >= 5 && (phase === "crack" || phase === "burst") && (
-        <div className="tc-pillars" aria-hidden="true">
-          {Array.from({ length: 9 }, (_, i) => <span key={i} style={{ left: `${8 + (i * 84) / 8}%`, animationDelay: `${(i % 3) * 0.22 + (i % 2) * 0.1}s`, "--c": RAINBOW[i % 5] } as CSSProperties} />)}
-        </div>
-      )}
-      {/* Legendary: Conqueror's Haki darkens the screen and pulses out in crimson-black waves. */}
-      {rank === 4 && (phase === "crack" || phase === "burst") && <div className="tc-haki-dim" aria-hidden="true" />}
-      {rank === 4 && (phase === "crack" || phase === "burst") && (
-        <div className={`tc-haki-waves${phase === "burst" ? " is-burst" : ""}`} aria-hidden="true">
-          {(phase === "burst" ? [0, 0.18] : [0, 0.45, 0.9]).map((d) => <span key={d} style={{ animationDelay: `${d}s` }} />)}
-        </div>
-      )}
-      {rank >= 5 && phase === "burst" && (
-        <svg className="tc-cracks" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-          {fx.cracks.map((c) => <polyline key={c.id} points={c.points} pathLength={1} style={{ animationDelay: `${c.delay}s` }} />)}
-        </svg>
-      )}
+      {/* Legendary: a royal treasure vault — warm gold light floods the room from the chest. */}
+      {rank === 4 && (phase === "crack" || opened) && <div className={`tc-royal-glow tc-royal-${phase}`} aria-hidden="true" />}
       {rank >= 5 && (phase === "burst" || phase === "rise") && (
         <div className="tc-warp" aria-hidden="true">
           {fx.streaks.map((w) => <span key={w.id} style={{ "--a": `${w.angle}deg`, width: w.len, animationDelay: `${w.delay}s`, "--c": w.color } as CSSProperties} />)}
@@ -322,12 +313,6 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
       {phase === "crack" && <div className="tc-vignette" aria-hidden="true" />}
       {phase === "burst" && rank >= 2 && <div className="tc-flash" aria-hidden="true" />}
       {phase === "burst" && rank >= 5 && <div className="tc-whiteout" aria-hidden="true" />}
-      {(phase === "rise" || phase === "burst") && fx.bolts.map((b) => (
-        <svg key={b.id} className="tc-bolt" viewBox="0 0 60 100" preserveAspectRatio="none" aria-hidden="true"
-          style={{ left: `${b.left}%`, animationDelay: `${b.delay}s` }}>
-          <polyline points={b.points} />
-        </svg>
-      ))}
       {phase === "reveal" && fx.confetti.length > 0 && (
         <div className="tc-confetti" aria-hidden="true">
           {fx.confetti.map((c) => (
@@ -342,16 +327,7 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
         <div className="tc-chest-zone">
           {rank >= 5 && (phase === "crack" || phase === "burst" || phase === "rise") && <Seal className="tc-seal-floor" />}
           {opened && phase !== "reveal" && <div className="tc-beam" aria-hidden="true" />}
-          {fx.haki.length > 0 && phase !== "intro" && phase !== "waiting" && phase !== "charging" && (
-            <svg className={`tc-haki tc-haki-${phase}`} viewBox="-100 -100 200 200" aria-hidden="true">
-              {fx.haki.map((h) => (
-                <g key={h.id} style={{ animationDelay: `${h.delay}s`, animationDuration: `${h.dur}s` }}>
-                  <polyline points={h.points} className="tc-haki-glow" />
-                  <polyline points={h.points} className="tc-haki-core" />
-                </g>
-              ))}
-            </svg>
-          )}
+          {rank === 4 && (phase === "burst" || phase === "rise") && <Crown className={`tc-crown tc-crown-${phase}`} />}
 
           {orbCount > 0 && (
             <div className="tc-orbs" aria-hidden="true">
@@ -402,13 +378,12 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
             </div>
           )}
 
-          {rank >= 5 && phase === "reveal" && <Seal className="tc-seal-card" />}
           {phase === "reveal" && reward && character && (
             <div className="tc-card" role="status" aria-live="polite">
-              {rank >= 4 && <div className="tc-card-halo" aria-hidden="true" />}
-              {fx.sparks.length > 0 && (
-                <div className="tc-orbit" aria-hidden="true">
-                  {fx.sparks.map((sp) => <span key={sp.id} style={{ "--a": `${sp.angle}deg`, "--r": `${sp.radius}px`, width: sp.size, height: sp.size, background: sp.color, color: sp.color, animationDuration: `${sp.dur}s` } as CSSProperties} />)}
+              {rank === 4 && <Crown className="tc-crown tc-crown-card" />}
+              {fx.twinkles.length > 0 && (
+                <div className="tc-twinkles" aria-hidden="true">
+                  {fx.twinkles.map((tw) => <span key={tw.id} style={{ left: tw.x, top: tw.y, width: tw.size, height: tw.size, animationDelay: `${tw.delay}s` } as CSSProperties} />)}
                 </div>
               )}
               <div className="tc-portrait"><CharacterPortrait characterId={reward.characterId} size={140} /></div>
