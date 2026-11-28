@@ -9,6 +9,7 @@ import { UPDATE_LIVE } from "./release";
 import {
   BOUNTY_MILESTONES,
   RANKED_BERRY_ACHIEVEMENTS,
+  STRAW_HAT_CREW,
   type MilestoneReport,
   type RankedBerryAchievementStatus,
 } from "./ranked-achievements";
@@ -69,10 +70,14 @@ export async function unlockedCharacterCount(accountId: string): Promise<number>
 }
 
 export async function loadRankedBerryAchievements(tx: Executor, accountId: string): Promise<RankedBerryAchievementStatus[]> {
-  const crew = await unlockedCharacterCount(accountId);
+  const owned = new Set<string>(await ownedCharacterIdsFor(accountId));
+  const crew = [...owned].filter((id) => id !== "luffy" && id !== "gear-6").length;
+  const strawHats = STRAW_HAT_CREW.filter((id) => id === "luffy" || owned.has(id)).length;
+  const characterProgress = (goal: string) => goal === "crew" ? crew : goal === "straw-hats" ? strawHats : null;
   // Character goals are re-checked whenever the list is read; owning characters never goes backwards.
   for (const def of RANKED_BERRY_ACHIEVEMENTS) {
-    if (def.goal === "crew" && crew >= def.target) await unlockRankedBerryAchievement(tx, accountId, def.id);
+    const have = characterProgress(def.goal);
+    if (have !== null && have >= def.target) await unlockRankedBerryAchievement(tx, accountId, def.id);
   }
   const ids = RANKED_BERRY_ACHIEVEMENTS.map((a) => a.id);
   const [unlocks, claimed, [profile]] = await Promise.all([
@@ -84,7 +89,7 @@ export async function loadRankedBerryAchievements(tx: Executor, accountId: strin
   const unlockedAt = new Map(unlocks.map((row) => [row.id, row.at]));
   return RANKED_BERRY_ACHIEVEMENTS.map((def) => {
     const at = unlockedAt.get(def.id);
-    const progress = at ? def.target : def.goal === "crew" ? crew : def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : 0;
+    const progress = at ? def.target : characterProgress(def.goal) ?? (def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : 0);
     return { ...def, unlocked: Boolean(at), unlockedAt: at?.toISOString() ?? null, claimed: claimed.has(def.id), progress: Math.min(progress, def.target) };
   });
 }
@@ -120,7 +125,7 @@ export async function rankedBerryUnlocksSince(tx: Executor, accountId: string, s
   if (!UPDATE_LIVE || accountId.startsWith("~")) return [];
   const rows = await tx.select({ id: achievementUnlocks.achievementId }).from(achievementUnlocks).where(and(
     eq(achievementUnlocks.accountId, accountId),
-    inArray(achievementUnlocks.achievementId, RANKED_BERRY_ACHIEVEMENTS.filter((a) => a.goal !== "crew").map((a) => a.id)),
+    inArray(achievementUnlocks.achievementId, RANKED_BERRY_ACHIEVEMENTS.filter((a) => a.goal !== "crew" && a.goal !== "straw-hats").map((a) => a.id)),
     gte(achievementUnlocks.unlockedAt, since),
   ));
   return rows.map((row) => row.id);

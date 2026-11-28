@@ -51,8 +51,6 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "miss-monday": { b: "big", h: "#c86a3a", hs: "short", t: "#f2ead6", l: "#4a5a7a", sk: TAN, x: ["lips:#c84a4a"], hand: "#d9a274" },
 
   // ---------------- Uncommon ----------------
-  "nami-arlong-park": { h: "#fb8f3a", hs: "short", t: "#f2f2f2", l: "#3a5a8a", x: ["tattoo:#2a6ab0", "belt:#f2a03a"], w: "staff", wc: "#6a86b0" },
-  "chopper-heavy-point": { b: "big", sk: "#c08a5a", h: "#8f603a", hs: "short", t: "#d99566", l: "#e496bc", hat: "top", hc: "#e070a0", x: ["^horns:#8f603a", "body:#a87048"] },
   vivi: { h: "#78c8e8", hs: "pony", t: "#f2f2f2", l: "#c8a060", x: ["earrings:#f0c040"], w: "whip", wc: "#e0e0e0" },
   karoo: { b: "small", special: "duck", h: "#3a6aa8", t: "#f2d76d", l: "#d84040" },
   "don-krieg": { b: "big", h: "#2c3142", hs: "short", t: "#d4b13b", l: "#7a6a3a", hand: "#d4b13b", coat: "#5a2a2a", x: ["beard:#2c3142"], w: "spear", wc: "#8a6a3a" },
@@ -159,6 +157,7 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   queen: { b: "giant", h: "#2a2d3a", hs: "pomp", t: "#7cc96c", l: "#3a3f52", hand: "#c0c8d4", x: ["shades:#f0c040", "grin"] },
   jack: { b: "giant", sk: TAN, h: "#e8e0d0", hs: "slick", t: "#8f7a6a", l: "#3a3f52", x: ["^bighorns:#f2f2f2", "mask:#5a4a3a"], w: "hook" },
   katakuri: { b: "giant", h: "#b4386b", hs: "short", t: "#3a2a3a", l: "#3a2a3a", x: ["scarf:#e0d0c0", "xscar:#a05060"], w: "trident", wc: "#f2f2f2" },
+  doflamingo: { b: "big", h: "#e8e070", hs: "short", t: "#f0f2ee", sl: "#f0f2ee", l: "#b8306a", sh: "#1e1a2a", coat: "#ffa8cc", x: ["shades:#e83a3a", "open:#e0a878", "grin"], ow: true },
   aokiji: { b: "big", sk: TAN, h: "#2a2d3a", hs: "curly", t: "#7bc8f0", l: "#3a5aa8", coat: "#f2f4f7", x: ["smoke:#c8f0ff"] },
   kizaru: { b: "big", h: "#2a2d3a", hs: "slick", t: "#f3d04b", l: "#f3d04b", coat: "#f2f4f7", x: ["shades:#5a4a2a", "spark:#fff4a0"] },
   akainu: { b: "big", h: "#2a2d3a", hs: "short", t: "#e2442c", l: "#3a3f52", hat: "cap", hc: "#2a2d3a", coat: "#f2f4f7", hand: "#ff6a2a", x: ["fire:#ff5a1a"] },
@@ -199,4 +198,5 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "dragon-full": { b: "big", h: "#1a1a24", hs: "wild", t: "#2a5a2a", l: "#2a5a2a", sh: "#1a1a20", coat: "#2a5a2a", fx: "#5cff9d", x: ["tattoo:#d03030", "smoke:#a8ffd0", "spark:#5cff9d"] },
   "mihawk-strongest": { h: "#1e1e28", hs: "short", t: "#1a1a24", sl: "#7a1a2a", l: "#c8b8e0", sh: "#1a1a20", hat: "plume", hc: "#1a1a24", coat: "#6a1424", fx: "#ffd24a", x: ["goatee:#1e1e28", "spark:#ffd24a"], w: "greatsword", wc: "#0e0e18", ow: true },
   sengoku: { b: "giant", sk: "#d9a43a", h: "#ffd23a", hs: "afro", t: "#ffd84a", l: "#e8b83a", sh: "#b8862a", hand: "#ffe070", coat: "#f0b830", fx: "#ffd84a", x: ["braid:#7a5414", "halo:#fff6c0", "spark:#fff6c0"] },
+  loki: { b: "giant", sk: "#e8a878", h: "#f08ac0", hs: "long", t: "#e8a878", l: "#1e1a30", sh: "#1e1a30", hand: "#1a1a22", hat: "helmet", hc: "#1e1e26", coat: "#a87ad8", fx: "#b98cff", x: [], ow: true },
 };

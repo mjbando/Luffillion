@@ -48,6 +48,7 @@ const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
   "sanji-ifrit-jambe": { t: "#f4f6fa", l: "#1e1e28", sh: "#1e1e28", x: [] },
   "killer-onigashima": { ow: true, hs: "long", t: "#2a5ab8", l: "#5a8ac8", sh: "#6a4a2a", x: [] },
   vergo: { ow: true, x: ["goatee:#16121c"] },
+  doflamingo: { ow: true, x: [] },
 };
 
 /** Extra transparent canvas (HD pixels per side) for wide weapons and effects. */
@@ -55,7 +56,7 @@ const MARGIN: Partial<Record<LegendaryArtId, number>> = {
   "kozuki-oden": 10, yamato: 8, marco: 6, jozu: 2, vista: 6, king: 8, queen: 6, jack: 8, katakuri: 6,
   aokiji: 4, kizaru: 6, akainu: 4, fujitora: 4, ryokugyu: 10, tsuru: 4, "edward-weevil": 6, "benn-beckman": 6,
   "lucky-roux": 6, yasopp: 8, "rob-lucci-awakened": 4, "law-awakened": 6, "kid-awakened": 6, "sanji-ifrit-jambe": 2,
-  vergo: 4, "killer-onigashima": 8,
+  vergo: 4, "killer-onigashima": 8, doflamingo: 12,
   law: 6, rayleigh: 4, whitebeard: 6, shanks: 4,
 };
 
@@ -910,6 +911,58 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
       d.r(bx, by + 2, 6, 6, "#ffffff").r(bx + 1, by + 3, 4, 4, "#f2f2f2").d(bx + 4, by + 3, ink).r(bx + 6, by + 4, 2, 1, "#f08a3a");
       d.r(bx + 1, by - 2, 4, 3, "#ffffff").r(bx, by + 1, 6, 1, "#ffffff").r(bx + 1, by, 4, 1, "#1e1e28").r(bx + 2, by + 6, 1, 3, "#c8ccd8");
     });
+  },
+  // ----- Donquixote Family -----
+  doflamingo: (d) => {
+    const { hx, hy, hw, cx, tc, tx, ty, tw, th, sk } = d;
+    const pink = "#ffa8cc", pinkL = "#ffd0e2", pinkD = "#ec7aa8";
+    // The huge pink feather coat, flaring past his shoulders and down to his shins.
+    d.asBody(() => {
+      const top = ty - 6, low = d.bottom - 6;
+      for (let y = top; y < low; y++) {
+        const k = (y - top) / (low - top), spread = Math.round(10 + 6 * Math.sin(Math.min(1, k * 1.6) * Math.PI / 2) - 3 * k);
+        for (let x = tx - spread; x < tx + tw + spread; x++) {
+          // Layered feathers: rows of V-shaped tips, a shadow under each and a highlight on top.
+          const v = (y - top + Math.abs(((x + 60) % 6) - 3) + Math.floor((x + 60) / 6) % 2 * 3) % 6;
+          d.u(x, y, 1, 1, v === 0 ? pinkD : v === 1 ? pinkL : (x * 3 + y * 5) % 19 === 0 ? pinkL : pink);
+        }
+      }
+      // Ragged feather tips along the hem and the outer edges.
+      for (let x = tx - 14; x < tx + tw + 14; x += 3) {
+        const h = 3 + ((x * 7) % 4);
+        for (let j = 0; j < h; j++) d.u(x + (j > 1 ? 1 : 0), low + j, j < h - 1 ? 2 : 1, 1, j % 2 ? pinkD : pink);
+      }
+      for (let y = ty - 4; y < low; y += 3) for (const s of [-1, 1]) {
+        const k = (y - ty + 6) / (low - ty + 6), spread = Math.round(10 + 6 * Math.sin(Math.min(1, k * 1.6) * Math.PI / 2) - 3 * k);
+        const ex = s < 0 ? tx - spread - 1 : tx + tw + spread;
+        d.u(ex, y, 1, 2, pink).u(ex + s, y + 1, 1, 1, pinkD);
+      }
+      // Big fluffy shoulders that rise beside his head.
+      for (const s of [-1, 1]) for (let i = 0; i < 7; i++) {
+        const x = s < 0 ? tx - 3 - i : tx + tw + 2 + i, h = 8 - Math.abs(i - 2);
+        d.u(x, ty - 2 - h, 1, h + 3, i % 2 ? pinkL : pink).u(x, ty - 3 - h, 1, 1, pinkD);
+      }
+    });
+    // Open white shirt over a bare, ripped chest.
+    openFront(d, th - 6, 5, "#c8ccd4");
+    muscles(d, 3, ty + 2);
+    d.r(tc - 6, ty + 1, 2, 2, "#2a2a34").r(tc + 4, ty + 1, 2, 2, "#2a2a34"); // collar buttons
+    for (let y = ty + 4; y < ty + th - 4; y += 4) d.d(tc - 6, y, "#2a2a34").d(tc + 5, y, "#2a2a34");
+    // Short spiky blond hair.
+    for (let i = 1; i < hw - 2; i += 3) d.asBody(() => d.d(hx + 1 + i, hy - 1, "#e8e070").d(hx + 2 + i, hy - 1, "#f8f4a8"));
+    strands(d, "#e8e070", hy - 4, 10);
+    // White-framed shades with red lenses, and that wide grin.
+    d.eyes("none").mouth("grin");
+    d.r(hx + 1, d.ey - 1, hw - 2, 4, "#f2f2f2").r(d.L - 2, d.ey, 5, 3, "#d8282c").r(d.R - 2, d.ey, 5, 3, "#d8282c");
+    d.d(d.L - 1, d.ey, "#ff8a8a").d(d.R - 1, d.ey, "#ff8a8a").r(hx + 1, d.ey + 3, hw - 2, 1, "#c8ccd4");
+    d.f(cx - 1, d.ey + 4, 2, 2, shade(sk, -0.2)); // nose
+    // Orange belt laced with teal crosses.
+    const by = d.legY - 3;
+    d.r(tx + 1, by, tw - 2, 3, "#f08a2a").r(tx + 1, by + 2, tw - 2, 1, "#c8601a");
+    for (let x = tx + 3; x < tx + tw - 3; x += 4) d.d(x, by, "#2ab8a8").d(x + 1, by + 1, "#2ab8a8").d(x + 2, by, "#2ab8a8").d(x, by + 2, "#2ab8a8").d(x + 2, by + 2, "#2ab8a8");
+    // Magenta camo capri pants, bare hairy shins, black loafers.
+    d.recolor("#b8306a", d.legX - 4, d.legY, 40, d.legH + 4, (x, y) => ((x * 2 + y * 3) % 9 < 2) ? "#f0a8c8" : ((x + y * 2) % 11 === 0 ? "#8a1a4a" : null));
+    d.recolor("#b8306a", d.legX - 4, d.bottom - 6, 40, 3, () => sk).recolor("#f0a8c8", d.legX - 4, d.bottom - 6, 40, 3, () => sk).recolor("#8a1a4a", d.legX - 4, d.bottom - 6, 40, 3, () => sk);
   },
 };
 

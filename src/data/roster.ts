@@ -7,13 +7,13 @@ import { PLAYABLE_CHARACTERS, type AchievementCharacterId, type CharacterId } fr
  * Captains who already earned one through an achievement keep it.
  */
 export const FORMER_ACHIEVEMENT_RARITY: Partial<Record<AchievementCharacterId, ChestCharacterRarity>> = {
-  chopper: "rare",
+  chopper: "common",
+  nami: "common",
+  usopp: "uncommon",
+  robin: "uncommon",
   zoro: "rare",
-  nami: "rare",
-  usopp: "rare",
-  sanji: "epic",
-  robin: "epic",
-  jinbe: "epic",
+  sanji: "rare",
+  jinbe: "rare",
   ace: "epic",
 };
 

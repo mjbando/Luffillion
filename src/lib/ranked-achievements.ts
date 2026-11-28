@@ -71,7 +71,10 @@ export function rewardChestLabel(source: string, ref: string): string {
  * achievement_unlocks under these ids; the reward is claimed into the berry ledger
  * (source "ranked-badge", ref = id), so it can only ever be paid once.
  */
-export type RankedBerryGoal = "luffillion" | "giant-slayer" | "showdowns" | "crew";
+export type RankedBerryGoal = "luffillion" | "giant-slayer" | "showdowns" | "crew" | "straw-hats";
+
+/** The base version of every Straw Hat: owning all of them earns "Straw Hat Crew". */
+export const STRAW_HAT_CREW = ["luffy", "zoro", "nami", "usopp", "sanji", "chopper", "robin", "franky", "brook", "jinbe"] as const;
 export interface RankedBerryAchievementDef {
   id: string;
   title: string;
@@ -101,6 +104,9 @@ export const RANKED_BERRY_ACHIEVEMENTS: readonly RankedBerryAchievementDef[] = [
   { id: "crew-25", goal: "crew", target: 25, berries: 500, title: "Grand Fleet",
     description: "Unlock 25 characters.",
     detail: "Every character you own counts, from chests or old achievements. Your starting Luffy doesn't." },
+  { id: "straw-hat-crew", goal: "straw-hats", target: STRAW_HAT_CREW.length, berries: 1_000, title: "Straw Hat Crew",
+    description: "Recruit the whole Straw Hat crew.",
+    detail: "The base version of every Straw Hat: Luffy, Zoro, Nami, Usopp, Sanji, Chopper, Robin, Franky, Brook and Jinbe. Other forms don't count." },
 ];
 
 export interface RankedBerryAchievementStatus extends RankedBerryAchievementDef {

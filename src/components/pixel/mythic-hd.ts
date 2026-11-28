@@ -295,7 +295,7 @@ export type Painter = (d: Detail) => void;
 const MARGIN: Partial<Record<ChestCharacterId, number>> = {
   "prime-rayleigh": 4, "blackbeard-full": 4, "kaido-hybrid": 8, "big-mom-full": 8, "luffy-gear-5-bajrang": 6,
   "zoro-conqueror": 10, "whitebeard-quake": 8, "dragon-full": 6, "mihawk-strongest": 8, "shanks-divine": 6,
-  sengoku: 10,
+  sengoku: 10, loki: 14,
 };
 
 /** Characters drawn as flat silhouettes (no light/shadow shading). */
@@ -1118,6 +1118,81 @@ function sengoku(d: Detail) {
   d.orb(d.lx + 1, d.lhy + 3, 3, BUDDHA_L).u(d.lx - 4, d.lhy - 4, 1, 1, BUDDHA_W).u(d.lx + 6, d.lhy - 6, 1, 1, BUDDHA_W);
 }
 
+/** Loki, the cursed giant prince of Elbaph: horned helm, blindfold, pink braids, fur cape and the hammer Ragnir. */
+function loki(d: Detail) {
+  const { hx, hy, hw, cx, tc, tx, ty, tw, th, sk } = d;
+  const fur = "#a87ad8", furL = "#c8a0f0", furD = "#7a4ab0", hair = "#f08ac0", black = "#1e1e26";
+  // Ragnir: a giant blue hammer resting on his shoulder, handle down past his hand.
+  const hand = { x: d.lx + 2, y: d.lhy - 10 }, top = { x: cx + hw / 2 + 12, y: hy + 2 };
+  const handle = new Map<string, string>();
+  stroke(handle, 40, (t) => [hand.x - 8 + (top.x - hand.x + 8) * t, hand.y + 12 + (top.y - hand.y - 12) * t], () => 3,
+    (t, j) => t < 0.12 ? (j === 1 ? "#8a5a3a" : "#5a3a24") : Math.floor(t * 14) % 2 && t < 0.45 ? "#f2f2f2" : j === 0 ? "#3a3a44" : "#5a5a66");
+  blob(d, handle, () => false);
+  d.asBody(() => {
+    const bx = top.x - 6, by = Math.max(1, top.y - 14), bw = 16, bh = 17;
+    for (let j = 0; j < bh; j++) for (let i = 0; i < bw; i++) d.u(bx + i, by + j, 1, 1, j < 3 ? "#8aa8f0" : i > bw - 4 ? "#3a50a8" : (i + j) % 9 === 0 ? "#6a88e0" : "#5070d0");
+    d.u(bx - 1, by - 1, bw + 2, bh + 2, "#1a2450");
+  });
+  // Huge purple fur cape behind him, from the shoulders to the floor.
+  d.asBody(() => {
+    const low = d.bottom - 3;
+    for (let y = ty - 3; y < low; y++) {
+      const spread = 10 + Math.min(8, (y - ty + 3) >> 2), jag = (y * 7) % 3;
+      for (let x = tx - spread - jag; x < tx + tw + spread + jag; x++) d.u(x, y, 1, 1, (x * 3 + y * 2) % 11 === 0 ? furL : (x + y * 3) % 7 === 0 ? furD : fur);
+    }
+    for (let x = tx - 18; x < tx + tw + 18; x += 3) { const h = 3 + ((x * 5) % 4); for (let j = 0; j < h; j++) d.u(x + (j > 1 ? 1 : 0), low + j, j < h - 1 ? 2 : 1, 1, j % 2 ? furD : fur); }
+  });
+  // Bare, muscled giant's torso with orange dragon-scale tattoos on the shoulders.
+  const ab = shade(sk, -0.24), hl = shade(sk, 0.18);
+  d.r(tc - 8, ty + 6, 7, 1, ab).r(tc + 1, ty + 6, 7, 1, ab).r(tc - 7, ty + 3, 4, 1, hl).r(tc + 3, ty + 3, 4, 1, hl).r(tc, ty + 4, 1, th - 10, ab);
+  for (let y = ty + 10; y < ty + th - 7; y += 3) d.r(tc - 5, y, 4, 1, ab).r(tc + 2, y, 4, 1, ab).r(tc - 5, y - 1, 2, 1, hl).r(tc + 4, y - 1, 2, 1, hl);
+  for (const ax of [d.lx, d.rx]) d.recolor(sk, ax - 1, ty, d.aw + 2, 12, (x, y) => ((x + (Math.floor(y / 2) % 2)) % 3 === 0 || y % 2 === 0) ? "#a8401a" : "#e8742a");
+  // Black gloves to the forearm, studded leather bands.
+  for (const [ax, ay] of [[d.lx, d.lhy], [d.rx, d.rhy]] as [number, number][]) {
+    d.recolor(sk, ax - 1, ay - 12, d.aw + 2, 14, () => black);
+    d.r(ax - 1, ay - 13, d.aw + 2, 2, "#2a2a34");
+    for (let i = 0; i < d.aw; i += 2) d.d(ax + i, ay - 13, gold);
+  }
+  // Wide studded belt with a gold skull medallion, fur trim, and a purple loincloth.
+  const by = d.legY - 6;
+  d.asBody(() => {
+    d.r(tx - 1, by - 2, tw + 2, 2, "#e8dcc0").r(tx - 1, by + 5, tw + 2, 2, "#d8ccb0");
+    for (let x = tx - 1; x < tx + tw + 1; x += 2) d.d(x, by - 3, "#e8dcc0").d(x + 1, by + 7, "#c8bca0");
+    d.r(tx - 1, by, tw + 2, 5, "#3a4a2a").r(tx - 1, by, tw + 2, 1, "#6a7a4a");
+    for (let x = tx + 1; x < tx + tw; x += 3) d.d(x, by + 2, "#c8b870");
+    d.r(tc - 3, by - 1, 6, 7, "#c8b870").r(tc - 2, by, 4, 5, "#e8d890").r(tc - 1, by + 1, 1, 1, black).r(tc + 1, by + 1, 1, 1, black).r(tc - 1, by + 3, 3, 1, "#8a7840");
+    d.r(tc - 5, by + 7, 10, 6, "#4a3a9a").r(tc - 5, by + 7, 10, 1, "#6a5ac8").d(tc - 3, by + 9, "#b8b0e8").d(tc + 3, by + 10, "#b8b0e8").d(tc, by + 11, "#b8b0e8");
+  });
+  // Fur cuffs on his tall black boots.
+  const cy = d.legY + Math.floor(d.legH / 2);
+  d.recolor("#1e1a30", d.legX - 4, cy, 44, 3, (x, y) => (x + y) % 3 === 0 ? "#c8bca0" : "#e8dcc0");
+  d.recolor("#1e1a30", d.legX - 4, d.legY, 44, d.legH + 4, (x, y) => (x * 5 + y) % 13 === 0 ? "#3a3a5a" : null);
+  // Long pink braids hanging over his chest.
+  for (const bx of [hx + 1, hx + hw - 4]) d.asBody(() => {
+    for (let y = hy + 10; y < ty + 14; y++) d.r(bx, y, 3, 1, (y >> 1) % 2 ? hair : shade(hair, -0.25)).d(bx + ((y >> 1) % 2 ? 0 : 2), y, shade(hair, 0.3));
+    d.r(bx, ty + 14, 3, 2, "#e8dcc0");
+  });
+  d.recolor(hair, hx - 6, hy - 4, hw + 12, d.hh + 16, (x, y) => (x * 2 + y) % 5 === 0 ? shade(hair, -0.3) : (x + y * 3) % 7 === 0 ? shade(hair, 0.3) : null);
+  // Bandage over his eyes, a stern jaw (clearing the low-res cape collar off his chin).
+  d.recolor(fur, hx, d.ey + 3, hw, d.hh, () => sk);
+  d.eyes("none").mouth("line");
+  d.r(hx, d.ey - 2, hw, 5, "#f2f0ea").r(hx, d.ey + 2, hw, 1, "#c8c4b8");
+  for (let x = hx + 2; x < hx + hw - 1; x += 4) d.d(x, d.ey - 1, "#d8d4c8").d(x + 1, d.ey + 1, "#d8d4c8");
+  d.f(cx - 1, d.ey + 4, 2, 3, shade(sk, -0.22));
+  // Black horned helmet: a dome with a band and two tall curved horns wrapped in white.
+  d.asBody(() => {
+    d.r(hx - 2, hy - 5, hw + 4, 8, black).r(hx, hy - 7, hw, 2, black).r(hx + 2, hy - 6, hw - 6, 2, "#3a3a48");
+    d.r(hx - 3, hy + 2, hw + 6, 2, "#2a2a34");
+  });
+  const horns = new Map<string, string>();
+  // (The canvas ends just above his head, so the horns sweep out sideways before turning up.)
+  for (const s of [-1, 1]) stroke(horns, 48, (t) => [cx + s * (hw / 2 - 2 + 9 * Math.sin(t * 1.6)), hy - 2 - 14 * t * t - 2 * t],
+    (t) => 4 * (1 - t) + 1, (t, j, w) => t > 0.25 && t < 0.6 && Math.floor(t * 20) % 2 ? "#e8e8f0" : j === w - 1 && t < 0.9 ? "#5a5a6a" : black);
+  blob(d, horns);
+  // Crackling blue sparks off Ragnir.
+  d.sparkle(top.x + 12, top.y - 4, "#bfe0ff").sparkle(top.x + 10, top.y + 12, "#bfe0ff");
+}
+
 const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
   "prime-garp": garp,
   "prime-rayleigh": rayleigh,
@@ -1156,6 +1231,7 @@ const PAINTERS: Partial<Record<ChestCharacterId, Painter>> = {
   "dragon-full": dragon,
   "mihawk-strongest": mihawk,
   sengoku,
+  loki,
 };
 
 /**

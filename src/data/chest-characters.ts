@@ -36,8 +36,6 @@ const COMMON = [
 ] as const satisfies readonly Row[];
 
 const UNCOMMON = [
-  ["nami-arlong-park", "Nami · Arlong Park", "Arlong Park Nami", "Thief of East Blue", "#fb9f4c", "Short orange hair and a bo staff, before she drew the world map for good."],
-  ["chopper-heavy-point", "Chopper · Heavy Point", "Heavy Point Chopper", "Rumble Brawler", "#d99566", "A Rumble Ball and the huge Heavy Point form. Still wearing the blue hat."],
   ["vivi", "Nefertari Vivi", "Vivi", "Princess of Alabasta", "#7fd4e8", "Blue ponytail, a peacock slasher, and a crew who calls her a friend."],
   ["karoo", "Karoo", "Karoo", "Super Spot-Billed Duck", "#f2d76d", "The fastest duck in Alabasta and Vivi's trusty steed."],
   ["don-krieg", "Don Krieg", "Krieg", "Foul Play", "#d4b13b", "Golden armor, a spear, and the Daisensō war mantle."],
@@ -147,6 +145,7 @@ const LEGENDARY = [
   ["queen", "Queen", "Queen", "The Plague", "#7cc96c", "A brachiosaurus Zoan and cyborg with a huge pompadour."],
   ["jack", "Jack", "Jack", "The Drought", "#8f7a6a", "A mammoth Zoan with tusks and a hook blade."],
   ["katakuri", "Charlotte Katakuri", "Katakuri", "Sweet Commander", "#b4386b", "A scarf over his mouth, a mochi trident, and future-seeing Haki."],
+  ["doflamingo", "Donquixote Doflamingo", "Doflamingo", "Heavenly Demon", "#ff7ab8", "A pink feather coat, red shades, an open white shirt and the strings of the Birdcage."],
   ["aokiji", "Kuzan · Aokiji", "Aokiji", "Blue Pheasant", "#7bc8f0", "Curly hair, a sleep mask, and Ice Age."],
   ["kizaru", "Borsalino · Kizaru", "Kizaru", "Yellow Monkey", "#f3d04b", "A striped yellow suit and light-speed kicks."],
   ["akainu", "Sakazuki · Akainu", "Akainu", "Red Dog", "#e2442c", "A cap, a red suit, and a magma fist."],
@@ -188,6 +187,7 @@ const MYTHIC = [
   ["dragon-full", "Monkey D. Dragon", "Dragon", "World's Worst Criminal", "#5cff9d", "The leader of the Revolutionary Army, with storms at his command."],
   ["mihawk-strongest", "Mihawk", "Mihawk", "Greatest Swordsman", "#ffd24a", "One swing of Yoru splits glaciers. No one stands above him."],
   ["sengoku", "Sengoku", "Sengoku", "The Buddha", "#ffd84a", "The golden Buddha: a giant of light with a blazing halo and a shockwave palm."],
+  ["loki", "Loki", "Loki", "Prince of Elbaph", "#b98cff", "The cursed giant prince of Elbaph: braided pink hair, a horned helm, a purple fur cape and the hammer Ragnir."],
 ] as const satisfies readonly Row[];
 
 export const CHEST_RARITIES: readonly ChestCharacterRarity[] = ["common", "uncommon", "rare", "epic", "legendary", "mythic"];

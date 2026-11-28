@@ -330,7 +330,9 @@
   linear-gradient(#101d30, #101d30) padding-box,
   linear-gradient(120deg, #fb7185, #fbbf24, #a78bfa, #67e8f9, #fb7185) border-box; background-size: 100% 100%, 300% 100%; animation: chest-mythic-border 3s linear infinite; }
 .chest-card-mythic[data-unlocked='true'] .chest-stage { background: radial-gradient(ellipse at 50% 60%, #5b2a4a, #1a1030 60%, #0d192b); }
-.chest-card-mythic[data-unlocked='true'] .chest-stage::before { content: ''; position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 60%, #fbbf2418 0 10deg, transparent 10deg 30deg); animation: chest-spin 12s linear infinite; }
+/* The spinning rays are a big square centred on the stage (wider than its diagonal), so they cover
+   the whole box at every angle; .chest-stage clips the overflow. */
+.chest-card-mythic[data-unlocked='true'] .chest-stage::before { content: ''; position: absolute; left: 50%; top: 60%; width: 300%; aspect-ratio: 1; translate: -50% -50%; background: repeating-conic-gradient(from 0deg at 50% 50%, #fbbf2418 0 10deg, transparent 10deg 30deg); animation: chest-spin 12s linear infinite; }
 @keyframes chest-spin { to { rotate: 360deg; } }
 @keyframes chest-mythic-border { to { background-position: 0 0, 300% 0; } }
 /* Legendary art carries its glow inside the sprite. No CSS filter here: animating a filter on these

@@ -143,7 +143,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
   const ranked = report?.ranked ?? [];
   const rankedBerry = report?.rankedBerryAchievements ?? [];
   const rankedEarned = ranked.filter(a => a.unlocked).length + rankedBerry.filter(a => a.unlocked).length;
-  const rankedTotal = (ranked.length || 3) + (rankedBerry.length || 6);
+  const rankedTotal = (ranked.length || 3) + (rankedBerry.length || 7);
   // Live: each place shows one fixed view. Before launch the original Badges/Characters toggle stays.
   const shown = UPDATE_LIVE ? (mode === "voyage" ? "badges" : mode === "ranked" ? "ranked" : "crew") : view;
   const heading = !UPDATE_LIVE || mode === "voyage" ? "Achievements" : mode === "ranked" ? "Ranked Achievements" : "Characters";
@@ -202,7 +202,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
               <p className="mt-0.5 text-base leading-tight text-slate-400">{a.description}</p>
               <p className="mt-1 text-base leading-tight">Reward: <span className={a.unlocked ? "text-amber-200" : "text-slate-300"}>฿{a.berries.toLocaleString()} berries</span></p>
               {a.unlocked ? <p className="mt-1 text-sm text-emerald-300">Earned{a.unlockedAt ? ` · ${dateLabel(a.unlockedAt)}` : ""}{a.claimed && <span className="text-slate-400"> · berries claimed</span>}</p> : <>
-                {a.target > 1 && <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.goal === "crew" ? `${a.progress}/${a.target} characters unlocked` : `Current run: ${a.progress}/${a.target} Showdowns won`}</p>}
+                {a.target > 1 && <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.goal === "crew" ? `${a.progress}/${a.target} characters unlocked` : a.goal === "straw-hats" ? `${a.progress}/${a.target} Straw Hats recruited` : `Current run: ${a.progress}/${a.target} Showdowns won`}</p>}
                 {a.target > 1 && <div role="progressbar" aria-label={`${a.title} progress`} aria-valuemin={0} aria-valuemax={a.target} aria-valuenow={a.progress} className="mt-1 h-1 bg-[#24334a]">
                   <div className="h-full bg-cyan-400/80 transition-[width]" style={{ width: `${Math.min(100, a.progress / a.target * 100)}%` }}/>
                 </div>}
@@ -263,7 +263,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
                 className={`px-btn mt-auto h-8 w-full text-base ${selected ? "bg-amber-300/15 text-amber-200" : "bg-[#25415a] text-cyan-100 hover:bg-[#31566e] disabled:opacity-50"}`}>
                 {selected ? "✓ Equipped" : equipping === character.id ? "Equipping…" : "Equip ▸"}
               </button> : chestRarity || UPDATE_LIVE ? <p className="mt-auto min-h-8 text-sm leading-tight" style={{ color: chestRarity ? TREASURE_RARITY_COLORS[chestRarity] : "#fcd34d" }}>
-                ◇ Find in {chestRarity === "epic" ? "an" : "a"} <span className="capitalize">{chestRarity ?? "treasure"}</span> chest
+                ◇ Find in {chestRarity && /^[aeiou]/.test(chestRarity) ? "an" : "a"} <span className="capitalize">{chestRarity ?? "treasure"}</span> chest
               </p> : <button type="button" onClick={() => { playClick(); setFilter("all"); setView("badges"); setShowRequirement(character.achievementId); }}
                 className="mt-auto min-h-8 text-left text-sm leading-tight text-slate-400 underline-offset-2 hover:text-amber-200 hover:underline" aria-label={`View ${requirement?.title} requirement`}>
                 ◇ Earn {requirement?.title}
