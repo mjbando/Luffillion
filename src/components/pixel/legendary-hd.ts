@@ -49,6 +49,7 @@ const HD_LOOK: Partial<Record<ChestCharacterId, Partial<Look>>> = {
   "killer-onigashima": { ow: true, hs: "long", t: "#2a5ab8", l: "#5a8ac8", sh: "#6a4a2a", x: [] },
   vergo: { ow: true, x: ["goatee:#16121c"] },
   doflamingo: { ow: true, x: [] },
+  enel: { ow: true, b: "big", sk: "#f2d6b4", hand: "#f2d6b4", h: "#f6f6f4", hs: "bald", hat: "bandana", hc: "#f6f6f4", t: "#f2d6b4", sl: "#f2d6b4", l: "#f0a030", sh: "#f2d6b4", x: [] },
 };
 
 /** Extra transparent canvas (HD pixels per side) for wide weapons and effects. */
@@ -56,7 +57,7 @@ const MARGIN: Partial<Record<LegendaryArtId, number>> = {
   "kozuki-oden": 10, yamato: 8, marco: 6, jozu: 2, vista: 6, king: 8, queen: 6, jack: 8, katakuri: 6,
   aokiji: 4, kizaru: 6, akainu: 4, fujitora: 4, ryokugyu: 10, tsuru: 4, "edward-weevil": 6, "benn-beckman": 6,
   "lucky-roux": 6, yasopp: 8, "rob-lucci-awakened": 4, "law-awakened": 6, "kid-awakened": 6, "sanji-ifrit-jambe": 2,
-  vergo: 4, "killer-onigashima": 8, doflamingo: 12,
+  vergo: 4, "killer-onigashima": 8, doflamingo: 12, enel: 16,
   law: 6, rayleigh: 4, whitebeard: 6, shanks: 4,
 };
 
@@ -911,6 +912,94 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
       d.r(bx, by + 2, 6, 6, "#ffffff").r(bx + 1, by + 3, 4, 4, "#f2f2f2").d(bx + 4, by + 3, ink).r(bx + 6, by + 4, 2, 1, "#f08a3a");
       d.r(bx + 1, by - 2, 4, 3, "#ffffff").r(bx, by + 1, 6, 1, "#ffffff").r(bx + 1, by, 4, 1, "#1e1e28").r(bx + 2, by + 6, 1, 3, "#c8ccd8");
     });
+  },
+  // ----- Skypiea -----
+  enel: (d) => {
+    const { hx, hy, hw, cx, tc, tx, ty, tw, th, sk, lx, rx, lhy, rhy, aw } = d;
+    const goldC = "#f2c840", goldL = "#fff0a0", goldD = "#b8862a", cream = "#f6ecc8";
+    // The ring of thunder drums behind his back: a thin pale hoop with four gold drums,
+    // each stamped with a black tomoe swirl.
+    d.asBody(() => {
+      const ox = cx, oy = hy + 7, rad = 19;
+      for (let a = 0; a < 360; a += 2) {
+        const t = (a * Math.PI) / 180, x = Math.round(ox + Math.cos(t) * rad), y = Math.round(oy - Math.sin(t) * rad);
+        if (y > ty + 6) continue;
+        d.u(x, y, 1, 1, a % 12 === 0 ? goldD : "#e8e2c8");
+      }
+      for (const deg of [152, 112, 68, 28]) {
+        const t = (deg * Math.PI) / 180, x = Math.round(ox + Math.cos(t) * rad), y = Math.round(oy - Math.sin(t) * rad);
+        for (let j = -5; j <= 5; j++) for (let i = -5; i <= 5; i++) {
+          const q = i * i + j * j;
+          if (q > 26) continue;
+          d.u(x + i, y + j, 1, 1, q > 19 ? goldD : q > 12 ? (i + j < 0 ? goldL : goldC) : cream);
+        }
+        // Tomoe: a black centre with three comma heads and curling tails.
+        for (let k = 0; k < 3; k++) {
+          const b = (k * 2 * Math.PI) / 3 + 0.3, hx2 = Math.round(x + Math.cos(b) * 1.6 - 0.5), hy2 = Math.round(y - Math.sin(b) * 1.6 - 0.5);
+          d.r(hx2, hy2, 2, 2, ink).r(Math.round(x + Math.cos(b + 1.1) * 3), Math.round(y - Math.sin(b + 1.1) * 3), 1, 1, "#2a2030");
+        }
+      }
+    });
+    // The long golden staff, held diagonally behind him from over his left shoulder to past his right foot.
+    d.asBody(() => {
+      const x0 = d.W - 3, y0 = hy - 4, x1 = 3, y1 = d.bottom - 1;
+      d.line(x0, y0, x1, y1, goldD, true).line(x0 - 1, y0, x1 - 1, y1, goldC, true).line(x0 - 1, y0 - 1, x1 - 1, y1 - 1, goldL, true).line(x0, y0 + 1, x1, y1 + 1, "#7a5a1a", true);
+      for (const [x, y] of [[x0 - 1, y0], [x1, y1 - 1]]) d.r(x - 1, y - 1, 3, 3, goldD).r(x, y - 1, 1, 1, goldL); // capped ends
+    });
+    // A white bandana pulled tight over his bald head, and those long, stretched earlobes.
+    d.recolor("#f6f6f4", hx - 2, hy - 4, hw + 4, 10, (x, y) => y === hy + 4 ? "#d8d8d4" : (x + y) % 9 === 0 ? "#e4e4e0" : null);
+    // Each lobe covers the jaw outline so it hangs straight off the face, with its edge on the outside.
+    for (const left of [true, false]) d.asBody(() => {
+      const x0 = left ? hx - 2 : hx + hw - 1, outer = left ? x0 : x0 + 2, inner = left ? x0 + 1 : x0 + 1;
+      d.r(x0, d.ey + 2, 3, 8, sk).r(inner, d.ey + 3, 1, 6, shade(sk, -0.14)).r(outer, d.ey + 2, 1, 8, shade(sk, -0.42)).r(x0, d.ey + 10, 3, 1, shade(sk, -0.42)).r(inner, d.ey + 9, 1, 1, shade(sk, 0.15));
+    });
+    // Clear the low-res cheek marks so his face stays smooth.
+    d.r(hx + 1, d.ey + 4, 6, 2, sk).r(hx + hw - 7, d.ey + 4, 6, 2, sk);
+    d.eyes("stern", "#2a2a3a").mouth("smirk");
+    d.f(cx - 1, d.ey + 4, 2, 2, shade(sk, -0.18)); // nose
+    // Bare, ripped torso with a thin cord necklace. The base shirt is skin-coloured, so first wipe
+    // the collar seam it leaves under the chin, then add a soft neck shadow.
+    d.r(tx + 3, ty, tw - 6, 4, sk).r(cx - 4, ty, 8, 1, shade(sk, -0.16)).r(cx - 3, ty + 1, 6, 1, shade(sk, -0.08));
+    muscles(d, 3, ty + 2);
+    for (let i = 0; i < 4; i++) d.d(tc - 5 + i, ty + 2 + i, "#a08060").d(tc + 4 - i, ty + 2 + i, "#a08060");
+    d.r(tc - 1, ty + 6, 2, 2, goldC).d(tc - 1, ty + 6, goldL);
+    // Stacked gold bracelets on both wrists.
+    for (const [ax, hyy] of [[lx, lhy], [rx, rhy]] as const) for (let k = 0; k < 3; k++) d.r(ax, hyy - 5 + k * 2, aw, 1, k % 2 ? goldD : goldC).d(ax + 1, hyy - 5 + k * 2, goldL);
+    // Puffy orange pants, patterned with navy scallops and a dotted navy band.
+    // Balloon the legs out a couple of pixels so the pants look puffy, then pattern them.
+    d.asBody(() => {
+      for (let y = d.legY + 2; y < d.bottom - 6; y++) {
+        const row = [...Array(d.W).keys()].filter((x) => { const c = d.at(x, y); return c !== null && c !== ink && x > tx - 4 && x < tx + tw + 4; });
+        if (!row.length) continue;
+        const bulge = y > d.legY + 4 && y < d.bottom - 8 ? 2 : 1, x0 = Math.min(...row), x1 = Math.max(...row);
+        d.r(x0 - bulge, y, bulge, 1, "#f0a030").r(x1 + 1, y, bulge, 1, "#f0a030");
+      }
+    });
+    d.recolor("#f0a030", 0, d.legY, d.W, d.legH + 4, (x, y) => {
+      const yy = y - d.legY;
+      if (yy === 9 || yy === 10) return (x + yy) % 3 === 0 ? "#f6c040" : "#24305a";
+      return ((x + 60 + Math.abs((y % 6) - 3)) % 4 === 0) ? "#24305a" : (x + y) % 4 === 1 ? "#ffc060" : null;
+    });
+    // Teal cloth wrapped over the hips, hanging in a point at the front.
+    const cy0 = ty + th - 4;
+    for (let j = 0; j < 7; j++) {
+      const half = Math.max(1, Math.round(tw / 2 + 1 - Math.max(0, j - 1) * 2.2));
+      d.asBody(() => d.r(tc - half, cy0 + j, half * 2, 1, j % 4 === 3 ? "#3a7a74" : "#4fa69c"));
+      d.d(tc - half, cy0 + j, "#2a5a56").d(tc + half - 1, cy0 + j, "#2a5a56");
+      if (j > 2 && j % 3 === 0) d.d(tc - 2, cy0 + j, "#7ac8be");
+    }
+    // Purple sash knotted at the waist, one long tail hanging down his right side.
+    d.asBody(() => {
+      d.r(tx - 1, cy0 - 1, tw + 2, 3, "#5a3ab0").r(tx - 1, cy0 - 1, tw + 2, 1, "#7a5ad0").r(tx - 1, cy0 + 1, tw + 2, 1, "#3e2680");
+      d.r(tx - 3, cy0, 4, 3, "#5a3ab0").d(tx - 2, cy0, "#8a6ae0");
+      for (let k = 0; k < 18; k++) d.r(tx - 4 + (k > 8 ? -1 : 0), cy0 + 3 + k, 3, 1, k % 4 === 0 ? "#3e2680" : "#5a3ab0").d(tx - 4 + (k > 8 ? -1 : 0), cy0 + 3 + k, "#7a5ad0");
+    });
+    // Gold anklets above bare feet.
+    d.recolor(sk, 0, d.bottom - 6, d.W, 2, () => goldC);
+    for (let x = 0; x < d.W; x++) if (d.at(x, d.bottom - 6) === goldC && x % 3 === 0) d.d(x, d.bottom - 6, goldL);
+    // A few crackles of his 200 million volts.
+    d.sparkle(cx - 22, hy - 2, "#fff6a0").sparkle(cx + 22, hy + 22, "#fff6a0");
+    d.bolt(tx + tw + 6, ty + 4, 1, 5, "#fff04a", "#ffffff");
   },
   // ----- Donquixote Family -----
   doflamingo: (d) => {

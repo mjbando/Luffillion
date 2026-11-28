@@ -14,6 +14,7 @@ import { RequestProblem } from "./account-server";
 import { COINS_PER_RANKED_WIN } from "./coins";
 import { creditCoins } from "./currency-server";
 import { equippedCharacterFor } from "./crew-server";
+import { RANKED_BERRY_ACHIEVEMENTS } from "./ranked-achievements";
 import { rankedBerryUnlocksSince, recordShowdownResult, unlockRankedBerryAchievement } from "./berries-server";
 import {
   RANKED_INTRO_MS,
@@ -415,6 +416,14 @@ async function finalizeMatch(
     const tierIndex = rankIndexFor;
     if (p1Outcome === "win" && tierIndex(rp2.points) > tierIndex(rp1.points)) await unlockRankedBerryAchievement(tx, fresh.player1Id, "ranked-giant-slayer");
     if (p2Outcome === "win" && tierIndex(rp1.points) > tierIndex(rp2.points)) await unlockRankedBerryAchievement(tx, fresh.player2Id, "ranked-giant-slayer");
+    // Ranked win milestones (total wins) and the comeback win.
+    const winGoals = RANKED_BERRY_ACHIEVEMENTS.filter((a) => a.goal === "wins");
+    for (const [won, id, total] of [[p1Outcome === "win", fresh.player1Id, rp1.wins + 1], [p2Outcome === "win", fresh.player2Id, rp2.wins + 1]] as const) {
+      if (!won) continue;
+      for (const goal of winGoals) if (total >= goal.target) await unlockRankedBerryAchievement(tx, id, goal.id);
+    }
+    if (p1Outcome === "win" && fresh.state.comeback?.p1) await unlockRankedBerryAchievement(tx, fresh.player1Id, "ranked-comeback");
+    if (p2Outcome === "win" && fresh.state.comeback?.p2) await unlockRankedBerryAchievement(tx, fresh.player2Id, "ranked-comeback");
     // Every berry achievement earned during this battle shows up on the results screen.
     p1Rewards = [...p1Rewards, ...await rankedBerryUnlocksSince(tx, fresh.player1Id, fresh.createdAt)];
     p2Rewards = [...p2Rewards, ...await rankedBerryUnlocksSince(tx, fresh.player2Id, fresh.createdAt)];
@@ -514,6 +523,9 @@ async function advanceMatch(tx: Tx, match: MatchRow): Promise<MatchRow> {
     const loser: RankedRoundState["loser"] = p1Hit && p2Hit ? "both" : p1Hit ? "p1" : p2Hit ? "p2" : null;
     if (p1Hit) state.p1.lives = Math.max(0, state.p1.lives - 1);
     if (p2Hit) state.p2.lives = Math.max(0, state.p2.lives - 1);
+    // Comeback watch: remember anyone who fell to their last life while the opponent still had 3.
+    if (state.p1.lives === 1 && state.p2.lives >= RANKED_STARTING_LIVES) state.comeback = { ...state.comeback, p1: true };
+    if (state.p2.lives === 1 && state.p1.lives >= RANKED_STARTING_LIVES) state.comeback = { ...state.comeback, p2: true };
 
     // Showdown meter: both answering fills it; a miss empties it. A decided
     // Showdown resets it, a tied one (same tier) goes to sudden death.

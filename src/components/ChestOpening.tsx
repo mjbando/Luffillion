@@ -88,38 +88,6 @@ function Seal({ className }: { className: string }) {
   );
 }
 
-/** Legendary: a pixel-art gold crown with pearls and sapphires and a light glint sweeping across it. */
-const CROWN = [
-  "......w......",
-  "..w..wlw..w..",
-  ".wlw..y..wlw.",
-  "..y..yly..y..",
-  "..yy.yly.yy..",
-  "..ylyylyylyy.",
-  ".dyyyyyyyyyd.",
-  ".dybywybywyd.",
-  ".dyyyyyyyyyd.",
-  "..ddddddddd..",
-];
-const CROWN_INK: Record<string, string> = { y: "#fbbf24", l: "#fef3c7", d: "#b45309", w: "#ffffff", b: "#3b82f6" };
-function Crown({ className }: { className: string }) {
-  const cells = CROWN.flatMap((row, y) => [...row].map((c, x) => ({ c, x, y })).filter((p) => p.c !== "."));
-  return (
-    <div className={className} aria-hidden="true">
-      <svg viewBox="-0.5 -0.5 14 11" shapeRendering="crispEdges">
-        <defs>
-          <linearGradient id="tc-crown-glint" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="5" y2="10">
-            <stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset=".5" stopColor="#fff" stopOpacity=".9" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
-            <animateTransform attributeName="gradientTransform" type="translate" values="-8 0; 18 0; 18 0" keyTimes="0; .45; 1" dur="2.4s" repeatCount="indefinite" />
-          </linearGradient>
-        </defs>
-        {cells.map((p) => <rect key={`${p.x}-${p.y}`} x={p.x} y={p.y} width="1.02" height="1.02" fill={CROWN_INK[p.c]} />)}
-        {cells.map((p) => <rect key={`g${p.x}-${p.y}`} x={p.x} y={p.y} width="1.02" height="1.02" fill="url(#tc-crown-glint)" />)}
-      </svg>
-    </div>
-  );
-}
-
 function label(rarity: string) {
   return rarity[0].toUpperCase() + rarity.slice(1);
 }
@@ -327,7 +295,6 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
         <div className="tc-chest-zone">
           {rank >= 5 && (phase === "crack" || phase === "burst" || phase === "rise") && <Seal className="tc-seal-floor" />}
           {opened && phase !== "reveal" && <div className="tc-beam" aria-hidden="true" />}
-          {rank === 4 && (phase === "burst" || phase === "rise") && <Crown className={`tc-crown tc-crown-${phase}`} />}
 
           {orbCount > 0 && (
             <div className="tc-orbs" aria-hidden="true">
@@ -380,7 +347,6 @@ export default function ChestOpening({ chest, reward, coins, onAgain, onClose, f
 
           {phase === "reveal" && reward && character && (
             <div className="tc-card" role="status" aria-live="polite">
-              {rank === 4 && <Crown className="tc-crown tc-crown-card" />}
               {fx.twinkles.length > 0 && (
                 <div className="tc-twinkles" aria-hidden="true">
                   {fx.twinkles.map((tw) => <span key={tw.id} style={{ left: tw.x, top: tw.y, width: tw.size, height: tw.size, animationDelay: `${tw.delay}s` } as CSSProperties} />)}

@@ -76,7 +76,6 @@ const RARE = [
   ["crocodile", "Crocodile", "Crocodile", "Desert King", "#cfa86a", "Slicked hair, a fur coat, a golden hook, and a lot of sand."],
   ["daz-bones", "Daz Bones · Mr. 1", "Mr. 1", "Killer", "#bfc8d4", "A bald killer whose whole body is a blade."],
   ["bon-clay", "Bon Clay", "Bon Clay", "Okama Way", "#ff8cc6", "Swan coat, ballet moves, and the Clone-Clone Fruit. A true friend!"],
-  ["enel", "Enel", "Enel", "God of Skypiea", "#f2d24a", "Long earlobes, drums on his back, and 200 million volts."],
   ["wyper", "Wyper", "Wyper", "War Demon", "#d46a4a", "A Shandia warrior with a Reject Dial and a feather headdress."],
   ["ohm", "Ohm", "Ohm", "Sky Knight Priest", "#e3e7ee", "An iron-cloud sword and his dog, Holy."],
   ["satori", "Satori", "Satori", "Ball Priest", "#f0c77a", "A round priest who sets ball traps and uses mantra."],
@@ -162,6 +161,7 @@ const LEGENDARY = [
   ["sanji-ifrit-jambe", "Sanji · Ifrit Jambe", "Ifrit Sanji", "Blue Flame Kicker", "#5ab0ff", "Sanji's legs burning with blue Ifrit flames."],
   ["vergo", "Vergo", "Vergo", "Demon Bamboo", "#b07ae8", "Armament Haki over his whole body, and a bamboo stick harder than steel."],
   ["killer-onigashima", "Killer · Onigashima", "Onigashima Killer", "Kamazo", "#7fc0f0", "Killer at Onigashima: the striped mask, a wild blond mane and the Punisher's scythes."],
+  ["enel", "Enel", "Enel", "God of Skypiea", "#f2d24a", "The self-proclaimed God of Skypiea: long earlobes, the thunder drums on his back, a golden staff and 200 million volts."],
 ] as const satisfies readonly Row[];
 
 const MYTHIC = [

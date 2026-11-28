@@ -71,7 +71,7 @@ export function rewardChestLabel(source: string, ref: string): string {
  * achievement_unlocks under these ids; the reward is claimed into the berry ledger
  * (source "ranked-badge", ref = id), so it can only ever be paid once.
  */
-export type RankedBerryGoal = "luffillion" | "giant-slayer" | "showdowns" | "crew" | "straw-hats";
+export type RankedBerryGoal = "wins" | "comeback" | "luffillion" | "giant-slayer" | "showdowns" | "crew" | "straw-hats";
 
 /** The base version of every Straw Hat: owning all of them earns "Straw Hat Crew". */
 export const STRAW_HAT_CREW = ["luffy", "zoro", "nami", "usopp", "sanji", "chopper", "robin", "franky", "brook", "jinbe"] as const;
@@ -86,6 +86,21 @@ export interface RankedBerryAchievementDef {
 }
 
 export const RANKED_BERRY_ACHIEVEMENTS: readonly RankedBerryAchievementDef[] = [
+  { id: "ranked-wins-1", goal: "wins", target: 1, berries: 50, title: "First Blood",
+    description: "Win a ranked battle.",
+    detail: "Any ranked win counts. Friendly and bot battles don't." },
+  { id: "ranked-wins-10", goal: "wins", target: 10, berries: 100, title: "Rising Rookie",
+    description: "Win 10 ranked battles.",
+    detail: "Total ranked wins, not in a row. Friendly and bot battles don't count." },
+  { id: "ranked-wins-50", goal: "wins", target: 50, berries: 250, title: "Supernova",
+    description: "Win 50 ranked battles.",
+    detail: "Total ranked wins, not in a row. Friendly and bot battles don't count." },
+  { id: "ranked-wins-100", goal: "wins", target: 100, berries: 1_000, title: "Pirate Emperor",
+    description: "Win 100 ranked battles.",
+    detail: "Total ranked wins, not in a row. Friendly and bot battles don't count." },
+  { id: "ranked-comeback", goal: "comeback", target: 1, berries: 100, title: "Never Give Up",
+    description: "Win a ranked battle after being down to 1 life while your opponent had all 3.",
+    detail: "Fall to your last life while your opponent still has 3, then come back and win. Ranked battles only." },
   { id: "ranked-luffillion", goal: "luffillion", target: 1, berries: 300, title: "One in a Luffillion",
     description: "Land a One in a Luffillion answer in a ranked battle.",
     detail: "Any 100-point pull in a ranked battle counts. Friendly and bot battles don't." },

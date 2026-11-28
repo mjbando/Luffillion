@@ -281,7 +281,7 @@
 @keyframes tc-nova { 0% { scale: .1; opacity: 1; rotate: 0deg; } 100% { scale: 2.6; opacity: 0; rotate: 40deg; } }
 /* ── Legendary: royal treasure vault ──
    Warm gold light floods out of the chest, gold dust drifts up, the lid blasts off in a clean gold
-   flash and a jewelled crown rises out of the treasure, then sits on top of the reveal card. */
+   flash and gold sparkles burst out around the reveal. */
 .tc-royal-glow { position: absolute; inset: 0; pointer-events: none; opacity: 0;
   background: radial-gradient(ellipse 60% 55% at 50% 48%, #fde68a55 0, #f59e0b22 40%, transparent 70%);
   animation: tc-royal-in var(--tc-crack-ms) ease-in forwards; }
@@ -293,15 +293,6 @@
 .tc-phase-crack.tc-rank-4 .tc-chest { filter: drop-shadow(0 0 10px #fbbf24) drop-shadow(0 0 2px #fff7d6); }
 .tc-rank-4 .tc-flash { background: radial-gradient(circle at 50% 46%, #fffdf2, #fde68a 45%, #f59e0b); }
 .tc-rank-4 .tc-embers span { box-shadow: 0 0 5px currentColor; }
-
-.tc-crown { position: absolute; left: 50%; pointer-events: none; filter: drop-shadow(0 0 1px #5b3305) drop-shadow(0 0 1px #5b3305) drop-shadow(0 0 12px #fbbf24aa); }
-.tc-crown svg { display: block; width: 100%; height: 100%; }
-.tc-crown-burst, .tc-crown-rise { top: -18px; width: 104px; height: 82px; z-index: 4; translate: -50% 0; animation: tc-crown-rise 1s cubic-bezier(.2, 1.4, .4, 1) both; }
-.tc-crown-rise { top: -78px; animation: tc-crown-hover 1.6s ease-in-out infinite; }
-@keyframes tc-crown-rise { 0% { transform: translateY(70px) scale(.2); opacity: 0; } 60% { opacity: 1; } 100% { transform: translateY(-50px) scale(1); opacity: 1; } }
-@keyframes tc-crown-hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-.tc-crown-card { top: -34px; left: -26px; width: 64px; height: 50px; z-index: 4; rotate: -22deg; animation: tc-crown-land .7s cubic-bezier(.2, 1.5, .4, 1) .25s both; }
-@keyframes tc-crown-land { 0% { transform: translateY(-60px) scale(1.4); opacity: 0; } 100% { transform: none; opacity: 1; } }
 
 /* Four-point sparkles that twinkle in place around the card. */
 .tc-twinkles { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 4; pointer-events: none; }

@@ -84,12 +84,18 @@ export async function loadRankedBerryAchievements(tx: Executor, accountId: strin
     tx.select({ id: achievementUnlocks.achievementId, at: achievementUnlocks.unlockedAt }).from(achievementUnlocks)
       .where(and(eq(achievementUnlocks.accountId, accountId), inArray(achievementUnlocks.achievementId, ids))),
     claimedRefs(tx, accountId, RANKED_BADGE_SOURCE),
-    tx.select({ showdownStreak: rankedProfiles.showdownStreak }).from(rankedProfiles).where(eq(rankedProfiles.accountId, accountId)).limit(1),
+    tx.select({ showdownStreak: rankedProfiles.showdownStreak, wins: rankedProfiles.wins }).from(rankedProfiles).where(eq(rankedProfiles.accountId, accountId)).limit(1),
   ]);
   const unlockedAt = new Map(unlocks.map((row) => [row.id, row.at]));
+  // Win milestones also count ranked wins from before they existed; wins never go down.
+  for (const def of RANKED_BERRY_ACHIEVEMENTS) {
+    if (def.goal !== "wins" || unlockedAt.has(def.id) || (profile?.wins ?? 0) < def.target) continue;
+    if (await unlockRankedBerryAchievement(tx, accountId, def.id)) unlockedAt.set(def.id, new Date());
+  }
   return RANKED_BERRY_ACHIEVEMENTS.map((def) => {
     const at = unlockedAt.get(def.id);
-    const progress = at ? def.target : characterProgress(def.goal) ?? (def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : 0);
+    const progress = at ? def.target : characterProgress(def.goal)
+      ?? (def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : def.goal === "wins" ? profile?.wins ?? 0 : 0);
     return { ...def, unlocked: Boolean(at), unlockedAt: at?.toISOString() ?? null, claimed: claimed.has(def.id), progress: Math.min(progress, def.target) };
   });
 }

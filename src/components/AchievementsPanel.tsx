@@ -210,7 +210,7 @@ export default function AchievementsPanel({ captain, refreshKey, onUnlock, equip
               <p className="mt-0.5 text-base leading-tight text-slate-400">{a.description}</p>
               <p className="mt-1 text-base leading-tight">Reward: <span className={a.unlocked ? "text-amber-200" : "text-slate-300"}>฿{a.berries.toLocaleString()} berries</span></p>
               {a.unlocked ? <p className="mt-1 text-sm text-emerald-300">Earned{a.unlockedAt ? ` · ${dateLabel(a.unlockedAt)}` : ""}{a.claimed && <span className="text-slate-400"> · berries claimed</span>}</p> : <>
-                {a.target > 1 && <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.goal === "crew" ? `${a.progress}/${a.target} characters unlocked` : a.goal === "straw-hats" ? `${a.progress}/${a.target} Straw Hats recruited` : `Current run: ${a.progress}/${a.target} Showdowns won`}</p>}
+                {a.target > 1 && <p className="mt-1 text-sm leading-tight text-cyan-200/70">{a.goal === "crew" ? `${a.progress}/${a.target} characters unlocked` : a.goal === "straw-hats" ? `${a.progress}/${a.target} Straw Hats recruited` : a.goal === "wins" ? `${a.progress}/${a.target} ranked wins` : `Current run: ${a.progress}/${a.target} Showdowns won`}</p>}
                 {a.target > 1 && <div role="progressbar" aria-label={`${a.title} progress`} aria-valuemin={0} aria-valuemax={a.target} aria-valuenow={a.progress} className="mt-1 h-1 bg-[#24334a]">
                   <div className="h-full bg-cyan-400/80 transition-[width]" style={{ width: `${Math.min(100, a.progress / a.target * 100)}%` }}/>
                 </div>}

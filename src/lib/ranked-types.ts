@@ -68,6 +68,8 @@ export interface RankedMatchState {
   rounds: Record<number, RankedRoundState>;
   /** Consecutive normal rounds where both players answered correctly. */
   bothAnsweredStreak?: number;
+  /** Players who were down to 1 life while their opponent had 3 (for the comeback achievement). */
+  comeback?: { p1?: boolean; p2?: boolean };
   result?: RankedMatchResult;
 }
 

@@ -51,9 +51,6 @@ const RARES: Partial<Record<ChestCharacterId, Rare>> = {
     for (const x of [d.L, d.R]) d.f(x, d.ey - 2, 3, 1, "#4a8ae8");
     d.r(d.tc - 3, d.ty, 6, 2, white);
   } },
-  enel: { eyes: "stern", iris: "#3a2a1a", mouth: "smirk", touch: (d) => {
-    d.bolt(d.rx + 4, d.rhy - 12, 1, 6, "#fff04a", "#ffffff");
-  } },
   wyper: { eyes: "glare", iris: "#2a1a1a", mouth: "line", touch: (d) => {
     d.wipeScar();
     for (const x of [d.L, d.R]) d.f(x + 1, d.ey + 2, 1, 3, "#202020");

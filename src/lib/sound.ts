@@ -526,6 +526,21 @@ export function playChestCharge(step: number): void {
   playNoise(a.ctx, a.out, t, 0, 0.09, 0.07 + step * 0.012, "bandpass", 700 + step * 160, 300);
   playTone(a.ctx, a.out, t, { freq: f, start: 0.02, dur: 0.2, type: "triangle", vol: 0.16 + step * 0.01 });
   playTone(a.ctx, a.out, t, { freq: f * 2, start: 0.02, dur: 0.12, type: "sine", vol: 0.05 });
+  if (step === 4) {
+    // The glow turns gold: a deep thump and a bright royal bell.
+    const wet = getVerb(a.ctx, a.out);
+    playTone(a.ctx, a.out, t, { freq: 98, slideTo: 49, dur: 0.35, type: "sine", vol: 0.34, attack: 0.002 });
+    metal(a.ctx, wet, t, 1174.66, 0.02, 0.9, 0.06, [1, 2.76, 5.4]);
+    coins(a.ctx, wet, t, 0.04, 6, 0.3, 0.03, 4);
+  }
+  if (step >= 5) {
+    // The glow tears into the cosmos: a dark boom, a crackle and a reversed shimmer.
+    const wet = getVerb(a.ctx, a.out);
+    playTone(a.ctx, a.out, t, { freq: 72, slideTo: 30, dur: 0.6, type: "sine", vol: 0.42, attack: 0.002 });
+    zap(a.ctx, pan(a.ctx, a.out, -0.6), t, 0.03, 0.08, 1.4);
+    zap(a.ctx, pan(a.ctx, a.out, 0.6), t, 0.11, 0.08, 1.1);
+    metal(a.ctx, wet, t, 1479.98, 0.02, 1.1, 0.05, [1, 2.4, 3.9]);
+  }
 }
 
 /** Lid-burst fanfare that grows with the reward rarity (0 = common … 5 = mythic). */
@@ -534,6 +549,8 @@ export function playChestBurst(rank: number): void {
   if (!a) return;
   const { ctx, out } = a;
   const t = ctx.currentTime;
+  if (rank === 4) return legendaryBurst(ctx, out, getVerb(ctx, out), t);
+  if (rank >= 5) return mythicBurst(ctx, out, getVerb(ctx, out), t);
   // Lid pop for every chest.
   playNoise(ctx, out, t, 0, 0.18, 0.12, "lowpass", 2400, 300);
   playTone(ctx, out, t, { freq: 180, slideTo: 70, dur: 0.18, type: "sine", vol: 0.3 });
@@ -546,27 +563,10 @@ export function playChestBurst(rank: number): void {
     if (rank >= 2) playTone(ctx, out, t, { freq: arp[i] / 2, start: 0.05 + i * 0.07, dur: 0.14, type: "sawtooth", vol: 0.06, filterHz: 1800 });
   }
   if (rank >= 3) {
-    // Epic+: sweeping whoosh and a held power chord.
+    // Epic: sweeping whoosh and a held power chord.
     playNoise(ctx, out, t, 0.02, 0.5, 0.1, "bandpass", 500, 6000);
     const hold = 0.05 + notes * 0.07;
     for (const f of [523.25, 659.25, 783.99]) playTone(ctx, out, t, { freq: f, start: hold, dur: 0.7, type: "triangle", vol: 0.1 });
-  }
-  if (rank >= 4) {
-    // Legendary+: deep impact and sparkling bells.
-    playTone(ctx, out, t, { freq: 110, slideTo: 40, dur: 0.5, type: "sine", vol: 0.42, attack: 0.004 });
-    [1760, 2093, 2637].forEach((f, i) => playTone(ctx, out, t, { freq: f, start: 0.5 + i * 0.09, dur: 0.3, type: "sine", vol: 0.08 }));
-  }
-  if (rank === 4) {
-    // Legendary: the lid blasts off — a bright bell strike and a glittering cascade of gold.
-    const wet = getVerb(ctx, out);
-    metal(ctx, wet, t, 392, 0, 1.6, 0.07, [1, 2.76, 5.4]);
-    for (let i = 0; i < 9; i++) playTone(ctx, wet, t, { freq: 3135.96 / Math.pow(2, (i * 2) / 12), start: 0.05 + i * 0.045, dur: 0.35, type: "sine", vol: 0.035 });
-  }
-  if (rank >= 5) {
-    // Mythic: second shockwave and a rising shimmer.
-    playTone(ctx, out, t, { freq: 90, slideTo: 32, start: 0.55, dur: 0.6, type: "sine", vol: 0.4, attack: 0.004 });
-    playTone(ctx, out, t, { freq: 880, slideTo: 3520, start: 0.6, dur: 0.9, type: "sine", vol: 0.07 });
-    playNoise(ctx, out, t, 0.55, 0.9, 0.08, "highpass", 3000, 9000);
   }
 }
 
@@ -583,26 +583,17 @@ export function playChestThud(): void {
 export function playChestCrack(rank: number): void {
   const a = getAudio();
   if (!a) return;
-  const t = a.ctx.currentTime;
+  const { ctx, out } = a;
+  const t = ctx.currentTime;
+  if (rank === 4) return legendaryCrack(ctx, out, getVerb(ctx, out), t);
+  if (rank >= 5) return mythicCrack(ctx, out, getVerb(ctx, out), t);
   const beats = 2 + Math.min(3, Math.floor(rank / 2));
   for (let i = 0; i < beats; i++) {
     const s = i * Math.max(0.16, 0.34 - rank * 0.03);
-    playTone(a.ctx, a.out, t, { freq: 70, slideTo: 48, start: s, dur: 0.12, type: "sine", vol: 0.32 });
-    playNoise(a.ctx, a.out, t, s + 0.02, 0.05, 0.05, "highpass", 2600, 0);
+    playTone(ctx, out, t, { freq: 70, slideTo: 48, start: s, dur: 0.12, type: "sine", vol: 0.32 });
+    playNoise(ctx, out, t, s + 0.02, 0.05, 0.05, "highpass", 2600, 0);
   }
-  playNoise(a.ctx, a.out, t, 0, 0.6 + rank * 0.1, 0.04, "bandpass", 300, 4200);
-  if (rank === 4) {
-    // The vault: a warm low hum while a harp climbs as gold light pours out of the seams.
-    drone(a.ctx, a.out, t, 0, 1.6, [73.42, 110], 0.04, 520);
-    harp(a.ctx, a.out, t, 0.1, [293.66, 369.99, 440, 587.33, 739.99, 880, 1174.66], 0.18, 0.07);
-  }
-  if (rank >= 5) {
-    // Reality tearing: sub swell, glitch zaps and a reverse riser into the burst.
-    drone(a.ctx, a.out, t, 0, 1.9, [36.71, 55, 73.42], 0.06, 300);
-    for (let i = 0; i < 10; i++) zap(a.ctx, a.out, t, 0.1 + i * 0.16, 0.06, 1 + (i % 3) * 0.5);
-    playNoise(a.ctx, a.out, t, 0.2, 1.6, 0.09, "bandpass", 200, 8000);
-    playTone(a.ctx, a.out, t, { freq: 110, slideTo: 880, start: 0.3, dur: 1.5, type: "sawtooth", vol: 0.04, filterHz: 2400, attack: 1.2 });
-  }
+  playNoise(ctx, out, t, 0, 0.6 + rank * 0.1, 0.04, "bandpass", 300, 4200);
 }
 
 /** The recruit's silhouette floats out of the chest. Legendary and Mythic get a full build-up. */
@@ -610,32 +601,11 @@ export function playChestRise(rank: number): void {
   const r = arena();
   if (!r) return;
   const { ctx, out, wet, t } = r;
+  if (rank === 4) return legendaryRise(ctx, out, wet, t);
+  if (rank >= 5) return mythicRise(ctx, out, wet, t);
   const dur = 0.9 + rank * 0.15;
   playTone(ctx, out, t, { freq: 220, slideTo: 880 + rank * 120, dur, type: "triangle", vol: 0.08 });
   playTone(ctx, out, t, { freq: 330, slideTo: 1320 + rank * 160, dur, type: "sine", vol: 0.05 });
-  if (rank === 4) {
-    // Legendary: a warm royal hum, two timpani heartbeats, a harp glissando, a soft choir and a
-    // swelling riser into the reveal.
-    drone(ctx, out, t, 0, 2.1, [73.42, 110, 146.83], 0.05, 600, 0.6);
-    taiko(ctx, out, t, 0.05, 0.42, 0.9); taiko(ctx, wet, t, 0.05, 0.2, 0.9);
-    taiko(ctx, out, t, 0.85, 0.46, 0.9); taiko(ctx, wet, t, 0.85, 0.22, 0.9);
-    taiko(ctx, out, t, 1.45, 0.36); taiko(ctx, out, t, 1.65, 0.4); taiko(ctx, out, t, 1.82, 0.44);
-    harp(ctx, wet, t, 0.3, [293.66, 369.99, 440, 587.33, 739.99, 880, 1174.66, 1479.98, 1760], 0.11, 0.06);
-    choir(ctx, out, wet, t, [293.66, 369.99, 440], 0.4, 1.7, 0.022, 1.1);
-    playNoise(ctx, out, t, 0.6, 1.45, 0.08, "bandpass", 300, 7000); // riser
-    playNoise(ctx, wet, t, 1.2, 0.85, 0.08, "highpass", 2000, 9000); // reverse-cymbal swell
-  }
-  if (rank >= 5) {
-    // Mythic: an angelic choir swells over a sub drone while a timpani roll accelerates and
-    // a glissando climbs through the roof.
-    drone(ctx, out, t, 0, 2.4, [36.71, 55], 0.08, 260, 0.8);
-    choir(ctx, out, wet, t, [146.83, 220, 293.66, 369.99], 0.1, 2.3, 0.03, 1.4);
-    let at = 0.1;
-    for (let i = 0; i < 16; i++) { taiko(ctx, out, t, at, 0.18 + i * 0.018, 0.75 + i * 0.02); at += Math.max(0.05, 0.26 - i * 0.014); }
-    for (const f of [220, 330, 440]) playTone(ctx, out, t, { freq: f, slideTo: f * 4, start: 0.2, dur: 2.1, type: "sine", vol: 0.035, attack: 0.6 });
-    playNoise(ctx, out, t, 0.4, 1.9, 0.11, "bandpass", 200, 9000);
-    playNoise(ctx, wet, t, 1.4, 0.9, 0.12, "highpass", 1800, 10000);
-  }
 }
 
 /** Final reveal sting: a short chord, a royal fanfare for Legendary, an epic finale for Mythic. */
@@ -643,48 +613,291 @@ export function playChestReveal(rank: number): void {
   const r = arena();
   if (!r) return;
   const { ctx, out, wet, t } = r;
-  if (rank < 4) {
-    const chord = [523.25, 659.25, 783.99];
-    chord.forEach((f, i) => playTone(ctx, out, t, { freq: f, start: i * 0.03, dur: 0.6 + rank * 0.1, type: "triangle", vol: 0.1 }));
-    return;
+  if (rank === 4) return legendaryReveal(ctx, out, wet, t);
+  if (rank >= 5) return mythicReveal(ctx, out, wet, t);
+  const chord = [523.25, 659.25, 783.99];
+  chord.forEach((f, i) => playTone(ctx, out, t, { freq: f, start: i * 0.03, dur: 0.6 + rank * 0.1, type: "triangle", vol: 0.1 }));
+}
+
+/* ---------- Legendary: the royal treasure vault (D major) ----------
+   Phase lengths come from ChestOpening: crack 1.61s, burst 1.89s, rise 2.07s. */
+
+function legendaryCrack(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // Gold light leaks out: a warm hum, the wood creaking, coins starting to trickle and a harp climbing,
+  // all pulled into a reversed swell that lands on the lid blast.
+  drone(ctx, out, t, 0, 1.65, [73.42, 110, 146.83], 0.035, 560, 0.5);
+  for (const [at, p] of [[0, -0.5], [0.45, 0.5], [0.85, -0.3], [1.15, 0.3], [1.38, 0]] as const) {
+    playTone(ctx, out, t, { freq: 66, slideTo: 44, start: at, dur: 0.16, type: "sine", vol: 0.34, attack: 0.002 });
+    playNoise(ctx, pan(ctx, out, p), t, at + 0.01, 0.14, 0.05, "bandpass", 420, 180); // creak
   }
-  if (rank === 4) {
-    // Legendary: a royal impact, a gong, timpani and a three-step brass fanfare (D – E – G major)
-    // that lands on a held golden chord with a harp sweep and bells on top.
-    impact(ctx, out, wet, t, 1.15);
-    metal(ctx, wet, t, 98, 0.02, 2.6, 0.12, [1, 2.4, 3.9, 5.6]);
-    crash(ctx, out, wet, t, 0.02, 0.13, 1.8);
-    taiko(ctx, out, t, 0, 0.5); taiko(ctx, out, t, 0.2, 0.42); taiko(ctx, out, t, 0.4, 0.5);
-    brass(ctx, out, t, [293.66, 369.99, 440], 0.0, 0.2, 0.045, 2600, 0.01);
-    brass(ctx, out, t, [329.63, 415.3, 493.88], 0.2, 0.2, 0.045, 2800, 0.01);
-    brass(ctx, out, t, [196, 392, 493.88, 587.33], 0.4, 1.6, 0.05, 3200, 0.02);
-    brass(ctx, wet, t, [392, 587.33], 0.4, 1.4, 0.03, 2400, 0.05);
-    [1567.98, 1975.53, 2349.32, 3135.96].forEach((f, i) => playTone(ctx, wet, t, { freq: f, start: 0.5 + i * 0.07, dur: 0.6, type: "sine", vol: 0.06 }));
-    harp(ctx, wet, t, 0.45, [392, 493.88, 587.33, 783.99, 987.77, 1174.66, 1567.98], 0.05, 0.05);
-    choir(ctx, out, wet, t, [196, 293.66, 392, 493.88], 0.4, 1.8, 0.022, 0.2);
-    return;
-  }
-  // Mythic: a double cosmic impact with a sub drop and thunder, then a heroic brass rise
-  // (Bb – C – D major) that explodes into a choir-backed final chord, a celestial arpeggio
-  // climbing three octaves and a cascade of sparkles ringing out in the hall.
+  harp(ctx, wet, t, 0.1, [293.66, 369.99, 440, 587.33, 739.99, 880, 1174.66, 1479.98], 0.16, 0.06);
+  coins(ctx, wet, t, 0.2, 14, 1.3, 0.028, 11);
+  riseTone(ctx, out, t, 0.2, 1.4, 587.33, 1174.66, 0.035, "triangle");
+  swell(ctx, wet, t, 0.75, 0.86, 0.16, 600, 9000);
+  swell(ctx, out, t, 1.0, 0.61, 0.09, 2000, 10000);
+}
+
+function legendaryBurst(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // The lid blasts off: an impact under a golden BRAAAM, a bell strike, a cymbal and an avalanche of
+  // gold coins pouring left and right, then a warm glow that hangs in the air.
+  impact(ctx, out, wet, t, 1.25);
+  braam(ctx, out, wet, t, 0, [36.71, 73.42, 110, 146.83, 185], 1.5, 0.05, 2400);
+  metal(ctx, wet, t, 587.33, 0.01, 1.8, 0.08, [1, 2.76, 5.4, 8.93]);
+  metal(ctx, wet, t, 880, 0.04, 1.4, 0.05, [1, 2.76, 5.4]);
+  crash(ctx, out, wet, t, 0, 0.14, 1.9);
+  whoosh(ctx, out, t, 0, 0.45, 0.14, true);
+  coins(ctx, out, t, 0.03, 26, 1.1, 0.034, 3);
+  coins(ctx, wet, t, 0.1, 16, 1.5, 0.026, 9);
+  for (let i = 0; i < 8; i++) playTone(ctx, pan(ctx, wet, i % 2 ? 0.6 : -0.6), t, { freq: 2349.32 / Math.pow(2, (i * 2) / 12), start: 0.08 + i * 0.05, dur: 0.4, type: "sine", vol: 0.04 });
+  choir(ctx, out, wet, t, [293.66, 369.99, 440, 587.33], 0.2, 1.7, 0.018, 0.5);
+}
+
+function legendaryRise(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // A royal horn call over timpani heartbeats and a swelling choir, a snare roll that builds, and a
+  // reversed cymbal that ends exactly on the reveal.
+  drone(ctx, out, t, 0, 2.1, [73.42, 110, 146.83], 0.045, 650, 0.6);
+  taiko(ctx, out, t, 0.02, 0.44, 0.9); taiko(ctx, wet, t, 0.02, 0.2, 0.9);
+  taiko(ctx, out, t, 0.7, 0.46, 0.9); taiko(ctx, wet, t, 0.7, 0.22, 0.9);
+  // Horn call: A3 – D4 – F#4 – A4 … D5
+  ([[220, 0.2, 0.22], [293.66, 0.44, 0.22], [369.99, 0.68, 0.22], [440, 0.92, 0.5], [587.33, 1.44, 0.55]] as const)
+    .forEach(([f, at, d]) => lead(ctx, out, wet, t, at, d, f, 0.05, 2600));
+  brass(ctx, out, t, [146.83, 220, 293.66], 0.92, 1.1, 0.03, 1800, 0.25);
+  choir(ctx, out, wet, t, [293.66, 369.99, 440, 587.33], 0.3, 1.8, 0.026, 1.1);
+  harp(ctx, wet, t, 1.0, [587.33, 739.99, 880, 1174.66, 1479.98, 1760, 2349.32], 0.08, 0.045);
+  for (let i = 0; i < 14; i++) playNoise(ctx, out, t, 1.3 + i * 0.054, 0.06, 0.03 + i * 0.006, "bandpass", 2400, 1400); // snare roll
+  swell(ctx, wet, t, 1.05, 1.0, 0.18, 400, 10000);
+  riseTone(ctx, out, t, 0.9, 1.15, 220, 880, 0.04, "sawtooth", 3000);
+}
+
+function legendaryReveal(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // The royal finale: a huge impact and golden BRAAAM, a gong, then a soaring brass fanfare
+  // (D5 – F#5 – A5 … B5 – A5 – D6) over a full choir, timpani and a shower of gold and bells.
+  impact(ctx, out, wet, t, 1.35);
+  braam(ctx, out, wet, t, 0, [36.71, 73.42, 110, 146.83, 185, 220], 2.2, 0.05, 2800);
+  metal(ctx, wet, t, 98, 0.02, 3, 0.12, [1, 2.4, 3.9, 5.6]);
+  crash(ctx, out, wet, t, 0, 0.15, 2.2);
+  whoosh(ctx, out, t, 0, 0.4, 0.12, false);
+  taiko(ctx, out, t, 0, 0.55); taiko(ctx, out, t, 0.15, 0.4); taiko(ctx, out, t, 0.3, 0.45);
+  for (let i = 0; i < 6; i++) taiko(ctx, out, t, 0.62 + i * 0.07, 0.22 + i * 0.05, 1.1);
+  taiko(ctx, out, t, 1.14, 0.6); crash(ctx, out, wet, t, 1.14, 0.13, 2.4);
+  ([[587.33, 0.15, 0.12], [739.99, 0.27, 0.12], [880, 0.39, 0.5], [987.77, 0.9, 0.12], [880, 1.02, 0.12], [1174.66, 1.14, 1.5]] as const)
+    .forEach(([f, at, d]) => { lead(ctx, out, wet, t, at, d, f, 0.06, 3400); lead(ctx, out, wet, t, at, d, f / 2, 0.035, 2200); });
+  brass(ctx, out, t, [293.66, 369.99, 440], 0.15, 0.7, 0.04, 2600, 0.02);
+  brass(ctx, out, t, [196, 293.66, 392, 493.88], 0.9, 0.24, 0.04, 2800, 0.02);
+  brass(ctx, out, t, [146.83, 293.66, 369.99, 440, 587.33], 1.14, 1.9, 0.05, 3400, 0.03);
+  brass(ctx, wet, t, [587.33, 739.99, 880], 1.16, 1.7, 0.025, 3000, 0.08);
+  choir(ctx, out, wet, t, [146.83, 293.66, 369.99, 440, 587.33], 0.1, 3.2, 0.03, 0.35);
+  coins(ctx, out, t, 0.05, 22, 1.4, 0.03, 5);
+  coins(ctx, wet, t, 1.14, 26, 1.8, 0.028, 13);
+  harp(ctx, wet, t, 1.14, [587.33, 739.99, 880, 1174.66, 1479.98, 1760, 2349.32, 2959.96], 0.045, 0.05);
+  [2349.32, 2959.96, 3520, 4698.63].forEach((f, i) => playTone(ctx, pan(ctx, wet, i % 2 ? 0.7 : -0.7), t, { freq: f, start: 1.2 + i * 0.09, dur: 0.9, type: "sine", vol: 0.04 }));
+  playTone(ctx, out, t, { freq: 36.71, slideTo: 30, start: 1.14, dur: 2.4, type: "sine", vol: 0.3, attack: 0.01 });
+}
+
+/* ---------- Mythic: reality tearing open (D minor → D major) ----------
+   Phase lengths come from ChestOpening: crack 1.8s, burst 2.1s, rise 2.3s. */
+
+function mythicCrack(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // Something ancient wakes up: a sub drone and a growling bass, a heartbeat that races, glitches
+  // crackling left and right, a ringing whine and a reversed swell that rips into the burst.
+  drone(ctx, out, t, 0, 1.85, [36.71, 55, 73.42], 0.06, 280, 0.5);
+  growl(ctx, out, t, 0, 1.8, 55, 0.07);
+  let at = 0;
+  for (let i = 0; i < 7; i++) { heartbeat(ctx, out, t, at, 0.38 + i * 0.02); at += Math.max(0.17, 0.42 - i * 0.05); }
+  for (let i = 0; i < 14; i++) zap(ctx, pan(ctx, out, i % 2 ? 0.7 : -0.7), t, 0.12 + i * 0.115, 0.05 + i * 0.004, 0.8 + (i % 4) * 0.4);
+  riseTone(ctx, out, t, 0, 1.78, 2637, 5274, 0.018, "sine");
+  shepard(ctx, out, t, 0.2, 1.58, 55, 0.045);
+  swell(ctx, wet, t, 0.8, 0.99, 0.2, 200, 10000);
+  swell(ctx, out, t, 1.3, 0.49, 0.12, 1500, 12000);
+}
+
+function mythicBurst(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // The seal shatters: thunder, breaking glass and a colossal minor BRAAAM; a second shockwave hits in
+  // major, then a cosmic shimmer climbs while glitches stutter into the rise.
   impact(ctx, out, wet, t, 1.6);
-  impact(ctx, out, wet, t, 1.3, 0.16);
-  playTone(ctx, out, t, { freq: 48, slideTo: 24, dur: 1.6, type: "sine", vol: 0.5, attack: 0.003 });
-  playNoise(ctx, out, t, 0.05, 1.8, 0.14, "lowpass", 2200, 90);
-  whoosh(ctx, out, t, 0, 0.5, 0.16, false);
-  crash(ctx, out, wet, t, 0.02, 0.15, 2.4);
-  crash(ctx, out, wet, t, 0.62, 0.12, 2.6);
-  metal(ctx, wet, t, 73.42, 0.6, 3.4, 0.14, [1, 2.4, 3.9, 5.6, 7.3]);
-  taiko(ctx, out, t, 0, 0.55, 0.85); taiko(ctx, out, t, 0.2, 0.48, 0.9); taiko(ctx, out, t, 0.4, 0.55, 0.85); taiko(ctx, out, t, 0.6, 0.62, 0.8);
-  brass(ctx, out, t, [233.08, 293.66, 349.23, 466.16], 0.0, 0.2, 0.045, 2600, 0.01);
-  brass(ctx, out, t, [261.63, 329.63, 392, 523.25], 0.2, 0.2, 0.045, 2800, 0.01);
-  brass(ctx, out, t, [146.83, 293.66, 369.99, 440, 587.33], 0.4, 2.4, 0.05, 3600, 0.02);
-  brass(ctx, wet, t, [587.33, 739.99, 880], 0.42, 2.0, 0.025, 3000, 0.08);
-  choir(ctx, out, wet, t, [293.66, 369.99, 440, 587.33], 0.4, 2.6, 0.035, 0.25);
-  const arp = [587.33, 739.99, 880, 1174.66, 1479.98, 1760, 2349.32, 2959.96, 3520];
-  arp.forEach((f, i) => playTone(ctx, wet, t, { freq: f, start: 0.5 + i * 0.065, dur: 0.7, type: "sine", vol: 0.06 }));
-  for (let i = 0; i < 10; i++) playTone(ctx, wet, t, { freq: 2093 * Math.pow(2, ((i * 5) % 12) / 12), start: 1.2 + i * 0.09, dur: 0.5, type: "sine", vol: 0.035 });
-  playTone(ctx, out, t, { freq: 880, slideTo: 3520, start: 0.45, dur: 1.4, type: "sine", vol: 0.04 });
+  thunder(ctx, out, wet, t, 0, 0.2);
+  shatter(ctx, out, wet, t, 0.02, 0.14);
+  braam(ctx, out, wet, t, 0, [29.14, 36.71, 73.42, 87.31, 110, 146.83], 1.4, 0.055, 2000);
+  playTone(ctx, out, t, { freq: 52, slideTo: 22, dur: 1.6, type: "sine", vol: 0.45, attack: 0.002 });
+  crash(ctx, out, wet, t, 0, 0.15, 2);
+  impact(ctx, out, wet, t, 1.3, 0.62);
+  braam(ctx, out, wet, t, 0.62, [29.14, 58.27, 116.54, 146.83, 174.61, 233.08], 1.3, 0.05, 2600);
+  crash(ctx, out, wet, t, 0.62, 0.12, 1.8);
+  choir(ctx, out, wet, t, [146.83, 174.61, 220, 293.66], 0.05, 1.9, 0.03, 0.15);
+  for (const f of [440, 660, 880]) riseTone(ctx, pan(ctx, wet, f === 660 ? 0 : f === 440 ? -0.6 : 0.6), t, 0.7, 1.35, f, f * 4, 0.03, "sine");
+  for (let i = 0; i < 10; i++) zap(ctx, pan(ctx, out, i % 2 ? -0.8 : 0.8), t, 1.45 + i * 0.06, 0.05 + i * 0.005, 1 + (i % 3) * 0.5);
+  swell(ctx, wet, t, 1.3, 0.78, 0.15, 400, 10000);
+}
+
+function mythicRise(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // The silhouette ascends: an angelic choir climbing Dm – Bb – C, an accelerating taiko roll, a
+  // brass ostinato, an endless Shepard rise and a reversed swell that cuts off a breath before the drop.
+  drone(ctx, out, t, 0, 2.3, [36.71, 55], 0.08, 280, 0.7);
+  choir(ctx, out, wet, t, [146.83, 220, 293.66, 349.23], 0.0, 0.9, 0.032, 0.35);
+  choir(ctx, out, wet, t, [116.54, 233.08, 293.66, 349.23], 0.8, 0.8, 0.034, 0.2);
+  choir(ctx, out, wet, t, [130.81, 261.63, 329.63, 392], 1.5, 0.75, 0.04, 0.2);
+  let at = 0.05;
+  for (let i = 0; i < 20; i++) { taiko(ctx, i % 2 ? pan(ctx, out, 0.35) : pan(ctx, out, -0.35), t, at, 0.18 + i * 0.016, 0.75 + i * 0.018); at += Math.max(0.045, 0.22 - i * 0.01); }
+  for (let i = 0; i < 12; i++) brass(ctx, out, t, [i < 4 ? 73.42 : i < 8 ? 58.27 : 65.41], 0.05 + i * 0.18, 0.12, 0.05, 1200, 0.005);
+  shepard(ctx, out, t, 0, 2.2, 110, 0.05);
+  riseTone(ctx, out, t, 0.6, 1.62, 1760, 7040, 0.02, "sine");
+  swell(ctx, wet, t, 1.2, 1.0, 0.22, 200, 11000);
+  swell(ctx, out, t, 1.7, 0.5, 0.13, 2000, 12000);
+}
+
+function mythicReveal(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number) {
+  // The finale: a triple cosmic impact, thunder and a world-ending BRAAAM, an epic Bb – C – D rise that
+  // explodes into a D major choir chord, a soaring lead over it, celestial arpeggios spiralling through
+  // the stereo field, a waterfall of sparkles and a gong that rings out for seconds.
+  impact(ctx, out, wet, t, 1.7);
+  impact(ctx, out, wet, t, 1.4, 0.09);
+  thunder(ctx, out, wet, t, 0, 0.22);
+  shatter(ctx, out, wet, t, 0.01, 0.12);
+  braam(ctx, out, wet, t, 0, [29.14, 36.71, 73.42, 87.31, 110, 146.83], 0.8, 0.055, 2200);
+  playTone(ctx, out, t, { freq: 46, slideTo: 21, dur: 1.8, type: "sine", vol: 0.5, attack: 0.002 });
+  crash(ctx, out, wet, t, 0, 0.16, 2.2);
+  // Bb – C stabs, then D major lands.
+  for (const [at, notes] of [[0.25, [116.54, 233.08, 293.66, 349.23, 466.16]], [0.5, [130.81, 261.63, 329.63, 392, 523.25]]] as const) {
+    brass(ctx, out, t, [...notes], at, 0.2, 0.045, 3000, 0.008);
+    taiko(ctx, out, t, at, 0.55, 0.85);
+  }
+  const land = 0.75;
+  impact(ctx, out, wet, t, 1.5, land);
+  braam(ctx, out, wet, t, land, [36.71, 73.42, 110, 146.83, 185, 220, 293.66], 3, 0.055, 3200);
+  metal(ctx, wet, t, 73.42, land, 4, 0.14, [1, 2.4, 3.9, 5.6, 7.3]);
+  crash(ctx, out, wet, t, land, 0.16, 2.6);
+  crash(ctx, out, wet, t, land + 0.02, 0.1, 2.8);
+  taiko(ctx, out, t, land, 0.66, 0.8); taiko(ctx, out, t, land + 0.18, 0.5); taiko(ctx, out, t, land + 0.36, 0.55);
+  brass(ctx, out, t, [146.83, 293.66, 369.99, 440, 587.33], land, 2.8, 0.05, 3800, 0.02);
+  brass(ctx, wet, t, [587.33, 739.99, 880], land + 0.02, 2.4, 0.028, 3200, 0.08);
+  choir(ctx, out, wet, t, [146.83, 293.66, 369.99, 440, 587.33, 739.99], land - 0.05, 3.4, 0.04, 0.2);
+  // Soaring lead: A5 slides up to D6, then F#6 – E6 – D6.
+  lead(ctx, out, wet, t, land, 0.9, 1174.66, 0.06, 4200, 880);
+  ([[1479.98, land + 0.9, 0.28], [1318.51, land + 1.18, 0.28], [1174.66, land + 1.46, 1.4]] as const)
+    .forEach(([f, at, d]) => lead(ctx, out, wet, t, at, d, f, 0.055, 4200));
+  const arp = [587.33, 739.99, 880, 1174.66, 1479.98, 1760, 2349.32, 2959.96, 3520, 4698.63];
+  arp.forEach((f, i) => playTone(ctx, pan(ctx, wet, Math.sin(i * 1.3) * 0.85), t, { freq: f, start: land + 0.1 + i * 0.06, dur: 0.8, type: "sine", vol: 0.055 }));
+  arp.slice().reverse().forEach((f, i) => playTone(ctx, pan(ctx, wet, Math.cos(i * 1.3) * 0.85), t, { freq: f, start: land + 0.9 + i * 0.06, dur: 0.7, type: "sine", vol: 0.04 }));
+  coins(ctx, wet, t, land + 0.3, 34, 2.2, 0.03, 21);
+  playTone(ctx, out, t, { freq: 880, slideTo: 3520, start: land - 0.3, dur: 1.4, type: "sine", vol: 0.04 });
+  playTone(ctx, out, t, { freq: 36.71, slideTo: 32, start: land, dur: 3.2, type: "sine", vol: 0.32, attack: 0.01 });
+}
+
+/* ---------- Chest sound building blocks ---------- */
+
+const panCache = new WeakMap<AudioNode, Map<number, AudioNode>>();
+/** A cached stereo position feeding `out` (falls back to `out` where panning is unsupported). */
+function pan(ctx: AudioContext, out: AudioNode, p: number): AudioNode {
+  if (typeof ctx.createStereoPanner !== "function") return out;
+  const key = Math.round(Math.max(-1, Math.min(1, p)) * 5) / 5;
+  let byPos = panCache.get(out);
+  if (!byPos) { byPos = new Map(); panCache.set(out, byPos); }
+  let node = byPos.get(key);
+  if (!node) { const sp = ctx.createStereoPanner(); sp.pan.value = key; sp.connect(out); node = sp; byPos.set(key, node); }
+  return node;
+}
+
+/** Filtered noise whose volume swells up to a hard stop: a reversed cymbal leading into a hit. */
+function swell(ctx: AudioContext, out: AudioNode, t: number, at: number, dur: number, vol: number, f0: number, f1: number) {
+  const start = t + at, end = start + dur;
+  const src = ctx.createBufferSource(); src.buffer = getNoiseBuffer(ctx); src.loop = true;
+  const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 0.8;
+  f.frequency.setValueAtTime(f0, start); f.frequency.exponentialRampToValueAtTime(f1, end);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(vol, end); g.gain.linearRampToValueAtTime(0.0001, end + 0.03);
+  src.connect(f); f.connect(g); g.connect(out); src.start(start); src.stop(end + 0.05);
+}
+
+/** A tone that keeps getting louder while it glides (risers and whines). */
+function riseTone(ctx: AudioContext, out: AudioNode, t: number, at: number, dur: number, f0: number, f1: number, vol: number, type: OscillatorType, filterHz?: number) {
+  const start = t + at, end = start + dur;
+  const o = ctx.createOscillator(); o.type = type;
+  o.frequency.setValueAtTime(f0, start); o.frequency.exponentialRampToValueAtTime(f1, end);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(vol, end); g.gain.linearRampToValueAtTime(0.0001, end + 0.04);
+  if (filterHz) { const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = filterHz; o.connect(f); f.connect(g); } else o.connect(g);
+  g.connect(out); o.start(start); o.stop(end + 0.06);
+}
+
+/** An "endless" rise: three octave-stacked glides, loudest in the middle, so it feels like it never tops out. */
+function shepard(ctx: AudioContext, out: AudioNode, t: number, at: number, dur: number, base: number, vol: number) {
+  for (let k = 0; k < 3; k++) riseTone(ctx, out, t, at, dur, base * 2 ** k, base * 2 ** (k + 1.5), vol * (k === 1 ? 1 : 0.6), "sawtooth", 2600);
+}
+
+/** The cinematic "BRAAAM": a stack of detuned saws whose filter rips open and slowly closes again. */
+function braam(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number, at: number, notes: number[], dur: number, vol: number, peakHz = 2600) {
+  const start = t + at;
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 3;
+  f.frequency.setValueAtTime(160, start); f.frequency.exponentialRampToValueAtTime(peakHz, start + 0.1); f.frequency.exponentialRampToValueAtTime(420, start + dur);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, start); g.gain.linearRampToValueAtTime(vol, start + 0.025);
+  g.gain.setValueAtTime(vol, start + dur * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  const send = ctx.createGain(); send.gain.value = 0.7;
+  f.connect(g); g.connect(out); g.connect(send); send.connect(wet);
+  for (const n of notes) for (const d of [-14, 0, 13]) {
+    const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = n; o.detune.value = d;
+    o.connect(f); o.start(start); o.stop(start + dur + 0.05);
+  }
+}
+
+/** A brassy lead line with a little vibrato; `from` glides up into the note. */
+function lead(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number, at: number, dur: number, freq: number, vol: number, filterHz: number, from?: number) {
+  const start = t + at;
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(filterHz * 0.5, start); f.frequency.linearRampToValueAtTime(filterHz, start + 0.06);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, start); g.gain.linearRampToValueAtTime(vol, start + 0.02);
+  g.gain.setValueAtTime(vol, start + Math.max(0.03, dur - 0.08)); g.gain.exponentialRampToValueAtTime(0.0001, start + dur + 0.12);
+  const send = ctx.createGain(); send.gain.value = 0.5;
+  f.connect(g); g.connect(out); g.connect(send); send.connect(wet);
+  const vib = ctx.createOscillator(), vg = ctx.createGain(); vib.frequency.value = 5.6;
+  vg.gain.setValueAtTime(0, start); vg.gain.linearRampToValueAtTime(dur > 0.3 ? 14 : 4, start + Math.min(0.3, dur));
+  vib.connect(vg);
+  for (const [type, d] of [["sawtooth", -6], ["square", 6]] as const) {
+    const o = ctx.createOscillator(); o.type = type; o.detune.value = d;
+    o.frequency.setValueAtTime(from ?? freq, start); if (from) o.frequency.exponentialRampToValueAtTime(freq, start + Math.min(0.25, dur * 0.4));
+    vg.connect(o.detune); o.connect(f); o.start(start); o.stop(start + dur + 0.15);
+  }
+  vib.start(start); vib.stop(start + dur + 0.15);
+}
+
+/** Gold coins and glitter: short metallic pings scattered across the stereo field (seeded, so repeatable). */
+function coins(ctx: AudioContext, out: AudioNode, t: number, at: number, count: number, span: number, vol: number, seed = 1) {
+  let s = seed * 9301 + 49297;
+  const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < count; i++) {
+    const when = at + span * Math.pow(i / count, 0.85) + rnd() * 0.03;
+    const f = 2000 + rnd() * 4200, node = pan(ctx, out, rnd() * 1.8 - 0.9);
+    playTone(ctx, node, t, { freq: f, start: when, dur: 0.16 + rnd() * 0.12, type: "sine", vol, attack: 0.001 });
+    playTone(ctx, node, t, { freq: f * 2.76, start: when, dur: 0.07, type: "sine", vol: vol * 0.4, attack: 0.001 });
+  }
+}
+
+/** Breaking glass: a bright noise burst with a spray of high shards. */
+function shatter(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number, at: number, vol: number) {
+  playNoise(ctx, out, t, at, 0.3, vol, "highpass", 4500, 9000);
+  playNoise(ctx, wet, t, at + 0.02, 0.5, vol * 0.6, "bandpass", 6000, 3000);
+  coins(ctx, wet, t, at, 20, 0.45, vol * 0.3, 7);
+}
+
+/** A thunder crack with a long rolling rumble. */
+function thunder(ctx: AudioContext, out: AudioNode, wet: AudioNode, t: number, at: number, vol: number) {
+  playNoise(ctx, out, t, at, 0.09, vol * 1.3, "highpass", 1800, 700);
+  playNoise(ctx, out, t, at + 0.02, 1.45, vol, "lowpass", 1400, 70);
+  for (let i = 0; i < 4; i++) playNoise(ctx, wet, t, at + 0.15 + i * 0.27, 0.6, vol * (0.7 - i * 0.12), "lowpass", 500, 90);
+}
+
+/** A two-beat heartbeat ("lub-dub"). */
+function heartbeat(ctx: AudioContext, out: AudioNode, t: number, at: number, vol: number) {
+  playTone(ctx, out, t, { freq: 62, slideTo: 40, start: at, dur: 0.14, type: "sine", vol, attack: 0.002 });
+  playTone(ctx, out, t, { freq: 56, slideTo: 38, start: at + 0.12, dur: 0.12, type: "sine", vol: vol * 0.75, attack: 0.002 });
+}
+
+/** A menacing low growl: detuned saws with a wobbling filter. */
+function growl(ctx: AudioContext, out: AudioNode, t: number, at: number, dur: number, freq: number, vol: number) {
+  const start = t + at;
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 6; f.frequency.value = 260;
+  const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.setValueAtTime(3, start); lfo.frequency.linearRampToValueAtTime(11, start + dur); lg.gain.value = 180;
+  lfo.connect(lg); lg.connect(f.frequency);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(vol, start + dur * 0.8); g.gain.linearRampToValueAtTime(0.0001, start + dur);
+  f.connect(g); g.connect(out);
+  for (const d of [-20, 0, 17]) { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = freq; o.detune.value = d; o.connect(f); o.start(start); o.stop(start + dur + 0.05); }
+  lfo.start(start); lfo.stop(start + dur + 0.05);
 }
 
 /** A held low drone of detuned saws through a lowpass, swelling in. */
