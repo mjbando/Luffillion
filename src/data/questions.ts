@@ -19,6 +19,7 @@ import { CURATED_FACTIONS } from "./bank/curated/factions";
 import { CURATED_TRAITS } from "./bank/curated/traits";
 import { CURATED_MOVES_AND_LORE } from "./bank/curated/moves_and_lore";
 import { CURATED_SCHEDULE_SWAPS } from "./bank/curated/schedule-swaps";
+import { CURATED_NOV_28 } from "./bank/curated/nov28";
 
 // Each entry is "Display Name|alias|alias". The display name is what gets revealed.
 // Matching ignores case, accents, punctuation and extra spaces, plus smart category aliases.
@@ -64,6 +65,7 @@ const CURATED_QUESTIONS: Question[] = [
   ...CURATED_TRAITS,
   ...CURATED_MOVES_AND_LORE,
   ...CURATED_SCHEDULE_SWAPS,
+  ...CURATED_NOV_28,
 ];
 
 // Same rules as answer matching (lib/daily normalize), kept local to avoid an import cycle.
