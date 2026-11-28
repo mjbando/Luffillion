@@ -9,9 +9,10 @@ import RankedUsername from "./RankedUsername";
 import StreakFlame from "./StreakFlame";
 import WantedPoster from "./WantedPoster";
 import RankedMenu from "./RankedMenu";
+import SeasonCountdown, { useSeasonClock } from "./SeasonCountdown";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { RETIRED_RECRUITS } from "@/data/roster";
-import { BOT_RP_FACTOR, BOUNTY_TITLES, LEADERBOARD_SIZE, nextBountyTitle, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
+import { BOT_RP_FACTOR, BOUNTY_TITLES, LEADERBOARD_SIZE, nextBountyTitle, RANKED_SEASON, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
 
 /** After this long in the queue, offer a half-RP bot battle. */
 const BOT_OFFER_SECONDS = 10;
@@ -146,6 +147,9 @@ export default function RankedLobby({
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [viewedProfile, setViewedProfile] = useState<RankedPublicProfile | null>(null);
   const [wantedOpen, setWantedOpen] = useState(false);
+  const season = useSeasonClock();
+  // When the season is over the leaderboard is frozen and ranked/bot battles are closed.
+  const seasonOver = season?.phase === "ended";
   const wantedTrigger = useRef<HTMLButtonElement>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -311,7 +315,8 @@ export default function RankedLobby({
           <div className="rk-port-hud">
             <p className="rk-eyebrow">10-SECOND KNOWLEDGE DUELS · 3 LIVES · SHOWDOWNS</p>
             <h1 className="rk-port-title">Ranked Battle Arena</h1>
-            <p className="rk-season" aria-label="Ranked Season 1">SEASON 1</p>
+            <p className="rk-season" aria-label={`Ranked Season ${RANKED_SEASON.number}`}>SEASON {RANKED_SEASON.number}</p>
+            <SeasonCountdown clock={season} />
             <p className="rk-online">
               <span className="rk-live-dot" /> {onlineCount} captain{onlineCount === 1 ? "" : "s"} online
             </p>
@@ -331,6 +336,10 @@ export default function RankedLobby({
                     </button>
                   )}
                 </div>
+              ) : seasonOver ? (
+                <button type="button" disabled className="rk-find-btn is-closed" aria-describedby="rk-port-note">
+                  <Swords size={22} /> RANKED CLOSED
+                </button>
               ) : (
                 <button
                   type="button"
@@ -349,8 +358,10 @@ export default function RankedLobby({
                 <Shield size={20} /> SIGN IN TO BATTLE
               </button>
             )}
-            <p className="rk-port-note">
-              {inQueue
+            <p className="rk-port-note" id="rk-port-note">
+              {seasonOver
+                ? `Ranked battles are closed until Season ${RANKED_SEASON.number + 1}. Friendly battles with friends are still open.`
+                : inQueue
                 ? `Looking for the closest-ranked captain (up to ${RANKED_MAX_TIER_GAP} ranks away).`
                 : `Matchmaking pairs you with the closest-ranked captain, at most ${RANKED_MAX_TIER_GAP} ranks away.`}
             </p>
@@ -660,7 +671,7 @@ export default function RankedLobby({
             <div className="mb-3 flex items-center gap-2">
               <Trophy size={18} className="text-amber-300" />
               <div>
-                <p className="rk-eyebrow">SEASON 1 · TOP {LEADERBOARD_SIZE} CAPTAINS</p>
+                <p className="rk-eyebrow">SEASON {RANKED_SEASON.number} · {seasonOver ? "FINAL STANDINGS" : `TOP ${LEADERBOARD_SIZE} CAPTAINS`}</p>
                 <h2 className="font-pixel-display text-xl text-white">Ranked Leaderboard</h2>
               </div>
             </div>
@@ -742,7 +753,7 @@ export default function RankedLobby({
           </aside>
         </div>
       </div>
-      {captain && inQueue && elapsed >= BOT_OFFER_SECONDS && !botOfferDismissed && (
+      {captain && inQueue && !seasonOver && elapsed >= BOT_OFFER_SECONDS && !botOfferDismissed && (
         <div className="rk-bot-offer-backdrop" role="presentation">
           <div className="rk-bot-offer" role="dialog" aria-modal="true" aria-labelledby="rk-bot-offer-title">
             <p className="rk-eyebrow">STRUGGLING TO FIND A MATCH?</p>

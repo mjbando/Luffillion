@@ -75,6 +75,24 @@ export interface PlayerDeltaBreakdown {
   bountyGain?: number;
 }
 
+// ---------- Season ----------
+/**
+ * Ranked Season 1 runs 30 days: Sat Nov 28, 2026 2:00 PM EST to Mon Dec 28, 2026 2:00 PM EST.
+ * When it ends the leaderboard freezes and no new ranked (or bot) battles can start; friendly
+ * battles still work. Resets and rewards for Season 2 are decided separately.
+ */
+export const RANKED_SEASON = {
+  number: 1,
+  startsAt: Date.parse("2026-11-28T19:00:00Z"),
+  endsAt: Date.parse("2026-12-28T19:00:00Z"),
+} as const;
+
+export function rankedSeasonOver(now: number = Date.now()): boolean {
+  return now >= RANKED_SEASON.endsAt;
+}
+
+export const RANKED_SEASON_OVER_MESSAGE = `Season ${RANKED_SEASON.number} has ended. Ranked battles are closed until Season ${RANKED_SEASON.number + 1}.`;
+
 // ---------- Bounty (Season 1) ----------
 // Bounty only comes from winning ranked battles (bot battles included) and never goes down.
 /** How many captains the ranked leaderboard (and the "#N Ranked" tags) covers. */

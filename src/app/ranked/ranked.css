@@ -927,13 +927,38 @@ button.rk-wanted:hover, button.rk-wanted:focus-visible { transform: translate(-2
 .rk-poster-name .rk-ladder-tag:not(.is-king) { color: #2a180b; border-color: #2a180b66; background: transparent; }
 .rk-podium-name .rk-ladder-tag { display: flex; justify-content: center; width: fit-content; max-width: 100%; margin: 3px auto 0; white-space: normal; text-align: center; font-size: 13px; line-height: 14px; }
 
-/* "#N" ladder chip for places 2–25: no box, just the captain's rank color. */
-.rk-ladder-chip {
-  display: inline-block; margin-left: 5px; padding: 0 4px; vertical-align: middle; white-space: nowrap;
-  font-family: "Pixelify Sans", monospace; font-size: 12px; font-weight: 700; line-height: 15px;
-  color: var(--chip, #cbd5e1);
-  background: color-mix(in srgb, var(--chip, #cbd5e1) 16%, transparent);
-  border-radius: 2px;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, .55);
+/* Season countdown under the SEASON 1 ribbon. */
+.rk-season-clock {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 2px 0 4px;
+  padding: 8px 14px 6px; background: #050a14c8; border: 2px solid #f5c54255; box-shadow: 0 0 0 2px #050a14, 0 0 18px #fbbf2422;
+  font-family: "Pixelify Sans", monospace; color: #fde68a; text-align: center;
 }
-.rk-poster-name .rk-ladder-chip { font-size: 15px; line-height: 18px; text-shadow: none; color: #2a180b; background: color-mix(in srgb, var(--chip, #2a180b) 40%, transparent); }
+.rk-season-clock.is-loading { min-height: 92px; min-width: 260px; visibility: hidden; }
+.rk-season-clock-label { font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #fcd34d; }
+.rk-season-clock-digits { display: flex; align-items: flex-start; gap: 14px; }
+.rk-season-clock-cell { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 46px; }
+.rk-season-clock-cell b {
+  display: block; min-width: 46px; padding: 2px 6px; font-size: 28px; line-height: 32px; font-weight: 700; color: #fff7d6;
+  background: linear-gradient(#1e293b 0 50%, #0f172a 50%); border: 2px solid #050a14; box-shadow: inset 0 -3px 0 #00000066, 0 2px 0 #f5c54255;
+  text-shadow: 0 2px 0 #00000099; font-variant-numeric: tabular-nums;
+}
+.rk-season-clock-cell small { margin-top: 2px; font-size: 11px; letter-spacing: 2px; color: #cbd5e1; }
+.rk-season-clock-sep { position: absolute; right: -11px; top: 4px; font-style: normal; font-size: 22px; color: #f5c542aa; animation: rk-clock-blink 1s steps(1) infinite; }
+.rk-season-clock-sub { font-size: 12px; color: #94a3b8; letter-spacing: 1px; }
+.rk-season-clock.is-final { border-color: #f8717188; box-shadow: 0 0 0 2px #050a14, 0 0 22px #ef444455; }
+.rk-season-clock.is-final .rk-season-clock-label { color: #fca5a5; animation: rk-clock-pulse 1.2s ease-in-out infinite; }
+.rk-season-clock.is-final .rk-season-clock-cell b { color: #fecaca; box-shadow: inset 0 -3px 0 #00000066, 0 2px 0 #ef444477; }
+.rk-season-clock.is-ended { border-color: #94a3b866; }
+.rk-season-clock.is-ended .rk-season-clock-label { font-size: 16px; color: #fde68a; }
+.rk-find-btn.is-closed { cursor: not-allowed; filter: grayscale(.85) brightness(.8); }
+@keyframes rk-clock-blink { 50% { opacity: .25; } }
+@keyframes rk-clock-pulse { 50% { opacity: .55; } }
+@media (max-width: 520px) {
+  .rk-season-clock-digits { gap: 10px; }
+  .rk-season-clock-cell, .rk-season-clock-cell b { min-width: 38px; }
+  .rk-season-clock-cell b { font-size: 22px; line-height: 26px; }
+  .rk-season-clock-sep { right: -9px; font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rk-season-clock-sep, .rk-season-clock.is-final .rk-season-clock-label { animation: none; }
+}

@@ -37,6 +37,8 @@ import {
   rankIndexFor,
   rankTierFor,
   type PlayerDeltaBreakdown,
+  rankedSeasonOver,
+  RANKED_SEASON_OVER_MESSAGE,
 } from "./ranked";
 import type {
   OnlinePlayerSummary,
@@ -353,7 +355,9 @@ async function finalizeMatch(
 
   const p1Outcome = outcome === "draw" ? "draw" : outcome === "p1" ? "win" : "loss";
   const p2Outcome = outcome === "draw" ? "draw" : outcome === "p2" ? "win" : "loss";
-  const friendly = fresh.state.mode === "friendly";
+  // Once the season is over the leaderboard is frozen: a battle that was still running at the
+  // deadline finishes like a friendly one (no RP, record, bounty, berries or achievements).
+  const friendly = fresh.state.mode === "friendly" || rankedSeasonOver();
   const vsBot = fresh.state.mode === "bot";
 
   await ensureRankedProfile(tx, fresh.player1Id);
@@ -699,6 +703,7 @@ function serializeMatch(match: MatchRow, viewerId: string, now: number): RankedM
 }
 
 async function tryPairFromQueue(tx: Tx, accountId: string): Promise<MatchRow | null> {
+  if (rankedSeasonOver()) return null;
   const cutoff = new Date(Date.now() - ONLINE_MS);
   const [self] = await tx
     .select({ points: rankedProfiles.points })
@@ -1205,7 +1210,10 @@ export async function readRankedLobby(
           .from(rankedProfiles)
           .where(eq(rankedProfiles.accountId, accountId))
           .limit(1);
-        if (self?.queuedAt && self.queuedAt.getTime() > Date.now() - ONLINE_MS) {
+        if (self?.queuedAt && rankedSeasonOver()) {
+          // The season ended while this captain was searching: take them out of the queue.
+          await tx.update(rankedProfiles).set({ queuedAt: null }).where(eq(rankedProfiles.accountId, accountId));
+        } else if (self?.queuedAt && self.queuedAt.getTime() > Date.now() - ONLINE_MS) {
           const paired = await tryPairFromQueue(tx, accountId);
           if (paired) activeMatch = paired;
         }
@@ -1252,6 +1260,7 @@ export async function rankedAction(
       if (current) {
         return { ...(await buildLobbyData(tx, accountId, searchQuery, current)) };
       }
+      if (rankedSeasonOver()) throw new RequestProblem(409, RANKED_SEASON_OVER_MESSAGE);
       await tx
         .update(rankedProfiles)
         .set({ queuedAt: nowDate, updatedAt: nowDate })
@@ -1263,6 +1272,7 @@ export async function rankedAction(
     if (action === "playBot") {
       const current = await getLiveMatch();
       if (current) return { ...(await buildLobbyData(tx, accountId, searchQuery, current)) };
+      if (rankedSeasonOver()) throw new RequestProblem(409, RANKED_SEASON_OVER_MESSAGE);
       const match = await createBotMatch(tx, accountId);
       return { ...(await buildLobbyData(tx, accountId, searchQuery, match)) };
     }

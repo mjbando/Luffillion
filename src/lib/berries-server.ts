@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, achievementUnlocks, coinLedger, rankedProfiles } from "@/db/schema";
+import { accounts, achievementUnlocks, coinLedger, rankedMatches, rankedProfiles } from "@/db/schema";
 import { ownedCharacterIdsFor } from "./crew-server";
 import { creditCoins } from "./currency-server";
 import { RequestProblem } from "./account-server";
@@ -74,6 +74,16 @@ export async function unlockedCharacterCount(accountId: string): Promise<number>
   return owned.filter((id) => id !== "luffy" && id !== "gear-6").length;
 }
 
+/** Every finished ranked or bot battle this captain won (friendly battles don't count). */
+async function lifetimeRankedWins(tx: Executor, accountId: string): Promise<number> {
+  const [row] = await tx.select({ n: sql<number>`count(*)::int` }).from(rankedMatches).where(and(
+    eq(rankedMatches.winnerId, accountId),
+    eq(rankedMatches.status, "finished"),
+    sql`coalesce(${rankedMatches.state}->>'mode', 'ranked') <> 'friendly'`,
+  ));
+  return row?.n ?? 0;
+}
+
 export async function loadRankedBerryAchievements(tx: Executor, accountId: string): Promise<RankedBerryAchievementStatus[]> {
   const owned = new Set<string>(await ownedCharacterIdsFor(accountId));
   const crew = [...owned].filter((id) => id !== "luffy" && id !== "gear-6").length;
@@ -92,15 +102,17 @@ export async function loadRankedBerryAchievements(tx: Executor, accountId: strin
     tx.select({ showdownStreak: rankedProfiles.showdownStreak, wins: rankedProfiles.wins }).from(rankedProfiles).where(eq(rankedProfiles.accountId, accountId)).limit(1),
   ]);
   const unlockedAt = new Map(unlocks.map((row) => [row.id, row.at]));
-  // Win milestones also count ranked wins from before they existed; wins never go down.
+  // Win milestones count every ranked win ever, including ones from before they existed and bot wins
+  // from before bot battles counted toward your record; wins never go down.
+  const wins = Math.max(profile?.wins ?? 0, await lifetimeRankedWins(tx, accountId));
   for (const def of RANKED_BERRY_ACHIEVEMENTS) {
-    if (def.goal !== "wins" || unlockedAt.has(def.id) || (profile?.wins ?? 0) < def.target) continue;
+    if (def.goal !== "wins" || unlockedAt.has(def.id) || wins < def.target) continue;
     if (await unlockRankedBerryAchievement(tx, accountId, def.id)) unlockedAt.set(def.id, new Date());
   }
   return RANKED_BERRY_ACHIEVEMENTS.map((def) => {
     const at = unlockedAt.get(def.id);
     const progress = at ? def.target : characterProgress(def.goal)
-      ?? (def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : def.goal === "wins" ? profile?.wins ?? 0 : 0);
+      ?? (def.goal === "showdowns" ? profile?.showdownStreak ?? 0 : def.goal === "wins" ? wins : 0);
     return { ...def, unlocked: Boolean(at), unlockedAt: at?.toISOString() ?? null, claimed: claimed.has(def.id), progress: Math.min(progress, def.target) };
   });
 }
