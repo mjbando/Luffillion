@@ -1717,3 +1717,6 @@ export const SAGA_DETAILS: ((e: Env, x0: number, x1: number) => void)[] = [
     });
   },
 ];
+
+// Shared drawing helpers (used by the per-saga atmosphere layers in saga-fx.ts).
+export { R, rnd, grad, poly, tri, circle, half, line, tiles, props, ridge, puff, sun, sailShip, jollyRoger };

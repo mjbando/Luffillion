@@ -8,6 +8,7 @@ import { drawDust, drawGoldHat, drawSprite, type Ctx } from "./pixel/art";
 import { runnerSprite } from "./pixel/runners";
 import { characterById, DEFAULT_CHARACTER, type CharacterId } from "@/data/playable-characters";
 import { SAGA_DETAILS, SAGA_SCENES, drawSignpost, type Env } from "./pixel/sagas";
+import { SAGA_FX, drawFront } from "./pixel/saga-fx";
 
 export interface RunSignal {
   id: number;
@@ -160,19 +161,28 @@ export default function PixelWorld({ signal, initialPos, goldHat = false, charac
       // --- Each saga is drawn entirely inside its own stretch of the world:
       //     sky, backdrop, ground and details are all clipped to the segment, so
       //     sagas never blend into each other.
+      //     Each saga also has atmosphere layers (SAGA_FX): sky set pieces, mid-distance life,
+      //     ground texture, and — after the runner — foreground parallax, weather and lighting.
+      const visible: { k: number; sx0: number; sx1: number }[] = [];
       for (let k = 0; k < SAGAS.length; k++) {
         const x0 = k === 0 ? -WORLD_END : worldX(SAGAS[k].at);
         const x1 = k === SAGAS.length - 1 ? WORLD_END * 2 : worldX(SAGAS[k].at + SAGA_LENGTH);
         const sx0 = Math.max(0, Math.round(x0 - cam));
         const sx1 = Math.min(W, Math.round(x1 - cam));
         if (sx1 <= 0 || sx0 >= W) continue;
+        visible.push({ k, sx0, sx1 });
+        const fx = SAGA_FX[k];
         c.save();
         c.beginPath();
         c.rect(sx0, 0, sx1 - sx0, H);
         c.clip();
-        SAGA_SCENES[k].sky(env);
+        if (fx.sky) fx.sky(env);
+        else SAGA_SCENES[k].sky(env);
+        fx.back?.(env);
         SAGA_SCENES[k].far(env);
+        fx.mid?.(env);
         SAGA_SCENES[k].near(env, Math.max(x0, 0), x1);
+        fx.ground?.(env, Math.max(x0, 0), x1);
         SAGA_DETAILS[k](env, Math.max(x0, 0), x1);
         c.restore();
       }
@@ -224,6 +234,20 @@ export default function PixelWorld({ signal, initialPos, goldHat = false, charac
       }
       drawSprite(c, sprite.rows, sx, sy, sprite.palette);
       if (goldHatRef.current) drawGoldHat(c, sx + sprite.goldHat.x, sy + sprite.goldHat.y, t);
+
+      // --- In front of the runner: foreground parallax, weather and each saga's light.
+      for (const { k, sx0, sx1 } of visible) {
+        const fx = SAGA_FX[k];
+        if (!fx.front && !fx.air && !fx.grade) continue;
+        c.save();
+        c.beginPath();
+        c.rect(sx0, 0, sx1 - sx0, H);
+        c.clip();
+        drawFront(fx, env);
+        fx.air?.(env);
+        fx.grade?.(env);
+        c.restore();
+      }
 
       // --- Throttled HUD updates.
       const idx = sagaIndexAt(r.pos);
