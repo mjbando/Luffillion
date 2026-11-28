@@ -11,7 +11,7 @@ import WantedPoster from "./WantedPoster";
 import RankedMenu from "./RankedMenu";
 import { PLAYABLE_CHARACTERS, characterById, type CharacterId } from "@/data/playable-characters";
 import { RETIRED_RECRUITS } from "@/data/roster";
-import { BOT_RP_FACTOR, BOUNTY_TITLES, nextBountyTitle, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
+import { BOT_RP_FACTOR, BOUNTY_TITLES, LEADERBOARD_SIZE, nextBountyTitle, RANK_TIERS, RANKED_MAX_TIER_GAP, RP_EVEN_DRAW, RP_EVEN_LOSS, RP_EVEN_WIN, rankTierFor } from "@/lib/ranked";
 
 /** After this long in the queue, offer a half-RP bot battle. */
 const BOT_OFFER_SECONDS = 10;
@@ -660,7 +660,7 @@ export default function RankedLobby({
             <div className="mb-3 flex items-center gap-2">
               <Trophy size={18} className="text-amber-300" />
               <div>
-                <p className="rk-eyebrow">SEASON 1 · TOP 50 CAPTAINS</p>
+                <p className="rk-eyebrow">SEASON 1 · TOP {LEADERBOARD_SIZE} CAPTAINS</p>
                 <h2 className="font-pixel-display text-xl text-white">Ranked Leaderboard</h2>
               </div>
             </div>
@@ -696,11 +696,11 @@ export default function RankedLobby({
               <p className="mt-2 text-center text-sm text-slate-400">No ranked captains yet. Play the first match!</p>
             )}
             <div className="rk-board-head">
-              <span>4th – 50th</span>
-              <span>{Math.max(0, leaderboard.length - 3)} / 47</span>
+              <span>4th – {LEADERBOARD_SIZE}th</span>
+              <span>{Math.max(0, leaderboard.length - 3)} / {LEADERBOARD_SIZE - 3}</span>
             </div>
             <ol className="rk-board-list">
-              {Array.from({ length: 47 }, (_, i) => {
+              {Array.from({ length: LEADERBOARD_SIZE - 3 }, (_, i) => {
                 const place = i + 4;
                 const entry = leaderboard[place - 1];
                 if (!entry) {

@@ -926,3 +926,14 @@ button.rk-wanted:hover, button.rk-wanted:focus-visible { transform: translate(-2
 .rk-poster-name .rk-ladder-tag { font-size: 16px; }
 .rk-poster-name .rk-ladder-tag:not(.is-king) { color: #2a180b; border-color: #2a180b66; background: transparent; }
 .rk-podium-name .rk-ladder-tag { display: flex; justify-content: center; width: fit-content; max-width: 100%; margin: 3px auto 0; white-space: normal; text-align: center; font-size: 13px; line-height: 14px; }
+
+/* "#N" ladder chip for places 2–25: no box, just the captain's rank color. */
+.rk-ladder-chip {
+  display: inline-block; margin-left: 5px; padding: 0 4px; vertical-align: middle; white-space: nowrap;
+  font-family: "Pixelify Sans", monospace; font-size: 12px; font-weight: 700; line-height: 15px;
+  color: var(--chip, #cbd5e1);
+  background: color-mix(in srgb, var(--chip, #cbd5e1) 16%, transparent);
+  border-radius: 2px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .55);
+}
+.rk-poster-name .rk-ladder-chip { font-size: 15px; line-height: 18px; text-shadow: none; color: #2a180b; background: color-mix(in srgb, var(--chip, #2a180b) 40%, transparent); }

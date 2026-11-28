@@ -77,6 +77,9 @@ export interface PlayerDeltaBreakdown {
 
 // ---------- Bounty (Season 1) ----------
 // Bounty only comes from winning ranked battles (bot battles included) and never goes down.
+/** How many captains the ranked leaderboard (and the "#N Ranked" tags) covers. */
+export const LEADERBOARD_SIZE = 25;
+
 export const BOUNTY_PER_WIN = 10_000;
 /** Extra bounty for winning without losing a single life. */
 export const BOUNTY_FLAWLESS_BONUS = 5_000;

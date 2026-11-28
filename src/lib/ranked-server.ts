@@ -27,6 +27,7 @@ import {
   RANKED_TIER_BONUS_SECONDS,
   RANK_TIERS,
   RANKED_MAX_TIER_GAP,
+  LEADERBOARD_SIZE,
   botDifficulty,
   botStyle,
   bountyTitle,
@@ -781,7 +782,7 @@ async function fetchLeaderboard(tx: Tx, viewerId: string | null): Promise<Ranked
     .leftJoin(adventureProgress, eq(adventureProgress.accountId, accounts.id))
     .where(ladderEligible())
     .orderBy(desc(rankedProfiles.points), desc(rankedProfiles.wins), accounts.username)
-    .limit(50);
+    .limit(LEADERBOARD_SIZE);
 
   return rows.map((row, idx) => {
     const tier = rankTierFor(row.points);

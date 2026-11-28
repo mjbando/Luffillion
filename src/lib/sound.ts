@@ -1154,21 +1154,44 @@ export function playBeam(): void {
   playNoise(ctx, out, t, 0.38, 0.7, 0.14, "bandpass", 3000, 200); // blast roar
 }
 
-/** Ranked victory: timpani roll into a soaring brass fanfare. */
+/**
+ * Ranked victory: a timpani roll, a cymbal-crashing brass fanfare (da-da-da-DAAA, then a
+ * triumphant answer phrase), a roaring crowd cheer and a sparkle of treasure bells.
+ */
 export function playVictory(): void {
   const a = arena();
   if (!a) return;
   const { ctx, out, wet, t } = a;
-  for (let i = 0; i < 8; i++) taiko(ctx, out, t, i * 0.045, 0.12 + i * 0.02, 0.9);
-  impact(ctx, out, wet, t, 0.8, 0.38);
-  crash(ctx, out, wet, t, 0.38, 0.1, 2);
-  const line: [number, number, number][] = [[246.94, 0.38, 0.16], [329.63, 0.54, 0.16], [415.3, 0.7, 0.16], [493.88, 0.86, 0.9]];
-  for (const [f, at, d] of line) {
-    brass(ctx, out, t, [f, f / 2], at, d, 0.05, 2600, 0.015);
+  // Timpani roll building into the first hit.
+  for (let i = 0; i < 10; i++) taiko(ctx, out, t, i * 0.04, 0.12 + i * 0.025, 0.9);
+  impact(ctx, out, wet, t, 0.9, 0.4);
+  crash(ctx, out, wet, t, 0.4, 0.13, 2.2);
+  // Call: B3 – E4 – G#4 – B4 (held).
+  const call: [number, number, number][] = [[246.94, 0.4, 0.15], [329.63, 0.56, 0.15], [415.3, 0.72, 0.15], [493.88, 0.88, 0.62]];
+  // Answer: C#5 – B4 – E5 (big final note).
+  const answer: [number, number, number][] = [[554.37, 1.52, 0.14], [493.88, 1.68, 0.14], [659.25, 1.84, 1.5]];
+  for (const [f, at, d] of [...call, ...answer]) {
+    brass(ctx, out, t, [f, f / 2], at, d, 0.06, 2800, 0.015);
     playTone(ctx, wet, t, { freq: f * 2, start: at, dur: d, type: "triangle", vol: 0.05 });
   }
-  brass(ctx, out, t, [164.81, 246.94, 329.63, 415.3], 0.86, 1.1, 0.03, 2200, 0.05); // E major bed
-  playTone(ctx, wet, t, { freq: 987.77, start: 0.86, dur: 1.2, type: "sine", vol: 0.05 });
+  brass(ctx, out, t, [164.81, 246.94, 329.63, 415.3], 0.88, 0.62, 0.032, 2200, 0.04); // E major
+  brass(ctx, out, t, [220, 277.18, 329.63, 440], 1.52, 0.3, 0.03, 2200, 0.03); // A major lift
+  // Final chord: E major, full and wide, with a second cymbal and timpani hits.
+  taiko(ctx, out, t, 1.48, 0.38, 1);
+  taiko(ctx, out, t, 1.66, 0.38, 1);
+  impact(ctx, out, wet, t, 1, 1.84);
+  crash(ctx, out, wet, t, 1.84, 0.14, 2.6);
+  brass(ctx, out, t, [82.41, 164.81, 246.94, 329.63, 415.3, 493.88], 1.84, 1.6, 0.036, 2600, 0.04);
+  brass(ctx, wet, t, [659.25, 830.61, 987.77], 1.88, 1.5, 0.02, 3400, 0.08);
+  playTone(ctx, wet, t, { freq: 1318.51, start: 1.9, dur: 1.6, type: "sine", vol: 0.05 });
+  // Crowd cheer: a swelling, filtered roar under the fanfare.
+  playNoise(ctx, out, t, 0.42, 2.6, 0.07, "bandpass", 900, 1500);
+  playNoise(ctx, wet, t, 0.5, 2.8, 0.06, "bandpass", 1600, 2400);
+  // Treasure sparkle: rising bells over the last chord.
+  [1318.51, 1661.22, 1975.53, 2637.02].forEach((f, i) => {
+    playTone(ctx, wet, t, { freq: f, start: 2.0 + i * 0.07, dur: 0.6, type: "sine", vol: 0.045, attack: 0.003 });
+    playTone(ctx, out, t, { freq: f * 2, start: 2.0 + i * 0.07, dur: 0.18, type: "triangle", vol: 0.015, attack: 0.002 });
+  });
 }
 
 /** Ranked defeat: a heavy toll and a sinking minor brass line. */

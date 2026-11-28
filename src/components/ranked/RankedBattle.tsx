@@ -301,17 +301,21 @@ export default function RankedBattle({
     setBattleMusicIntensity(showdownMusic ? 1 : 0);
   }, [showdownMusic]);
 
-  // Victory fanfare after the dust settles.
+  // Victory fanfare (or defeat toll) after the dust settles. The timer lives in a ref so the
+  // lobby's polling (a fresh match.result every second) can't cancel it before it plays;
+  // it's only cancelled if you leave the battle screen.
+  const outcomeSoundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (outcomeSoundTimer.current) clearTimeout(outcomeSoundTimer.current); }, []);
+  const finishedOutcome = match.status === "finished" ? match.result?.outcome : undefined;
   useEffect(() => {
-    if (match.status !== "finished" || !match.result) return;
-    if (finishedSoundRef.current === match.id) return;
+    if (!finishedOutcome || finishedSoundRef.current === match.id) return;
     finishedSoundRef.current = match.id;
-    const outcome = match.result.outcome;
-    if (outcome === "win" || outcome === "loss") {
-      const id = setTimeout(outcome === "win" ? playVictory : playDefeat, 900);
-      return () => clearTimeout(id);
-    }
-  }, [match.status, match.id, match.result]);
+    if (finishedOutcome !== "win" && finishedOutcome !== "loss") return;
+    outcomeSoundTimer.current = setTimeout(() => {
+      outcomeSoundTimer.current = null;
+      if (finishedOutcome === "win") playVictory(); else playDefeat();
+    }, 900);
+  }, [finishedOutcome, match.id]);
 
   function submit(e: FormEvent) {
     e.preventDefault();
