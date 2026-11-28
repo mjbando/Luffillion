@@ -364,3 +364,8 @@
 .rail-square.is-muted .ps-mute { animation: ps-mute-in .25s steps(2); }
 @keyframes ps-mute-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pixel-speaker .ps-wave, .rail-square.is-muted .ps-mute { animation: none !important; } }
+
+/* Ads: quiet, labelled, and gone when unfilled. */
+.ad-slot { margin-top: 1rem; border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 0.6rem; }
+.ad-slot-label { margin-bottom: 0.35rem; font-size: 0.75rem; letter-spacing: 0.3em; color: rgb(100 116 139); }
+.ad-slot:has(ins.adsbygoogle[data-ad-status="unfilled"]) { display: none; }
