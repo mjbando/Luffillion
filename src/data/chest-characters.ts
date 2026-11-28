@@ -165,8 +165,8 @@ const LEGENDARY = [
 ] as const satisfies readonly Row[];
 
 const MYTHIC = [
-  ["prime-garp", "Garp · Prime", "Prime Garp", "Hero of the Marines", "#ffffff", "Young Garp at God Valley, punching a galaxy wide open."],
-  ["prime-rayleigh", "Rayleigh · Prime", "Prime Rayleigh", "Right Hand of the King", "#b7ffe9", "Prime Rayleigh, the Dark King of the Roger Pirates."],
+  ["prime-garp", "Monkey D. Garp", "Garp", "Hero of the Marines", "#ffffff", "Young Garp at God Valley, punching a galaxy wide open."],
+  ["prime-rayleigh", "Silvers Rayleigh", "Rayleigh", "Right Hand of the King", "#b7ffe9", "The Dark King, right hand of the Roger Pirates at the height of his power."],
   ["rocks-d-xebec", "Rocks D. Xebec", "Rocks", "Captain of the Rocks", "#ff4d6d", "The pirate who almost ruled the world, and whose crew made the Emperors."],
   ["imu", "Imu", "Imu", "Sovereign of the Empty Throne", "#c06bff", "The hidden ruler of the world, with glowing eyes and a crown of shadow."],
   ["joy-boy", "Joy Boy", "Joy Boy", "Warrior of Liberation", "#fff3a6", "A laughing silhouette from the Void Century, sword raised high."],
@@ -182,7 +182,7 @@ const MYTHIC = [
   ["big-mom-full", "Big Mom", "Big Mom", "Mother of All Souls", "#ff7ac8", "Zeus and Prometheus at her side, with her soul set to rampage."],
   ["luffy-gear-5-bajrang", "Luffy · Gear 5", "Gear 5 Luffy", "Sun God Nika", "#fff6c9", "Cloud-white hair, a purple sash, and the drums of liberation pounding."],
   ["zoro-conqueror", "Zoro", "Zoro", "King of Hell", "#30ff8a", "All three blades coated in Advanced Conqueror's Haki."],
-  ["roger-prime", "Gol D. Roger · Prime", "Prime Roger", "The Pirate King", "#ffcc33", "Ace in his hand and the world in his laugh. The man who reached Laugh Tale."],
+  ["roger-prime", "Gol D. Roger", "Roger", "The Pirate King", "#ffcc33", "Ace in his hand and the world in his laugh. The man who reached Laugh Tale."],
   ["whitebeard-quake", "Whitebeard", "Whitebeard", "World's Strongest Man", "#e8f6ff", "A bisento and a fist that splits the air."],
   ["dragon-full", "Monkey D. Dragon", "Dragon", "World's Worst Criminal", "#5cff9d", "The leader of the Revolutionary Army, with storms at his command."],
   ["mihawk-strongest", "Mihawk", "Mihawk", "Greatest Swordsman", "#ffd24a", "One swing of Yoru splits glaciers. No one stands above him."],
