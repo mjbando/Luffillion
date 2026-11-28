@@ -13,7 +13,6 @@ export const FORMER_ACHIEVEMENT_RARITY: Partial<Record<AchievementCharacterId, C
   robin: "uncommon",
   zoro: "rare",
   sanji: "rare",
-  jinbe: "rare",
   ace: "epic",
 };
 
@@ -22,6 +21,18 @@ export const FORMER_ACHIEVEMENT_RARITY: Partial<Record<AchievementCharacterId, C
  * they never drop from chests or codes and aren't listed, but captains who already earned one keep it.
  */
 export const RETIRED_RECRUITS: ReadonlySet<string> = new Set(["law", "rayleigh", "whitebeard", "shanks", "kaido", "roger", "gear-5"]);
+
+/**
+ * Former recruits replaced by a newer version of the same character. The old one is gone from the
+ * game; captains who had it own the replacement instead (scripts/migrate-treasure-shop.sql also
+ * hands it over in the database and re-equips it).
+ */
+export const REPLACED_RECRUITS: Readonly<Partial<Record<CharacterId, CharacterId>>> = { jinbe: "jinbe-warlord" };
+
+/** The current version of a character id (the replacement for a replaced recruit). */
+export function currentCharacterId(id: CharacterId): CharacterId {
+  return REPLACED_RECRUITS[id] ?? id;
+}
 
 export interface RosterEntry {
   id: CharacterId;
@@ -56,5 +67,5 @@ export function rosterEntry(id: string): RosterEntry | undefined {
 
 /** Former achievement recruits (retired ones included): ownership still counts for these. */
 export function isFormerAchievementCharacter(id: string): boolean {
-  return id in FORMER_ACHIEVEMENT_RARITY || RETIRED_RECRUITS.has(id);
+  return id in FORMER_ACHIEVEMENT_RARITY || RETIRED_RECRUITS.has(id) || id in REPLACED_RECRUITS;
 }

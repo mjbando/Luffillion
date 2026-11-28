@@ -543,6 +543,19 @@ const PAINTERS: Partial<Record<LegendaryArtId, Painter>> = {
     d.f(cx - 5, hy + 11, 10, 1, "#c89a20");
     // Bare shoulders and the black-and-white striped overalls with yellow buckles.
     d.recolor("#f2f2f2", 0, ty, d.W, d.p.height - ty, (x) => Math.floor((x - tc + 40) / 4) % 2 === 0 ? "#1e1e28" : null);
+    // His huge round belly: it bulges past his sides (behind the arms) and sags over his legs.
+    const by = ty + th - 3, rx = tw / 2 + 7, ry = 12;
+    d.asBody(() => {
+      for (let y = by - ry - 1; y <= by + ry + 1; y++) for (let x = tc - rx - 1; x <= tc + rx; x++) {
+        const nx = (x + 0.5 - tc) / rx, ny = (y + 0.5 - by) / ry, r2 = nx * nx + ny * ny;
+        const ex = (x + 0.5 - tc) / (rx + 1), ey = (y + 0.5 - by) / (ry + 1);
+        if (r2 > 1 && ex * ex + ey * ey > 1) continue;
+        const bend = tc + (x + 0.5 - tc) * (1 + 0.45 * Math.min(1, r2)); // stripes curve round the belly
+        const stripe = Math.floor((bend - tc + 40) / 4) % 2 === 0 ? "#1e1e28" : "#f2f2f2";
+        const c = r2 > 1 ? ink : nx < -0.35 && ny < -0.2 && r2 > 0.55 ? shade(stripe, 0.25) : ny > 0.55 || (nx > 0.6 && r2 > 0.6) ? shade(stripe, -0.28) : stripe;
+        if (y >= ty + th - 2 || (x > tx && x < tx + tw - 1)) d.d(x, y, c); else d.u(x, y, 1, 1, c);
+      }
+    });
     d.r(tx + 1, ty, tw - 2, 5, d.sk).r(tc - 4, ty + 3, 8, 2, shade(d.sk, -0.2));
     for (const x of [tx + 3, tx + tw - 6]) d.r(x, ty, 3, 6, "#1e1e28").r(x, ty + 5, 3, 3, "#f0c040").d(x + 1, ty + 6, "#8a6a10");
     d.line(tc - 2, ty + 1, tc + 2, ty + 4, "#a85a4a"); // stitched scar

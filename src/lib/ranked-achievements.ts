@@ -74,7 +74,7 @@ export function rewardChestLabel(source: string, ref: string): string {
 export type RankedBerryGoal = "wins" | "comeback" | "day-most-wanted" | "day-top3" | "luffillion" | "giant-slayer" | "showdowns" | "crew" | "straw-hats";
 
 /** The base version of every Straw Hat: owning all of them earns "Straw Hat Crew". */
-export const STRAW_HAT_CREW = ["luffy", "zoro", "nami", "usopp", "sanji", "chopper", "robin", "franky", "brook", "jinbe"] as const;
+export const STRAW_HAT_CREW = ["luffy", "zoro", "nami", "usopp", "sanji", "chopper", "robin", "franky", "brook", "jinbe-warlord"] as const;
 export interface RankedBerryAchievementDef {
   id: string;
   title: string;

@@ -1,6 +1,6 @@
 import type { ChestCharacterId } from "@/data/chest-characters";
 
-type Hair = "short" | "bald" | "long" | "spiky" | "afro" | "slick" | "mohawk" | "bun" | "pony" | "wild" | "twin" | "fringe" | "topknot" | "curly" | "pomp" | "three" | "flame" | "none";
+type Hair = "short" | "bald" | "long" | "spiky" | "afro" | "slick" | "mohawk" | "bun" | "pony" | "wild" | "twin" | "fringe" | "topknot" | "curly" | "pomp" | "three" | "flame" | "knotcurl" | "none";
 type Hat = "straw" | "pirate" | "bicorne" | "marine" | "bandana" | "top" | "crown" | "cap" | "beanie" | "helmet" | "wide" | "hood" | "bonnet" | "jester" | "plume" | "turban" | "tall" | "goat";
 type Weapon = "katana" | "katana2" | "katana3" | "greatsword" | "club" | "staff" | "spear" | "trident" | "bisento" | "gun" | "hook" | "axe" | "claws" | "cane" | "tonfa" | "bat" | "umbrella" | "blades" | "whip" | "knife" | "brush" | "fork" | "jitte";
 
@@ -84,10 +84,10 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   "robin-miss-all-sunday": { h: "#232a3a", hs: "long", t: "#f2f2f2", l: "#f2f2f2", hat: "wide", hc: "#c8a0e0", coat: "#e8e8f0" },
   franky: { b: "big", h: "#46b8ff", hs: "pomp", t: "#e84a4a", l: "#3a5a8a", hand: "#c0c8d4", x: ["shades:#1a1d28", "open:#f4c69c"] },
   brook: { sk: BONE, h: "#1e1e28", hs: "afro", t: "#2a2d3a", l: "#2a2d3a", hat: "top", hc: "#1e1e28", x: ["sockets", "tie:#e04060"], w: "cane", wc: "#d0c0a0" },
-  "jinbe-warlord": { b: "big", sk: "#5aa0d0", h: "#1e2a40", hs: "slick", t: "#3a5aa8", l: "#2a3a5a", x: ["sash:#f0c040", "grin"] },
+  "jinbe-warlord": { b: "giant", sk: "#62aee2", h: "#17161e", hs: "knotcurl", t: "#f2c232", l: "#f2c232", sh: "#62aee2", hand: "#62aee2", coat: "#e8622c", x: ["tusks:#f4ecd8", "sash:#4cae3a", "open:#62aee2"] },
   smoker: { h: "#e0e6ee", hs: "short", t: "#3a3f52", l: "#3a5a8a", coat: "#f2f4f7", x: ["cigar", "smoke:#e0e6ee"], w: "jitte", wc: "#3a3f52" },
   tashigi: { h: "#232a3a", hs: "short", t: "#3a5a8a", l: "#3a5a8a", x: ["glasses:#c0d0f0"], w: "katana" },
-  crocodile: { h: "#232a3a", hs: "slick", t: "#4a4a5a", l: "#3a3f52", coat: "#2a2d3a", x: ["scar:#d08a7a", "cigar", "smoke:#d8c08a"], w: "hook" },
+  crocodile: { b: "big", sk: "#d9ae88", h: "#18171e", hs: "slick", t: "#26252c", sl: "#1c1b22", l: "#66665e", sh: "#1c1b22", coat: "#1c1b22", x: ["hscar:#9a6250", "cigar", "^tie:#9ad46a"], w: "hook", wc: "#e8c23a" },
   "daz-bones": { sk: TAN, h: "#2a2d3a", hs: "bald", t: "#3a3f52", l: "#3a3f52", hand: "#bfc8d4", x: ["shades:#3a3f52"], w: "blades" },
   "bon-clay": { h: "#2a2d3a", hs: "short", t: "#ff8cc6", l: "#ff8cc6", coat: "#f2f2f2", x: ["lips:#e04070", "^wings:#f2f2f2"] },
   enel: { h: "#f0e8c8", hs: "bald", t: "#f2f2f2", l: "#f0c040", sk: "#f2d0a0", x: ["drums:#f2d24a", "spark:#ffe84a", "earrings:#f0c040"], w: "staff", wc: "#f2d24a" },
@@ -154,7 +154,7 @@ export const CHEST_LOOKS: Record<ChestCharacterId, Look> = {
   jozu: { b: "giant", h: "#2a2d3a", hs: "bald", t: "#c9e8ff", l: "#3a3f52", hand: "#c9e8ff", x: ["goatee:#2a2d3a"] },
   vista: { h: "#2a2d3a", hs: "short", t: "#f2f2f2", l: "#3a3f52", hat: "top", hc: "#2a2d3a", x: ["stache:#2a2d3a", "fire:#ff8cae"], w: "katana2" },
   king: { b: "big", sk: DARK, h: "#f2f2f2", hs: "long", t: "#2a2d3a", l: "#2a2d3a", x: ["mask:#2a2d3a", "^wings:#1e1e28", "fire:#ff8a3a"], w: "katana" },
-  queen: { b: "giant", h: "#2a2d3a", hs: "pomp", t: "#7cc96c", l: "#3a3f52", hand: "#c0c8d4", x: ["shades:#f0c040", "grin"] },
+  queen: { b: "giant", h: "#2a2d3a", hs: "pomp", t: "#7cc96c", l: "#3a3f52", hand: "#c0c8d4", x: ["belly:#7cc96c", "shades:#f0c040", "grin"] },
   jack: { b: "giant", sk: TAN, h: "#e8e0d0", hs: "slick", t: "#8f7a6a", l: "#3a3f52", x: ["^bighorns:#f2f2f2", "mask:#5a4a3a"], w: "hook" },
   katakuri: { b: "giant", h: "#b4386b", hs: "short", t: "#3a2a3a", l: "#3a2a3a", x: ["scarf:#e0d0c0", "xscar:#a05060"], w: "trident", wc: "#f2f2f2" },
   doflamingo: { b: "big", h: "#e8e070", hs: "short", t: "#f0f2ee", sl: "#f0f2ee", l: "#b8306a", sh: "#1e1a2a", coat: "#ffa8cc", x: ["shades:#e83a3a", "open:#e0a878", "grin"], ow: true },

@@ -72,6 +72,7 @@ function drawHair(f: Frame, style: Look["hs"], c: string) {
     case "pomp": p.r(hx, hy - 1, hw, 2, c).r(hx + hw - 4, hy - 3, 6, 3, c).r(hx + hw + 1, hy - 2, 2, 2, c); break;
     case "three": short(); p.r(cx - 2, hy - 4, 4, 1, c).r(cx + 1, hy - 4, 1, 4, c).r(cx - 2, hy - 2, 4, 1, c); break;
     case "flame": short(); for (let i = 0; i < hw; i += 2) p.r(hx + i, hy - 3 + (i % 4 ? 1 : 0), 2, 3, c); p.r(hx - 2, hy, 2, 5, c).r(hx + hw, hy, 2, 5, c); break;
+    case "knotcurl": p.r(hx, hy - 1, hw, 2, c).r(cx - 1, hy - 4, 2, 3, c).r(cx - 2, hy - 2, 4, 1, c).r(hx - 2, hy, 3, 5, c).r(hx + hw - 1, hy, 3, 5, c); break;
     case "none": break;
   }
 }
@@ -153,6 +154,7 @@ function drawExtra(f: Frame, spec: string, accent: string) {
     case "longnose": p.r(hx + hw - 1, hy + 5, 4, 1, a); break;
     case "saw": p.r(hx + hw - 1, hy + 4, 5, 2, a).r(hx + hw, hy + 6, 1, 1, white).r(hx + hw + 2, hy + 6, 1, 1, white); break;
     case "scar": p.r(hx + 2, hy + 2, 1, 4, a); break;
+    case "hscar": p.r(hx + 2, hy + 5, hw - 4, 1, a); break;
     case "xscar": p.r(cx - 2, hy + 2, 1, 1, a).r(cx - 1, hy + 3, 2, 1, a).r(cx + 1, hy + 2, 1, 1, a).r(cx - 2, hy + 4, 1, 1, a).r(cx + 1, hy + 4, 1, 1, a); break;
     case "mask": p.r(hx + 1, hy + 1, hw - 2, hh - 1, a).r(hx + 2, hy + 4, 2, 1, ink).r(hx + hw - 4, hy + 4, 2, 1, ink); break;
     case "killermask": p.r(hx, hy, hw, hh, a); for (let i = 1; i < hw; i += 2) p.r(hx + i, hy + 1, 1, hh - 2, b ?? "#d43c3c"); break;
@@ -184,6 +186,9 @@ function drawExtra(f: Frame, spec: string, accent: string) {
     case "bigfist": p.r(rx - 1, rhy - 3, 6, 6, ink).r(rx, rhy - 2, 4, 4, a); break;
     case "bajrang": p.r(rx - 3, rhy - 10, 9, 9, ink).r(rx - 2, rhy - 9, 7, 7, a).r(rx - 1, rhy - 8, 2, 2, shade(a, 0.5)); break;
     case "tattoo": p.r(hx + 1, hy + 3, 2, 3, a); break;
+    case "tusks": p.r(hx + 1, hy + hh - 3, 1, 2, a).r(hx + hw - 2, hy + hh - 3, 1, 2, a); break;
+    case "belly": p.under(tx - 2, ty + 3, tw + 4, th - 2, ink).under(tx - 1, ty + 4, tw + 2, th - 4, a)
+      .r(tx + 1, ty + th - 1, tw - 2, 3, ink).r(tx + 2, ty + th - 1, tw - 4, 2, a).r(tx + 2, ty + th, tw - 4, 1, shade(a, -0.2)); break;
     case "lips": p.r(cx - 1, hy + 6, 2, 1, a); break;
     case "grin": p.r(cx - 2, hy + 6, 4, 1, white).r(cx - 1, hy + 6, 1, 1, ink); break;
     case "earrings": p.r(hx - 1, hy + 6, 1, 1, a).r(hx + hw, hy + 6, 1, 1, a); break;

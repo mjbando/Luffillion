@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
-import { isFormerAchievementCharacter } from "@/data/roster";
+import { currentCharacterId, isFormerAchievementCharacter } from "@/data/roster";
 import { PLAYABLE_CHARACTERS } from "@/data/playable-characters";
 import { isChestCharacterId } from "@/data/chest-characters";
 import { db } from "@/db";
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
           || (isFormerAchievementCharacter(character.id) && chestIds.has(character.id)))
         .map((character) => character.id),
       ...[...chestIds].filter(isChestCharacterId),
-    ];
+    ].map(currentCharacterId).filter((id, i, all) => all.indexOf(id) === i);
 
     const unopenedChests = await listUnopenedChests(db, captain.id);
     return privateJson({ coins: account.coins, unlockedCharacterIds, recentOpenings, unopenedChests });

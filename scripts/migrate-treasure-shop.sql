@@ -127,4 +127,14 @@ CREATE TABLE IF NOT EXISTS code_redemptions (
   PRIMARY KEY (account_id, code)
 );
 
+-- The old achievement Jinbe was replaced by the Straw Hat Jinbe (jinbe-warlord). Captains who had
+-- the old one (through the Grand Line Explorer achievement or a chest) get the new one, and anyone
+-- wearing the old one now wears the new one.
+INSERT INTO character_unlocks (account_id, character_id, source)
+  SELECT account_id, 'jinbe-warlord', 'replaced' FROM achievement_unlocks WHERE achievement_id = 'grand-line-explorer'
+  UNION
+  SELECT account_id, 'jinbe-warlord', 'replaced' FROM character_unlocks WHERE character_id = 'jinbe'
+  ON CONFLICT DO NOTHING;
+UPDATE captain_accounts SET equipped_character = 'jinbe-warlord' WHERE equipped_character = 'jinbe';
+
 COMMIT;

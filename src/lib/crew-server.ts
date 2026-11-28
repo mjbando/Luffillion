@@ -7,7 +7,7 @@ import { ACHIEVEMENTS } from "./achievements";
 import { evaluateAchievementsFor } from "./achievements-server";
 import { RequestProblem } from "./account-server";
 import { UPDATE_LIVE } from "./release";
-import { isFormerAchievementCharacter, rosterEntry } from "@/data/roster";
+import { REPLACED_RECRUITS, currentCharacterId, isFormerAchievementCharacter, rosterEntry } from "@/data/roster";
 
 type Reader = Pick<typeof db, "select">;
 
@@ -25,15 +25,26 @@ async function ownsFormerRecruit(reader: Reader, accountId: string, characterId:
   return !!found;
 }
 
+/** Owns the old version of a character that `characterId` replaced (see REPLACED_RECRUITS). */
+async function ownsReplacedRecruit(reader: Reader, accountId: string, characterId: CharacterId) {
+  if (!UPDATE_LIVE) return false;
+  for (const [oldId, newId] of Object.entries(REPLACED_RECRUITS)) {
+    const old = characterById(oldId);
+    if (newId === characterId && old.achievementId && await ownsFormerRecruit(reader, accountId, old.id, old.achievementId)) return true;
+  }
+  return false;
+}
+
 export async function equippedCharacterFor(accountId: string): Promise<CharacterId> {
   const [account] = await db.select({ equipped: accounts.equippedCharacter, usernameKey: accounts.usernameKey }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
-  const chosen = characterById(account?.equipped);
+  let chosen = characterById(account?.equipped);
+  if (UPDATE_LIVE) chosen = characterById(currentCharacterId(chosen.id));
   if (chosen.id === "gear-6") return account?.usernameKey === "luffy" ? chosen.id : DEFAULT_CHARACTER;
   if (isChestCharacter(chosen)) {
     if (!UPDATE_LIVE) return DEFAULT_CHARACTER;
     const [chestUnlock] = await db.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
       .where(and(eq(characterUnlocks.accountId, accountId), eq(characterUnlocks.characterId, chosen.id))).limit(1);
-    return chestUnlock ? chosen.id : DEFAULT_CHARACTER;
+    return chestUnlock || await ownsReplacedRecruit(db, accountId, chosen.id) ? chosen.id : DEFAULT_CHARACTER;
   }
   if (!chosen.achievementId) return DEFAULT_CHARACTER;
   return (await ownsFormerRecruit(db, accountId, chosen.id, chosen.achievementId)) ? chosen.id : DEFAULT_CHARACTER;
@@ -43,7 +54,7 @@ export async function chestUnlockedCharactersFor(accountId: string): Promise<Cha
   if (!UPDATE_LIVE) return [];
   const rows = await db.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
     .where(eq(characterUnlocks.accountId, accountId));
-  return rows.map((row) => row.id).filter((id): id is CharacterId => isChestCharacterId(id) || isFormerAchievementCharacter(id));
+  return [...new Set(rows.map((row) => row.id).filter((id): id is CharacterId => isChestCharacterId(id) || isFormerAchievementCharacter(id)).map(currentCharacterId))];
 }
 
 /** Treasure update: every character this captain can equip, decided on the server. */
@@ -55,16 +66,19 @@ export async function ownedCharacterIdsFor(accountId: string): Promise<Character
   ]);
   const earnedIds = new Set(earned.map((row) => row.id));
   const foundIds = new Set(found.map((row) => row.id));
-  return [
+  const owned: CharacterId[] = [
     ...PLAYABLE_CHARACTERS.filter((c) => c.id === "gear-6" ? account?.usernameKey === "luffy"
       : !c.achievementId || earnedIds.has(c.achievementId) || (UPDATE_LIVE && foundIds.has(c.id))).map((c) => c.id),
     ...(UPDATE_LIVE ? [...foundIds].filter(isChestCharacterId) : []),
   ];
+  // A replaced recruit (the old Jinbe) counts as its replacement.
+  return UPDATE_LIVE ? [...new Set(owned.map(currentCharacterId))] : owned;
 }
 
 export async function equipCharacter(accountId: string, id: unknown) {
   if (!isCharacterId(id)) throw new RequestProblem(400, "Choose a character from the crew collection.");
   if (!UPDATE_LIVE && isChestCharacter(characterById(id))) throw new RequestProblem(400, "Choose a character from the crew collection.");
+  if (UPDATE_LIVE && REPLACED_RECRUITS[id]) throw new RequestProblem(400, "Choose a character from the crew collection.");
   return db.transaction(async tx => {
     const [account] = await tx.select({ id: accounts.id, usernameKey: accounts.usernameKey }).from(accounts).where(eq(accounts.id, accountId)).for("update");
     if (!account) throw new RequestProblem(401, "Sign in again to choose your character.");
@@ -76,7 +90,7 @@ export async function equipCharacter(accountId: string, id: unknown) {
     if (isChestCharacter(character)) {
       const [chestUnlock] = await tx.select({ id: characterUnlocks.characterId }).from(characterUnlocks)
         .where(and(eq(characterUnlocks.accountId, accountId), eq(characterUnlocks.characterId, character.id))).limit(1);
-      if (!chestUnlock) throw new RequestProblem(403, `Find ${character.name} in ${/^[AEIOU]/i.test(character.grade) ? "an" : "a"} ${character.grade} treasure chest first.`);
+      if (!chestUnlock && !(await ownsReplacedRecruit(tx, accountId, character.id))) throw new RequestProblem(403, `Find ${character.name} in ${/^[AEIOU]/i.test(character.grade) ? "an" : "a"} ${character.grade} treasure chest first.`);
     } else if (character.achievementId && UPDATE_LIVE) {
       // Achievements no longer recruit anyone: earlier recruits are kept, the rest come from chests.
       if (!(await ownsFormerRecruit(tx, accountId, character.id, character.achievementId))) {
